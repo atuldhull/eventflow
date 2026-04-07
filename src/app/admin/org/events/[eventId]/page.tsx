@@ -160,6 +160,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
               <div className="flex items-center gap-2 text-muted-foreground"><Globe className="h-4 w-4" /><span className="text-xs font-medium">Type & Category</span></div>
               <p className="text-sm font-medium">{event.type} · {event.category}</p>
             </Card>
+            {(event.settings as any)?.budgetAmount && (
+              <Card className="p-4 space-y-1">
+                <div className="flex items-center gap-2 text-muted-foreground"><span className="text-xs font-medium">Budget</span></div>
+                <p className="text-sm font-medium">₹{Number((event.settings as any).budgetAmount).toLocaleString("en-IN")}</p>
+                {(event.settings as any)?.budgetNotes && <p className="text-xs text-muted-foreground">{(event.settings as any).budgetNotes}</p>}
+              </Card>
+            )}
           </div>
 
           {event.description && (

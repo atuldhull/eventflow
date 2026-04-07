@@ -53,6 +53,7 @@ const EVENT_TYPES = [
   { value: "MULTI_DAY", label: "Multi-Day", description: "Spans multiple days", icon: Calendar },
   { value: "VIRTUAL", label: "Virtual", description: "Fully online event", icon: Monitor },
   { value: "HYBRID", label: "Hybrid", description: "Both in-person and online", icon: Globe },
+  { value: "RECURRING", label: "Recurring", description: "Repeats on a schedule (weekly, monthly)", icon: Calendar },
 ]
 
 const CATEGORIES = [
@@ -118,6 +119,11 @@ const wizardSchema = z.object({
   minTeamSize: z.string().optional().or(z.literal("")),
   maxTeamSize: z.string().optional().or(z.literal("")),
   allowedEmailDomains: z.string().optional().or(z.literal("")),
+  recurrencePattern: z.string().optional().or(z.literal("")),
+  recurrenceCount: z.string().optional().or(z.literal("")),
+  budgetAmount: z.string().optional().or(z.literal("")),
+  budgetNotes: z.string().optional().or(z.literal("")),
+  maxGuestsPerRegistration: z.string().optional().or(z.literal("")),
   // Step 5
   coverImage: z.string().optional().or(z.literal("")),
   rules: z.string().optional().or(z.literal("")),
@@ -240,7 +246,12 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
         sessions: [],
         gallery: [],
         seoKeywords: [],
-        settings: values.allowedEmailDomains ? { allowedEmailDomains: values.allowedEmailDomains } : undefined,
+        settings: {
+          ...(values.allowedEmailDomains ? { allowedEmailDomains: values.allowedEmailDomains } : {}),
+          ...(values.recurrencePattern ? { recurrencePattern: values.recurrencePattern, recurrenceCount: parseInt(values.recurrenceCount || "1") } : {}),
+          ...(values.budgetAmount ? { budgetAmount: parseFloat(values.budgetAmount), budgetNotes: values.budgetNotes || "" } : {}),
+          ...(values.maxGuestsPerRegistration ? { maxGuestsPerRegistration: parseInt(values.maxGuestsPerRegistration) } : {}),
+        },
         status: "DRAFT",
       }
 
@@ -299,7 +310,12 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
         sessions: [],
         gallery: [],
         seoKeywords: [],
-        settings: values.allowedEmailDomains ? { allowedEmailDomains: values.allowedEmailDomains } : undefined,
+        settings: {
+          ...(values.allowedEmailDomains ? { allowedEmailDomains: values.allowedEmailDomains } : {}),
+          ...(values.recurrencePattern ? { recurrencePattern: values.recurrencePattern, recurrenceCount: parseInt(values.recurrenceCount || "1") } : {}),
+          ...(values.budgetAmount ? { budgetAmount: parseFloat(values.budgetAmount), budgetNotes: values.budgetNotes || "" } : {}),
+          ...(values.maxGuestsPerRegistration ? { maxGuestsPerRegistration: parseInt(values.maxGuestsPerRegistration) } : {}),
+        },
         status: "PUBLISHED",
       }
 
@@ -518,6 +534,34 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
                 </div>
               )}
             </Card>
+
+            {/* Recurring Event Config */}
+            {eventType === "RECURRING" && (
+              <Card className="p-6 space-y-4">
+                <h3 className="text-sm font-medium">Recurrence Settings</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Repeat Pattern</Label>
+                    <Select value={watch("recurrencePattern") || ""} onValueChange={(v) => setValue("recurrencePattern", v || "")}>
+                      <SelectTrigger><SelectValue placeholder="Select pattern" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DAILY">Daily</SelectItem>
+                        <SelectItem value="WEEKLY">Weekly</SelectItem>
+                        <SelectItem value="BIWEEKLY">Every 2 Weeks</SelectItem>
+                        <SelectItem value="MONTHLY">Monthly</SelectItem>
+                        <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Number of Occurrences</Label>
+                    <Input type="number" min={2} max={52} placeholder="e.g., 6" {...register("recurrenceCount")} />
+                    <p className="text-xs text-muted-foreground">How many times this event repeats</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Each occurrence will be created as a separate event linked to a parent. Dates will be auto-calculated from the start date.</p>
+              </Card>
+            )}
           </div>
         )}
 
@@ -576,12 +620,32 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
             </Card>
 
             <Card className="p-6 space-y-4">
-              <h3 className="text-sm font-medium">Access Restrictions</h3>
+              <h3 className="text-sm font-medium">Access & Guest Settings</h3>
               <div className="space-y-2">
                 <Label>Allowed Email Domains</Label>
                 <Input placeholder="e.g., technova.com, company.org (comma-separated, leave blank for any)" {...register("allowedEmailDomains")} />
                 <p className="text-xs text-muted-foreground">Only users with these email domains can register. Leave blank to allow all.</p>
               </div>
+              <div className="space-y-2">
+                <Label>Max Guests per Registration</Label>
+                <Input type="number" min={0} max={10} placeholder="0 (no guests allowed)" {...register("maxGuestsPerRegistration")} />
+                <p className="text-xs text-muted-foreground">Allow registrants to bring additional guests (e.g., family members for annual day). 0 = no guests.</p>
+              </div>
+            </Card>
+
+            <Card className="p-6 space-y-4">
+              <h3 className="text-sm font-medium">Budget Tracking</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Event Budget (₹)</Label>
+                  <Input type="number" placeholder="e.g., 500000" {...register("budgetAmount")} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Budget Notes</Label>
+                  <Input placeholder="e.g., Approved by CFO on March 1" {...register("budgetNotes")} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Track event budget for internal reporting. This is not visible to participants.</p>
             </Card>
           </div>
         )}
@@ -719,6 +783,10 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
                 <div className="flex justify-between"><span className="text-muted-foreground">Custom Fields</span><span>{customFields.length}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">FAQs</span><span>{faqs.length}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Sponsors</span><span>{sponsors.length}</span></div>
+                {watch("allowedEmailDomains") && <div className="flex justify-between"><span className="text-muted-foreground">Email Restriction</span><span className="text-xs">{watch("allowedEmailDomains")}</span></div>}
+                {watch("budgetAmount") && <div className="flex justify-between"><span className="text-muted-foreground">Budget</span><span>₹{parseInt(watch("budgetAmount") || "0").toLocaleString("en-IN")}</span></div>}
+                {watch("maxGuestsPerRegistration") && <div className="flex justify-between"><span className="text-muted-foreground">Max Guests</span><span>{watch("maxGuestsPerRegistration")} per registration</span></div>}
+                {watch("recurrencePattern") && <div className="flex justify-between"><span className="text-muted-foreground">Recurrence</span><span>{watch("recurrencePattern")} × {watch("recurrenceCount") || "1"}</span></div>}
               </div>
             </Card>
 

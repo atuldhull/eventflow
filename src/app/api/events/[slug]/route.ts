@@ -111,5 +111,13 @@ export async function GET(
     })
   }
 
-  return NextResponse.json({ success: true, data: event })
+  // Hide meeting link from public view — only show after registration
+  return NextResponse.json({
+    success: true,
+    data: {
+      ...event,
+      onlineLink: null, // Hidden until registered
+      onlinePassword: null,
+    },
+  })
 }

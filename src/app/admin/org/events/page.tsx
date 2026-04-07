@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
 import { Calendar, Plus, MoreHorizontal, Star, LayoutGrid, List } from "lucide-react"
 import Link from "next/link"
@@ -49,7 +49,7 @@ const statusColors: Record<string, string> = {
   CANCELLED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 }
 
-const columns: ColumnDef<EventRow, unknown>[] = [
+const staticColumns: ColumnDef<EventRow, unknown>[] = [
   {
     accessorKey: "title",
     header: "Event",
@@ -102,24 +102,6 @@ const columns: ColumnDef<EventRow, unknown>[] = [
     header: "Revenue",
     cell: ({ row }) => <span className="text-sm">{row.original.isPaid ? "Paid" : "Free"}</span>,
   },
-  {
-    id: "actions",
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-          <MoreHorizontal className="h-4 w-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}`} className="w-full">View Details</Link></DropdownMenuItem>
-          <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}/edit`} className="w-full">Edit</Link></DropdownMenuItem>
-          <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}/registrations`} className="w-full">Registrations</Link></DropdownMenuItem>
-          <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}/check-in`} className="w-full">Check-in</Link></DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive">Cancel Event</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
-  },
 ]
 
 export default function OrgEventsPage() {
@@ -164,6 +146,35 @@ export default function OrgEventsPage() {
   }, [currentOrganizationId, page, pageSize, debouncedSearch])
 
   useEffect(() => { fetchEvents() }, [fetchEvents])
+
+  const columns = useMemo<ColumnDef<EventRow, unknown>[]>(() => [
+    ...staticColumns,
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+            <MoreHorizontal className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}`} className="w-full">View Details</Link></DropdownMenuItem>
+            <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}/edit`} className="w-full">Edit</Link></DropdownMenuItem>
+            <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}/registrations`} className="w-full">Registrations</Link></DropdownMenuItem>
+            <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}/check-in`} className="w-full">Check-in</Link></DropdownMenuItem>
+            <DropdownMenuItem onClick={async () => {
+              if (!currentOrganizationId) return
+              const res = await fetch(`/api/admin/org/${currentOrganizationId}/events/${row.original.id}/duplicate`, { method: "POST" })
+              const json = await res.json()
+              if (json.success) { toast.success("Event duplicated as draft"); fetchEvents() }
+              else toast.error(json.message || "Failed to duplicate")
+            }}>Duplicate</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive">Cancel Event</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ], [currentOrganizationId, fetchEvents])
 
   return (
     <div className="space-y-6">

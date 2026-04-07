@@ -61,10 +61,13 @@ export default function AdminPage() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
         <Building2 className="h-12 w-12 text-muted-foreground/30 mb-4" />
-        <h2 className="text-xl font-semibold">No workspaces found</h2>
+        <h2 className="text-xl font-semibold">No workspaces yet</h2>
         <p className="text-sm text-muted-foreground mt-1 max-w-md">
-          You don&apos;t have access to any enterprises or organizations. Contact your administrator to get access.
+          Create your organization to start hosting events.
         </p>
+        <Link href="/admin/create-org" className={cn(buttonVariants(), "mt-4 gap-2")}>
+          <Building2 className="h-4 w-4" /> Create Organization
+        </Link>
       </div>
     )
   }

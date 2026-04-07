@@ -663,6 +663,24 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
               ))}
               <Button type="button" variant="outline" size="sm" onClick={() => setFaqs([...faqs, { question: "", answer: "" }])} className="gap-1"><Plus className="h-3.5 w-3.5" /> Add FAQ</Button>
             </Card>
+
+            <Card className="p-6 space-y-4">
+              <h3 className="text-sm font-medium">Sponsors</h3>
+              {sponsors.map((sp, i) => (
+                <div key={i} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Sponsor {i + 1}</Label>
+                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => setSponsors(sponsors.filter((_, j) => j !== i))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <Input placeholder="Sponsor name" value={sp.name} onChange={(e) => { const u = [...sponsors]; u[i] = { ...u[i], name: e.target.value }; setSponsors(u) }} />
+                    <Input placeholder="Tier (Title, Gold, Silver)" value={sp.tier} onChange={(e) => { const u = [...sponsors]; u[i] = { ...u[i], tier: e.target.value }; setSponsors(u) }} />
+                    <Input placeholder="Website URL" value={sp.website} onChange={(e) => { const u = [...sponsors]; u[i] = { ...u[i], website: e.target.value }; setSponsors(u) }} />
+                  </div>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => setSponsors([...sponsors, { name: "", tier: "GOLD", website: "" }])} className="gap-1"><Plus className="h-3.5 w-3.5" /> Add Sponsor</Button>
+            </Card>
           </div>
         )}
 
@@ -686,6 +704,7 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
                 <div className="flex justify-between"><span className="text-muted-foreground">Pricing</span><span>{isPaid ? "Paid" : "Free"}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Custom Fields</span><span>{customFields.length}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">FAQs</span><span>{faqs.length}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Sponsors</span><span>{sponsors.length}</span></div>
               </div>
             </Card>
 

@@ -74,6 +74,19 @@ export async function POST(
   }
 
   try {
+    // Check plan limits
+    const orgForLimits = await prisma.organization.findUnique({ where: { id: orgId }, select: { enterpriseId: true } })
+    if (orgForLimits?.enterpriseId) {
+      const { checkUsageLimits } = await import("@/lib/subscription")
+      const usage = await checkUsageLimits("enterprise", orgForLimits.enterpriseId)
+      if (usage?.events && usage.events.limit !== -1 && usage.events.percentage >= 100) {
+        return NextResponse.json({
+          success: false,
+          message: `You've reached your event limit (${usage.events.used}/${usage.events.limit}). Upgrade your plan to create more events.`,
+        }, { status: 403 })
+      }
+    }
+
     const body = await request.json()
     const parsed = createFullEventSchema.safeParse(body)
 

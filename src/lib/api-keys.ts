@@ -54,7 +54,7 @@ export async function validateApiKey(key: string) {
     where: { hashedKey },
     select: {
       id: true, name: true, scopes: true, isActive: true, expiresAt: true,
-      rateLimit: true, requestCount: true, organizationId: true, enterpriseId: true,
+      rateLimit: true, requestCount: true, organizationId: true, enterpriseId: true, createdById: true,
     },
   })
 

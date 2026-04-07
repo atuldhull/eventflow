@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { withApiAuth } from "@/lib/api-auth"
 import prisma from "@/lib/prisma"
+import { z } from "zod/v4"
 
 export const GET = withApiAuth("events:read", async (req, ctx) => {
   const searchParams = req.nextUrl.searchParams
@@ -42,4 +43,44 @@ export const GET = withApiAuth("events:read", async (req, ctx) => {
     data: events.map((e) => ({ ...e, startDate: e.startDate.toISOString(), endDate: e.endDate.toISOString(), createdAt: e.createdAt.toISOString(), updatedAt: e.updatedAt.toISOString() })),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit), hasMore: page * limit < total },
   })
+})
+
+const createEventSchema = z.object({
+  title: z.string().min(3).max(150),
+  description: z.string().min(10),
+  shortDescription: z.string().max(200).optional(),
+  category: z.string().optional(),
+  type: z.enum(["SINGLE", "MULTI_DAY", "VIRTUAL", "HYBRID", "RECURRING"]).default("SINGLE"),
+  visibility: z.enum(["PUBLIC", "PRIVATE", "INVITE_ONLY", "UNLISTED"]).default("PUBLIC"),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  venue: z.string().optional(),
+  venueCity: z.string().optional(),
+  isOnline: z.boolean().default(false),
+  onlinePlatform: z.string().optional(),
+  maxCapacity: z.number().int().positive().optional(),
+  isPaid: z.boolean().default(false),
+})
+
+export const POST = withApiAuth("events:write", async (req, ctx) => {
+  const body = await req.json()
+  const parsed = createEventSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: { code: "bad_request", message: "Validation failed", details: parsed.error.flatten().fieldErrors } }, { status: 400 })
+  }
+
+  const slug = parsed.data.title.toLowerCase().replace(/[^\w ]+/g, "").replace(/ +/g, "-") + "-" + Date.now().toString(36)
+
+  const event = await prisma.event.create({
+    data: {
+      ...parsed.data,
+      slug,
+      organizationId: ctx.organizationId || undefined,
+      enterpriseId: ctx.enterpriseId || undefined,
+      createdById: ctx.userId,
+      status: "DRAFT",
+    },
+  })
+
+  return NextResponse.json({ data: { id: event.id, slug: event.slug, status: event.status } }, { status: 201 })
 })

@@ -48,6 +48,20 @@ export default function OrgSettingsPage() {
       </Card>
 
       <Card className="p-6 space-y-4">
+        <h3 className="text-sm font-medium">Billing & Tax</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2"><Label>GSTIN</Label><Input placeholder="e.g., 29ABCDE1234F1Z5" /><p className="text-xs text-muted-foreground">GST Identification Number (shown on invoices)</p></div>
+          <div className="space-y-2"><Label>PAN</Label><Input placeholder="e.g., ABCDE1234F" /></div>
+        </div>
+        <div className="space-y-2"><Label>Billing Address</Label><Textarea placeholder="Full address for invoices..." rows={2} /></div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2"><Label>City</Label><Input placeholder="City" /></div>
+          <div className="space-y-2"><Label>State</Label><Input placeholder="State" /></div>
+          <div className="space-y-2"><Label>PIN Code</Label><Input placeholder="560001" /></div>
+        </div>
+      </Card>
+
+      <Card className="p-6 space-y-4">
         <h3 className="text-sm font-medium">Social Links</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2"><Label>Website</Label><Input placeholder="https://..." /></div>

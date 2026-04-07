@@ -25,8 +25,9 @@ export async function POST(request: Request) {
     })
 
     if (existingUser) {
+      // Generic message to prevent email enumeration
       return NextResponse.json(
-        { success: false, message: "This email is already registered. Try logging in." },
+        { success: false, message: "Unable to create account. Please try logging in or use a different email." },
         { status: 409 }
       )
     }
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       })
       if (existingPhone) {
         return NextResponse.json(
-          { success: false, message: "This phone number is already in use." },
+          { success: false, message: "Unable to create account with this information. Please try different details." },
           { status: 409 }
         )
       }

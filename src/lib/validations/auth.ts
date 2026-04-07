@@ -13,6 +13,7 @@ export const signupSchema = z
     password: z
       .string()
       .min(8, "Minimum 8 characters")
+      .max(128, "Maximum 128 characters")
       .regex(/[A-Z]/, "Must contain an uppercase letter")
       .regex(/[a-z]/, "Must contain a lowercase letter")
       .regex(/[0-9]/, "Must contain a number")
@@ -61,6 +62,7 @@ export const resetPasswordSchema = z
     newPassword: z
       .string()
       .min(8, "Minimum 8 characters")
+      .max(128, "Maximum 128 characters")
       .regex(/[A-Z]/, "Must contain an uppercase letter")
       .regex(/[a-z]/, "Must contain a lowercase letter")
       .regex(/[0-9]/, "Must contain a number")

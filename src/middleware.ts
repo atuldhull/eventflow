@@ -77,6 +77,10 @@ export function middleware(request: NextRequest) {
   response.headers.set("X-Frame-Options", "DENY")
   response.headers.set("X-Content-Type-Options", "nosniff")
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
+  response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+  response.headers.set("X-XSS-Protection", "1; mode=block")
+  response.headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")
+  response.headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://api.razorpay.com https://*.supabase.com; frame-src https://api.razorpay.com https://checkout.razorpay.com;")
 
   // Maintenance mode — allow super-admin and health check only
   if (process.env.MAINTENANCE_MODE === "true") {

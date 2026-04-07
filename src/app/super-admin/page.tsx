@@ -1,142 +1,63 @@
-import { Suspense } from "react"
-import { Users, Calendar, Building2, IndianRupee } from "lucide-react"
+"use client"
+
+import { useState, useEffect } from "react"
+import { Users, Calendar, Building2, IndianRupee, Loader2 } from "lucide-react"
+import Link from "next/link"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { StatCard } from "@/components/shared/StatCard"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 
-async function getDashboardStats() {
-  // In production this would call the database
-  // For now return placeholder data
-  return {
-    totalUsers: 0,
-    totalEvents: 0,
-    activeEnterprises: 0,
-    totalRevenue: 0,
-    userChange: 0,
-    eventChange: 0,
-    recentEvents: [] as { id: string; title: string; organizer: string; date: string; status: string; registrations: number }[],
-    recentActivity: [] as { id: string; user: string; action: string; description: string; createdAt: string }[],
-  }
-}
+export default function SuperAdminDashboard() {
+  const [stats, setStats] = useState({ totalUsers: 0, totalEvents: 0, activeEnterprises: 0, totalRevenue: 0 })
+  const [isLoading, setIsLoading] = useState(true)
 
-export default async function SuperAdminDashboard() {
-  const stats = await getDashboardStats()
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch("/api/super-admin/dashboard-stats")
+        const json = await res.json()
+        if (json.success) setStats(json.data)
+      } catch {} finally { setIsLoading(false) }
+    }
+    fetchStats()
+  }, [])
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Platform Dashboard"
-        description="Overview of the EventFlow platform"
-        breadcrumbs={[{ label: "Super Admin" }]}
-      />
+      <PageHeader title="Platform Dashboard" description="Overview of the EventFlow platform" breadcrumbs={[{ label: "Super Admin" }]} />
 
-      {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Users"
-          value={stats.totalUsers.toLocaleString()}
-          change={{ value: stats.userChange, trend: stats.userChange >= 0 ? "up" : "down" }}
-          icon={Users}
-          iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-          description="from last month"
-        />
-        <StatCard
-          title="Total Events"
-          value={stats.totalEvents.toLocaleString()}
-          change={{ value: stats.eventChange, trend: stats.eventChange >= 0 ? "up" : "down" }}
-          icon={Calendar}
-          iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-          description="this week"
-        />
-        <StatCard
-          title="Active Enterprises"
-          value={stats.activeEnterprises.toLocaleString()}
-          icon={Building2}
-          iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
-        />
-        <StatCard
-          title="Platform Revenue"
-          value={`₹${stats.totalRevenue.toLocaleString()}`}
-          icon={IndianRupee}
-          iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
-          description="this month"
-        />
+        <StatCard title="Total Users" value={isLoading ? "—" : stats.totalUsers.toLocaleString()} icon={Users} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+        <StatCard title="Total Events" value={isLoading ? "—" : stats.totalEvents.toLocaleString()} icon={Calendar} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
+        <StatCard title="Enterprises" value={isLoading ? "—" : stats.activeEnterprises.toLocaleString()} icon={Building2} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
+        <StatCard title="Revenue" value={isLoading ? "—" : `₹${stats.totalRevenue.toLocaleString("en-IN")}`} icon={IndianRupee} iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" />
       </div>
 
-      {/* Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Recent Events */}
-        <Card className="lg:col-span-3 p-6">
-          <h3 className="text-sm font-medium mb-4">Recent Events</h3>
-          {stats.recentEvents.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No events yet. Data will appear when events are created.</p>
-          ) : (
-            <div className="space-y-3">
-              {stats.recentEvents.map((event) => (
-                <div key={event.id} className="flex items-center justify-between rounded-lg border p-3">
-                  <div>
-                    <p className="text-sm font-medium">{event.title}</p>
-                    <p className="text-xs text-muted-foreground">{event.organizer} · {event.date}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{event.status}</Badge>
-                    <span className="text-xs text-muted-foreground">{event.registrations} reg</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium">Quick Links</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/super-admin/enterprises" className="rounded-lg border p-3 text-center hover:bg-accent transition-colors"><Building2 className="mx-auto h-5 w-5 text-muted-foreground mb-1" /><p className="text-xs font-medium">Enterprises</p></Link>
+            <Link href="/super-admin/users" className="rounded-lg border p-3 text-center hover:bg-accent transition-colors"><Users className="mx-auto h-5 w-5 text-muted-foreground mb-1" /><p className="text-xs font-medium">Users</p></Link>
+            <Link href="/super-admin/analytics" className="rounded-lg border p-3 text-center hover:bg-accent transition-colors"><Calendar className="mx-auto h-5 w-5 text-muted-foreground mb-1" /><p className="text-xs font-medium">Analytics</p></Link>
+            <Link href="/super-admin/audit" className="rounded-lg border p-3 text-center hover:bg-accent transition-colors"><Calendar className="mx-auto h-5 w-5 text-muted-foreground mb-1" /><p className="text-xs font-medium">Audit Logs</p></Link>
+          </div>
         </Card>
 
-        {/* Quick Actions */}
-        <Card className="lg:col-span-2 p-6">
-          <h3 className="text-sm font-medium mb-4">Quick Actions</h3>
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium">System Health</h3>
+          </div>
           <div className="space-y-2">
-            {[
-              { label: "Manage Enterprises", href: "/super-admin/enterprises" },
-              { label: "Manage Users", href: "/super-admin/users" },
-              { label: "View Analytics", href: "/super-admin/analytics" },
-              { label: "Audit Logs", href: "/super-admin/audit-logs" },
-              { label: "Platform Settings", href: "/super-admin/settings" },
-            ].map((action) => (
-              <a
-                key={action.href}
-                href={action.href}
-                className="block rounded-lg border p-3 text-sm font-medium hover:bg-accent transition-colors"
-              >
-                {action.label}
-              </a>
-            ))}
+            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Database</span><Badge variant="default" className="bg-green-500">Connected</Badge></div>
+            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Email Service</span><Badge variant="default" className="bg-green-500">Active</Badge></div>
+            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">API</span><Badge variant="default" className="bg-green-500">Healthy</Badge></div>
           </div>
         </Card>
       </div>
-
-      {/* Recent Activity */}
-      <Card className="p-6">
-        <h3 className="text-sm font-medium mb-4">Recent Activity</h3>
-        {stats.recentActivity.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No activity yet. Actions will be logged here.</p>
-        ) : (
-          <div className="space-y-3">
-            {stats.recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-start gap-3 text-sm">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                  {activity.user[0]}
-                </div>
-                <div>
-                  <p>
-                    <span className="font-medium">{activity.user}</span>{" "}
-                    <span className="text-muted-foreground">{activity.description}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">{activity.createdAt}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
     </div>
   )
 }

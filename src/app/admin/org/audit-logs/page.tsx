@@ -1,14 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
 import { ScrollText } from "lucide-react"
+import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { DataTable } from "@/components/tables/DataTable"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useDebounce } from "@/hooks/useDebounce"
+import { useRBAC } from "@/hooks/useRBAC"
 
 interface AuditRow { id: string; userName: string; action: string; entityType: string; description: string | null; createdAt: string }
 
@@ -21,7 +23,7 @@ const actionColors: Record<string, string> = {
 }
 
 const columns: ColumnDef<AuditRow, unknown>[] = [
-  { accessorKey: "createdAt", header: "Timestamp", cell: ({ getValue }) => <span className="text-sm">{getValue() as string}</span> },
+  { accessorKey: "createdAt", header: "Timestamp", cell: ({ getValue }) => <span className="text-sm">{new Date(getValue() as string).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span> },
   { accessorKey: "userName", header: "User", cell: ({ row }) => (<div className="flex items-center gap-2"><div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs">{row.original.userName?.[0] || "?"}</div><span className="text-sm">{row.original.userName}</span></div>) },
   { accessorKey: "action", header: "Action", cell: ({ getValue }) => { const a = getValue() as string; return <Badge variant="secondary" className={actionColors[a] || ""}>{a}</Badge> } },
   { accessorKey: "entityType", header: "Entity", cell: ({ getValue }) => <span className="text-sm">{getValue() as string}</span> },
@@ -29,16 +31,34 @@ const columns: ColumnDef<AuditRow, unknown>[] = [
 ]
 
 export default function OrgAuditLogsPage() {
+  const { currentOrganizationId } = useRBAC()
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
+  const [data, setData] = useState<AuditRow[]>([])
+  const [total, setTotal] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+
+  const fetchLogs = useCallback(async () => {
+    if (!currentOrganizationId) return
+    setIsLoading(true)
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: "50" })
+      const res = await fetch(`/api/admin/org/${currentOrganizationId}/audit-logs?${params}`)
+      const json = await res.json()
+      if (json.success) { setData(json.data); setTotal(json.pagination.total) }
+    } catch { toast.error("Failed to load audit logs") }
+    finally { setIsLoading(false) }
+  }, [currentOrganizationId, page])
+
+  useEffect(() => { fetchLogs() }, [fetchLogs])
 
   return (
     <div className="space-y-6">
       <PageHeader title="Audit Logs" description="Activity log for your organization" breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Organization", href: "/admin/org" }, { label: "Audit Logs" }]} />
       <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
-      <DataTable columns={columns} data={[]} isLoading={false} pagination={{ page, pageSize: 50, total: 0 }} onPaginationChange={(p) => setPage(p)}
-        emptyState={<div className="text-center py-4"><ScrollText className="mx-auto h-10 w-10 text-muted-foreground/30 mb-2" /><p className="font-medium">No audit logs yet</p></div>}
+      <DataTable columns={columns} data={data} isLoading={isLoading} pagination={{ page, pageSize: 50, total }} onPaginationChange={(p) => setPage(p)}
+        emptyState={<div className="text-center py-4"><ScrollText className="mx-auto h-10 w-10 text-muted-foreground/30 mb-2" /><p className="font-medium">No audit logs yet</p><p className="text-sm text-muted-foreground">Actions will be logged here automatically.</p></div>}
       />
     </div>
   )

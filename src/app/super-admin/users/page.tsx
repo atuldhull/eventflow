@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
 import { Users, MoreHorizontal, Shield, Ban } from "lucide-react"
 import { toast } from "sonner"
@@ -110,10 +110,29 @@ export default function UsersPage() {
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [data, setData] = useState<UserRow[]>([])
+  const [total, setTotal] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState({ total: 0, active: 0, banned: 0, newThisMonth: 0 })
 
-  const data: UserRow[] = []
-  const total = 0
-  const isLoading = false
+  useEffect(() => {
+    async function fetchUsers() {
+      setIsLoading(true)
+      try {
+        const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+        if (debouncedSearch) params.set("search", debouncedSearch)
+        const res = await fetch(`/api/super-admin/users?${params}`)
+        const json = await res.json()
+        if (json.success) {
+          setData(json.data)
+          setTotal(json.pagination?.total || 0)
+          if (json.stats) setStats(json.stats)
+        }
+      } catch { toast.error("Failed to load users") }
+      finally { setIsLoading(false) }
+    }
+    fetchUsers()
+  }, [page, pageSize, debouncedSearch])
 
   return (
     <div className="space-y-6">
@@ -127,10 +146,10 @@ export default function UsersPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <StatCard title="Total Users" value="0" icon={Users} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-        <StatCard title="Active" value="0" icon={Shield} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
-        <StatCard title="Banned" value="0" icon={Ban} iconColor="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" />
-        <StatCard title="New This Month" value="0" icon={Users} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
+        <StatCard title="Total Users" value={String(stats.total || total)} icon={Users} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+        <StatCard title="Active" value={String(stats.active)} icon={Shield} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
+        <StatCard title="Banned" value={String(stats.banned)} icon={Ban} iconColor="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" />
+        <StatCard title="New This Month" value={String(stats.newThisMonth)} icon={Users} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
       </div>
 
       <div className="flex gap-4">

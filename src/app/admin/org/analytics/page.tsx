@@ -1,32 +1,50 @@
 "use client"
 
-import { Calendar, ClipboardList, IndianRupee, Users, TrendingUp, Star, Download } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Calendar, ClipboardList, IndianRupee, Users, TrendingUp, Star, Download, Loader2 } from "lucide-react"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { StatCard } from "@/components/shared/StatCard"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PermissionGate } from "@/components/auth/PermissionGate"
 import { PERMISSIONS } from "@/lib/permissions"
-import { ComparisonTable } from "@/components/analytics/ComparisonTable"
-import { PerformanceScore } from "@/components/analytics/PerformanceScore"
 import { useRBAC } from "@/hooks/useRBAC"
+
+interface AnalyticsData {
+  overview: { totalEvents: number; totalRegistrations: number; totalRevenue: number; attendanceRate: number; avgRating: number; returningParticipants: number }
+  eventPerformance: { id: string; title: string; registrations: number; capacity: number | null; checkIns: number; revenue: number; status: string }[]
+  categoryBreakdown: { category: string; events: number; registrations: number }[]
+}
 
 export default function OrgAnalyticsPage() {
   const { currentOrganizationId, accessibleOrganizations } = useRBAC()
   const org = accessibleOrganizations.find((o) => o.id === currentOrganizationId)
+  const [data, setData] = useState<AnalyticsData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (!currentOrganizationId) return
+    async function fetchAnalytics() {
+      try {
+        const res = await fetch(`/api/admin/org/${currentOrganizationId}/analytics`)
+        const json = await res.json()
+        if (json.success) setData(json.data)
+      } catch {} finally { setIsLoading(false) }
+    }
+    fetchAnalytics()
+  }, [currentOrganizationId])
+
+  const ov = data?.overview || { totalEvents: 0, totalRegistrations: 0, totalRevenue: 0, attendanceRate: 0, avgRating: 0, returningParticipants: 0 }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Analytics"
         description={`${org?.name || "Organization"} — Performance Overview`}
-        breadcrumbs={[
-          { label: "Admin", href: "/admin" },
-          { label: "Organization", href: "/admin/org" },
-          { label: "Analytics" },
-        ]}
+        breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Organization", href: "/admin/org" }, { label: "Analytics" }]}
         actions={
           <PermissionGate permission={PERMISSIONS.ANALYTICS_EXPORT}>
             <Button variant="outline" className="gap-2" onClick={() => window.open(`/api/admin/org/${currentOrganizationId}/analytics/export`)}>
@@ -36,73 +54,67 @@ export default function OrgAnalyticsPage() {
         }
       />
 
-      {/* Overview */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-6">
-        <StatCard title="Total Events" value="0" icon={Calendar} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-        <StatCard title="Registrations" value="0" icon={ClipboardList} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
+        <StatCard title="Total Events" value={isLoading ? "—" : String(ov.totalEvents)} icon={Calendar} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+        <StatCard title="Registrations" value={isLoading ? "—" : String(ov.totalRegistrations)} icon={ClipboardList} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
         <PermissionGate permission={PERMISSIONS.PAYMENT_VIEW}>
-          <StatCard title="Revenue" value="₹0" icon={IndianRupee} iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" />
+          <StatCard title="Revenue" value={isLoading ? "—" : `₹${ov.totalRevenue.toLocaleString("en-IN")}`} icon={IndianRupee} iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" />
         </PermissionGate>
-        <StatCard title="Attendance" value="0%" icon={Users} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
-        <StatCard title="Avg Rating" value="—" icon={Star} iconColor="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
-        <StatCard title="Returning" value="0" icon={TrendingUp} iconColor="bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400" description="participants" />
+        <StatCard title="Attendance" value={isLoading ? "—" : `${ov.attendanceRate}%`} icon={Users} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
+        <StatCard title="Avg Rating" value={isLoading ? "—" : (ov.avgRating ? ov.avgRating.toFixed(1) : "—")} icon={Star} iconColor="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
+        <StatCard title="Returning" value={isLoading ? "—" : String(ov.returningParticipants)} icon={TrendingUp} iconColor="bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400" description="participants" />
       </div>
-
-      {/* Trends */}
-      <Card className="p-6">
-        <Tabs defaultValue="registrations">
-          <TabsList>
-            <TabsTrigger value="registrations">Registrations</TabsTrigger>
-            <TabsTrigger value="revenue">Revenue</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          </TabsList>
-          <TabsContent value="registrations" className="mt-4">
-            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Registration trend chart will render when data is available</div>
-          </TabsContent>
-          <TabsContent value="revenue" className="mt-4">
-            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Revenue trend chart will render when data is available</div>
-          </TabsContent>
-          <TabsContent value="events" className="mt-4">
-            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Events created chart will render when data is available</div>
-          </TabsContent>
-          <TabsContent value="attendance" className="mt-4">
-            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Attendance rate chart will render when data is available</div>
-          </TabsContent>
-        </Tabs>
-      </Card>
 
       {/* Event Performance */}
       <Card className="p-6">
         <h3 className="text-sm font-medium mb-4">Event Performance</h3>
-        <p className="text-sm text-muted-foreground text-center py-8">
-          Event performance table will appear when events have analytics data.
-        </p>
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : data?.eventPerformance && data.eventPerformance.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-xs text-muted-foreground">
+                <th className="pb-2 pr-4">Event</th><th className="pb-2 pr-4">Status</th><th className="pb-2 pr-4">Registrations</th><th className="pb-2 pr-4">Check-ins</th><th className="pb-2 pr-4">Attendance</th><th className="pb-2">Revenue</th>
+              </tr></thead>
+              <tbody>
+                {data.eventPerformance.map((ev) => {
+                  const att = ev.registrations > 0 ? Math.round((ev.checkIns / ev.registrations) * 100) : 0
+                  return (
+                    <tr key={ev.id} className="border-b last:border-0">
+                      <td className="py-2 pr-4 font-medium">{ev.title}</td>
+                      <td className="py-2 pr-4"><Badge variant="secondary" className="text-[10px]">{ev.status}</Badge></td>
+                      <td className="py-2 pr-4">{ev.registrations}{ev.capacity ? ` / ${ev.capacity}` : ""}</td>
+                      <td className="py-2 pr-4">{ev.checkIns}</td>
+                      <td className="py-2 pr-4">{att}%</td>
+                      <td className="py-2">{ev.revenue > 0 ? `₹${ev.revenue.toLocaleString("en-IN")}` : "Free"}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-8">No event data yet. Create and publish events to see performance analytics.</p>
+        )}
       </Card>
 
       {/* Category Analysis */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {data?.categoryBreakdown && data.categoryBreakdown.length > 0 && (
         <Card className="p-6">
           <h3 className="text-sm font-medium mb-4">Events by Category</h3>
-          <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">Chart will render when data is available</div>
-        </Card>
-        <Card className="p-6">
-          <h3 className="text-sm font-medium mb-4">Registrations by Category</h3>
-          <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">Chart will render when data is available</div>
-        </Card>
-      </div>
-
-      {/* Audience */}
-      <PermissionGate permission={PERMISSIONS.ANALYTICS_VIEW_ADVANCED}>
-        <Card className="p-6">
-          <h3 className="text-sm font-medium mb-4">Audience Insights</h3>
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="text-center py-8 text-sm text-muted-foreground">Participant growth chart</div>
-            <div className="text-center py-8 text-sm text-muted-foreground">New vs returning chart</div>
-            <div className="text-center py-8 text-sm text-muted-foreground">Top cities chart</div>
+          <div className="space-y-3">
+            {data.categoryBreakdown.map((cat) => (
+              <div key={cat.category} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary">{cat.category}</Badge>
+                  <span className="text-sm text-muted-foreground">{cat.events} event{cat.events !== 1 ? "s" : ""}</span>
+                </div>
+                <span className="text-sm font-medium">{cat.registrations} registrations</span>
+              </div>
+            ))}
           </div>
         </Card>
-      </PermissionGate>
+      )}
     </div>
   )
 }

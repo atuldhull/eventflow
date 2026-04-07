@@ -93,7 +93,7 @@ export default function PricingPage() {
 
       <div className="grid gap-6 sm:grid-cols-3 max-w-5xl mx-auto">
         {plans.map((plan) => (
-          <Card key={plan.name} className={cn("p-6 space-y-6 relative", plan.popular && "border-primary shadow-lg scale-105")}>
+          <Card key={plan.name} className={cn("p-6 space-y-6 relative overflow-visible", plan.popular && "border-primary shadow-lg")}>
             {plan.popular && <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2">Most Popular</Badge>}
             <div>
               <h3 className="text-lg font-semibold">{plan.name}</h3>

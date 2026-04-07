@@ -28,8 +28,8 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
   return (
     <div>
       {/* Hero */}
-      <div className="relative h-64 sm:h-80 lg:h-96 bg-gradient-to-br from-primary/20 to-primary/5">
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+      <div className="relative h-64 sm:h-80 lg:h-96 bg-linear-to-br from-primary/20 to-primary/5">
+        <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 lg:p-12">
           <div className="container mx-auto">
             <Badge className="bg-white/90 text-foreground mb-3">Event</Badge>

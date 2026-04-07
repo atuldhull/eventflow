@@ -57,9 +57,9 @@ export function EventCard({ event, variant = "default" }: EventCardProps) {
           {event.coverImage ? (
             <img src={event.coverImage} alt={event.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
           ) : (
-            <div className={cn("h-full w-full", categoryColors[event.category || ""] || "bg-gradient-to-br from-primary/20 to-primary/5")} />
+            <div className={cn("h-full w-full", categoryColors[event.category || ""] || "bg-linear-to-br from-primary/20 to-primary/5")} />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
 
           {/* Badges */}
           <div className="absolute top-3 left-3">

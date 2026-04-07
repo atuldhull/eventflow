@@ -71,7 +71,7 @@ export default function MyCertificatesPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {certificates.map((cert) => (
             <Card key={cert.id} className="overflow-hidden">
-              <div className="h-32 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 flex items-center justify-center relative">
+              <div className="h-32 bg-linear-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 flex items-center justify-center relative">
                 <Award className="h-16 w-16 text-amber-500/30" />
                 <Badge variant="secondary" className={cn("absolute top-3 right-3 text-[10px]", typeColors[cert.type] || "")}>{cert.type}</Badge>
               </div>

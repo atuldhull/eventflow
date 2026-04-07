@@ -106,7 +106,7 @@ export default function CertificatesPage() {
               { name: "Certificate of Appreciation", type: "Appreciation" },
             ].map((t) => (
               <Card key={t.name} className="p-4 space-y-3 hover:shadow-md transition-shadow">
-                <div className="h-32 rounded bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 flex items-center justify-center">
+                <div className="h-32 rounded bg-linear-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 flex items-center justify-center">
                   <Award className="h-12 w-12 text-amber-500/50" />
                 </div>
                 <div>

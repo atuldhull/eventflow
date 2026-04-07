@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils"
 
 export default function LandingPage() {
   return (
-    <div>
+    <div className="-mt-16">
       {/* Hero */}
-      <section className="relative min-h-[90vh] flex items-center justify-center bg-linear-to-br from-zinc-900 via-zinc-800 to-zinc-900 text-white overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center bg-linear-to-br from-zinc-900 via-zinc-800 to-zinc-900 text-white overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.15),transparent_50%),radial-gradient(circle_at_70%_80%,rgba(74,222,128,0.1),transparent_50%)]" />
         <div className="relative container mx-auto px-4 py-20 text-center space-y-8">
           <Badge variant="secondary" className="bg-white/10 text-white border-white/20">

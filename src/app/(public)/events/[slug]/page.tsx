@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ShareModal } from "@/components/events/ShareModal"
+import { AddToCalendar } from "@/components/events/AddToCalendar"
 import { cn } from "@/lib/utils"
 
 interface EventData {
@@ -49,14 +50,17 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
   const [isLoading, setIsLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null)
+  const [isCancelled, setIsCancelled] = useState(false)
 
   useEffect(() => {
     async function fetchEvent() {
       try {
         const res = await fetch(`/api/events/${slug}`)
         const json = await res.json()
-        if (json.success) setEvent(json.data)
-        else setNotFound(true)
+        if (json.success) {
+          setEvent(json.data)
+          if (json.cancelled) setIsCancelled(true)
+        } else setNotFound(true)
       } catch { setNotFound(true) }
       finally { setIsLoading(false) }
     }
@@ -79,11 +83,22 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
   const status = statusConfig[event.status] || statusConfig.PUBLISHED
   const eventUrl = typeof window !== "undefined" ? `${window.location.origin}/events/${event.slug}` : ""
   const spotsLeft = event.maxCapacity ? event.maxCapacity - event.currentRegistrations : null
-  const canRegister = ["PUBLISHED", "REGISTRATION_OPEN"].includes(event.status)
+  const isSoldOut = spotsLeft !== null && spotsLeft <= 0
+  const registrationNotOpenYet = event.registrationStartDate && new Date(event.registrationStartDate) > new Date()
+  const canRegister = ["PUBLISHED", "REGISTRATION_OPEN"].includes(event.status) && !isCancelled && !isSoldOut && !registrationNotOpenYet
   const lowestPrice = event.ticketTypes.length > 0 ? Math.min(...event.ticketTypes.map(t => t.price)) : 0
 
   return (
     <div>
+      {/* Cancelled Banner */}
+      {isCancelled && (
+        <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-900">
+          <div className="container mx-auto px-4 py-3 text-center text-sm text-red-700 dark:text-red-400 font-medium">
+            This event has been cancelled. Registration is no longer available.
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="relative h-64 sm:h-80 lg:h-96 bg-linear-to-br from-primary/20 to-primary/5 overflow-hidden">
         {event.coverImage && <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover absolute inset-0" />}
@@ -119,6 +134,7 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
               : <span className="flex items-center gap-1.5"><Ticket className="h-4 w-4" />Free</span>}
           </div>
           <div className="flex items-center gap-2">
+            <AddToCalendar title={event.title} description={event.shortDescription} startDate={event.startDate} endDate={event.endDate} venue={event.isOnline ? undefined : event.venue} isOnline={event.isOnline} onlinePlatform={event.onlinePlatform} slug={event.slug} />
             <ShareModal url={eventUrl} title={event.title} description={event.shortDescription} />
             {canRegister && (
               <Link href={`/events/${slug}/register`} className={cn(buttonVariants(), "gap-2")}>
@@ -315,6 +331,15 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
                 <Link href={`/events/${slug}/register`} className={cn(buttonVariants(), "w-full")}>
                   {event.isPaid ? `Register · From ₹${lowestPrice}` : "Register for Free"}
                 </Link>
+              ) : isCancelled ? (
+                <Button disabled className="w-full bg-red-100 text-red-700">Event Cancelled</Button>
+              ) : isSoldOut ? (
+                <Button disabled className="w-full">Sold Out</Button>
+              ) : registrationNotOpenYet ? (
+                <div className="text-center space-y-1">
+                  <Button disabled className="w-full">Registration Not Open</Button>
+                  <p className="text-xs text-muted-foreground">Opens on {new Date(event.registrationStartDate!).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                </div>
               ) : event.status === "COMPLETED" ? (
                 <Button disabled className="w-full">Event Ended</Button>
               ) : (
@@ -409,7 +434,8 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
               )}
             </Card>
 
-            {/* Share */}
+            {/* Calendar & Share */}
+            <AddToCalendar title={event.title} description={event.shortDescription} startDate={event.startDate} endDate={event.endDate} venue={event.isOnline ? undefined : event.venue} isOnline={event.isOnline} onlinePlatform={event.onlinePlatform} slug={event.slug} className="w-full" />
             <ShareModal url={eventUrl} title={event.title} description={event.shortDescription} trigger={
               <Button variant="outline" className="w-full gap-2"><Share2 className="h-4 w-4" /> Share This Event</Button>
             } />

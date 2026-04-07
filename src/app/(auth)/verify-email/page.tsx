@@ -16,6 +16,7 @@ export default function VerifyEmailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const emailParam = searchParams.get("email") || ""
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
 
   const { sendOtp, verifyEmail } = useAuth()
 
@@ -48,7 +49,7 @@ export default function VerifyEmailPage() {
     try {
       await verifyEmail(email, code)
       toast.success("Email verified successfully!")
-      router.push("/dashboard")
+      router.push(callbackUrl)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Verification failed")
     } finally {

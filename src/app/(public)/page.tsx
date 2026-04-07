@@ -4,6 +4,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { FeaturedEvents } from "@/components/events/FeaturedEvents"
 
 export default function LandingPage() {
   return (
@@ -64,6 +65,9 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* Featured / Upcoming Events */}
+      <FeaturedEvents />
 
       {/* How It Works */}
       <section className="bg-muted/50 py-20">

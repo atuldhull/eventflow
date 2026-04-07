@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Calendar, MapPin, Monitor, Loader2 } from "lucide-react"
+import { Calendar, MapPin, Monitor, Loader2, XCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { toast } from "sonner"
 
 interface UserEvent {
   registrationId: string
@@ -97,6 +98,19 @@ export default function MyEventsPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge variant="secondary" className="text-[10px]">{event.category}</Badge>
                     <Badge variant={event.status === "ACTIVE" || event.status === "VALID" ? "default" : "secondary"} className="text-[10px]">{event.status}</Badge>
+                    {event.status !== "CANCELLED" && new Date(event.startDate) > new Date() && (
+                      <Button variant="ghost" size="icon-sm" className="text-destructive h-7 w-7" onClick={async (e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (!confirm("Cancel this registration? This cannot be undone.")) return
+                        try {
+                          const res = await fetch(`/api/registrations/${event.registrationId}/cancel`, { method: "POST" })
+                          const json = await res.json()
+                          if (json.success) { toast.success("Registration cancelled"); setEvents(events.filter(ev => ev.registrationId !== event.registrationId)) }
+                          else toast.error(json.message)
+                        } catch { toast.error("Failed to cancel") }
+                      }}><XCircle className="h-4 w-4" /></Button>
+                    )}
                   </div>
                 </div>
               </Card>

@@ -12,11 +12,11 @@ import { Textarea } from "@/components/ui/textarea"
 
 interface ProfileData {
   name: string; email: string; phone: string; city: string; bio: string
-  college: string; company: string; designation: string
+  collegeName: string; companyName: string; designation: string
 }
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<ProfileData>({ name: "", email: "", phone: "", city: "", bio: "", college: "", company: "", designation: "" })
+  const [profile, setProfile] = useState<ProfileData>({ name: "", email: "", phone: "", city: "", bio: "", collegeName: "", companyName: "", designation: "" })
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -32,8 +32,8 @@ export default function ProfilePage() {
             phone: json.data.phone || "",
             city: json.data.city || "",
             bio: json.data.bio || "",
-            college: json.data.college || "",
-            company: json.data.company || "",
+            collegeName: json.data.collegeName || "",
+            companyName: json.data.companyName || "",
             designation: json.data.designation || "",
           })
         }
@@ -111,11 +111,11 @@ export default function ProfilePage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>College / University</Label>
-            <Input placeholder="e.g., IIT Delhi" value={profile.college} onChange={(e) => update("college", e.target.value)} />
+            <Input placeholder="e.g., IIT Delhi" value={profile.collegeName} onChange={(e) => update("collegeName", e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Company</Label>
-            <Input placeholder="e.g., Google" value={profile.company} onChange={(e) => update("company", e.target.value)} />
+            <Input placeholder="e.g., Google" value={profile.companyName} onChange={(e) => update("companyName", e.target.value)} />
           </div>
         </div>
         <div className="space-y-2">

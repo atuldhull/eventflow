@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: {
-        id: true, title: true, slug: true, status: true, maxCapacity: true,
+        id: true, title: true, slug: true, status: true, visibility: true, maxCapacity: true,
         currentRegistrations: true, waitlistEnabled: true, approvalRequired: true,
         isPaid: true, registrationStartDate: true, registrationEndDate: true,
         organizationId: true, enterpriseId: true, termsAndConditions: true,
@@ -54,6 +54,19 @@ export async function POST(request: NextRequest) {
 
     if (!event) {
       return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
+    }
+
+    // Enforce INVITE_ONLY visibility — only org/enterprise members can register
+    if (event.visibility === "INVITE_ONLY") {
+      const isMember = event.organizationId ? await prisma.organizationMember.findFirst({
+        where: { userId: session.user.id, organizationId: event.organizationId, isActive: true },
+      }) : null
+      const isEntMember = event.enterpriseId ? await prisma.enterpriseMember.findFirst({
+        where: { userId: session.user.id, enterpriseId: event.enterpriseId, isActive: true },
+      }) : null
+      if (!isMember && !isEntMember) {
+        return NextResponse.json({ success: false, message: "This is an invite-only event. You need an invitation to register." }, { status: 403 })
+      }
     }
 
     // Check event is open

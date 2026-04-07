@@ -12,7 +12,7 @@ export async function GET() {
 
   const [registrations, tickets, certificates, payments, upcomingEvents] = await Promise.all([
     prisma.registration.count({ where: { userId } }),
-    prisma.ticket.count({ where: { userId, status: { in: ["ACTIVE", "VALID"] } } }),
+    prisma.ticket.count({ where: { userId, status: "ACTIVE" } }),
     prisma.certificate.count({ where: { userId } }),
     prisma.payment.aggregate({ where: { userId, status: "COMPLETED" }, _sum: { amount: true } }),
     prisma.registration.findMany({

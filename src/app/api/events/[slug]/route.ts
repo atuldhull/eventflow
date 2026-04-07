@@ -79,7 +79,11 @@ export async function GET(
     return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
   }
 
-  // Only show published/open/ongoing/completed events publicly
+  // Show cancelled events with notice, hide drafts
+  if (event.status === "CANCELLED") {
+    return NextResponse.json({ success: true, data: event, cancelled: true })
+  }
+
   const publicStatuses = ["PUBLISHED", "REGISTRATION_OPEN", "REGISTRATION_CLOSED", "ONGOING", "COMPLETED"]
   if (!publicStatuses.includes(event.status) && event.visibility !== "UNLISTED") {
     return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })

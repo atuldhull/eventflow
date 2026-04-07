@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -22,6 +22,8 @@ type Step = 1 | 2 | 3
 
 export default function SignupPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
   const { signup, sendOtp, verifyEmail } = useAuth()
 
   const [step, setStep] = useState<Step>(1)
@@ -73,7 +75,7 @@ export default function SignupPage() {
     try {
       await verifyEmail(email, code)
       toast.success("Email verified! Welcome to EventFlow!")
-      router.push("/dashboard")
+      router.push(callbackUrl)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Verification failed")
     } finally {

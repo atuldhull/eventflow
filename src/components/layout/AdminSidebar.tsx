@@ -53,10 +53,14 @@ const adminNavItems: NavItem[] = [
 const superAdminNavItems: NavItem[] = [
   { label: "Dashboard", href: "/super-admin", icon: <Shield className="h-4 w-4" /> },
   { label: "Enterprises", href: "/super-admin/enterprises", icon: <Building2 className="h-4 w-4" /> },
+  { label: "Organizations", href: "/super-admin/organizations", icon: <Building2 className="h-4 w-4" /> },
+  { label: "Events", href: "/super-admin/events", icon: <Calendar className="h-4 w-4" /> },
   { label: "Users", href: "/super-admin/users", icon: <Users className="h-4 w-4" /> },
+  { label: "Subscriptions", href: "/super-admin/subscriptions", icon: <CreditCard className="h-4 w-4" /> },
+  { label: "Messages", href: "/super-admin/messages", icon: <Mail className="h-4 w-4" /> },
   { label: "Analytics", href: "/super-admin/analytics", icon: <BarChart3 className="h-4 w-4" /> },
-  { label: "Settings", href: "/super-admin/settings", icon: <Settings className="h-4 w-4" /> },
   { label: "Audit Logs", href: "/super-admin/audit", icon: <ScrollText className="h-4 w-4" /> },
+  { label: "Settings", href: "/super-admin/settings", icon: <Settings className="h-4 w-4" /> },
 ]
 
 export function AdminSidebar() {

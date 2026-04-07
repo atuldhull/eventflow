@@ -78,6 +78,18 @@ export function middleware(request: NextRequest) {
   response.headers.set("X-Content-Type-Options", "nosniff")
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
 
+  // Maintenance mode — allow super-admin and health check only
+  if (process.env.MAINTENANCE_MODE === "true") {
+    const isHealthCheck = pathname.startsWith("/api/health")
+    const isSuperAdminPath = pathname.startsWith("/super-admin") || pathname.startsWith("/api/super-admin")
+    if (!isHealthCheck && !isSuperAdminPath) {
+      return new NextResponse(
+        JSON.stringify({ maintenance: true, message: process.env.MAINTENANCE_MESSAGE || "We're performing scheduled maintenance. Please check back shortly." }),
+        { status: 503, headers: { "Content-Type": "application/json", "Retry-After": "300" } }
+      )
+    }
+  }
+
   // Allow public routes
   if (isPublicRoute(pathname)) {
     return response

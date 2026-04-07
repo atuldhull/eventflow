@@ -52,6 +52,7 @@ function isPublicRoute(pathname: string): boolean {
   if (pathname.startsWith("/org/")) return true
   if (pathname.startsWith("/enterprise/")) return true
   if (pathname.startsWith("/verify/")) return true
+  if (pathname.startsWith("/embed/")) return true
   if (pathname.startsWith("/api/v1/")) return true
   if (pathname.startsWith("/api/events/")) return true
   if (AUTH_API_ROUTES.some((route) => pathname.startsWith(route))) return true
@@ -74,7 +75,8 @@ export function middleware(request: NextRequest) {
 
   // Add security headers
   const response = NextResponse.next()
-  response.headers.set("X-Frame-Options", "DENY")
+  // Allow iframe embedding for /embed/* routes, deny for all others
+  response.headers.set("X-Frame-Options", pathname.startsWith("/embed") ? "ALLOWALL" : "DENY")
   response.headers.set("X-Content-Type-Options", "nosniff")
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
   response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")

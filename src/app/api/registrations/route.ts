@@ -24,12 +24,25 @@ function generateTicketNumber(): string {
 
 export async function POST(request: NextRequest) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ success: false, message: "Please log in to register" }, { status: 401 })
-  }
 
   try {
     const body = await request.json()
+
+    // Guest checkout: if not logged in, require guestEmail + guestName
+    let userId = session?.user?.id
+    if (!userId) {
+      const { guestEmail, guestName } = body
+      if (!guestEmail || !guestName) {
+        return NextResponse.json({ success: false, message: "Please provide your name and email, or log in to register" }, { status: 400 })
+      }
+      // Find or create guest user
+      let guestUser = await prisma.user.findUnique({ where: { email: guestEmail } })
+      if (!guestUser) {
+        guestUser = await prisma.user.create({ data: { email: guestEmail, name: guestName, role: "USER" } })
+      }
+      userId = guestUser.id
+    }
+
     const parsed = createRegistrationSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -59,10 +72,10 @@ export async function POST(request: NextRequest) {
     // Enforce INVITE_ONLY visibility — only org/enterprise members can register
     if (event.visibility === "INVITE_ONLY") {
       const isMember = event.organizationId ? await prisma.organizationMember.findFirst({
-        where: { userId: session.user.id, organizationId: event.organizationId, isActive: true },
+        where: { userId: userId, organizationId: event.organizationId, isActive: true },
       }) : null
       const isEntMember = event.enterpriseId ? await prisma.enterpriseMember.findFirst({
-        where: { userId: session.user.id, enterpriseId: event.enterpriseId, isActive: true },
+        where: { userId: userId, enterpriseId: event.enterpriseId, isActive: true },
       }) : null
       if (!isMember && !isEntMember) {
         return NextResponse.json({ success: false, message: "This is an invite-only event. You need an invitation to register." }, { status: 403 })
@@ -80,7 +93,7 @@ export async function POST(request: NextRequest) {
     if (settings?.allowedEmailDomains) {
       const domains = (settings.allowedEmailDomains as string).split(",").map((d: string) => d.trim().toLowerCase()).filter(Boolean)
       if (domains.length > 0) {
-        const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true } })
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
         const userDomain = user?.email?.split("@")[1]?.toLowerCase()
         if (!userDomain || !domains.includes(userDomain)) {
           return NextResponse.json({ success: false, message: `Registration is restricted to ${domains.join(", ")} email addresses.` }, { status: 403 })
@@ -99,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     // Check if already registered
     const existing = await prisma.registration.findUnique({
-      where: { eventId_userId: { eventId, userId: session.user.id } },
+      where: { eventId_userId: { eventId, userId: userId } },
     })
     if (existing) {
       return NextResponse.json({ success: false, message: "You are already registered for this event" }, { status: 409 })
@@ -177,7 +190,7 @@ export async function POST(request: NextRequest) {
         data: {
           registrationNumber,
           eventId,
-          userId: session.user.id,
+          userId: userId,
           ticketTypeId,
           status,
           type: teamId ? "TEAM" : "INDIVIDUAL",
@@ -216,7 +229,7 @@ export async function POST(request: NextRequest) {
             ticketNumber: generateTicketNumber(),
             registrationId: reg.id,
             ticketTypeId,
-            userId: session.user.id,
+            userId: userId,
             eventId,
             qrCode: generateQRCode(),
             status: "ACTIVE",
@@ -231,7 +244,7 @@ export async function POST(request: NextRequest) {
           data: {
             paymentNumber: `PAY-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
             registrationId: reg.id,
-            userId: session.user.id,
+            userId: userId,
             eventId,
             amount,
             currency: ticketType.currency,
@@ -253,15 +266,19 @@ export async function POST(request: NextRequest) {
         ? `You're on the Waitlist — ${event.title}`
         : `Registration Received — ${event.title}`
 
-    await sendEmail({
-      to: session.user.email || "",
-      subject: emailSubject,
-      html: `<h2>${emailSubject}</h2><p>Registration #: ${registrationNumber}</p><p>Event: ${event.title}</p>`,
-    })
+    // Send confirmation email (to logged-in user or guest)
+    const recipientEmail = session?.user?.email || body.guestEmail || ""
+    if (recipientEmail) {
+      await sendEmail({
+        to: recipientEmail,
+        subject: emailSubject,
+        html: `<h2>${emailSubject}</h2><p>Registration #: ${registrationNumber}</p><p>Event: ${event.title}</p>`,
+      })
+    }
 
     const { ipAddress, userAgent } = getClientInfo(request)
     await createAuditLog({
-      userId: session.user.id,
+      userId: userId,
       action: "CREATE",
       entityType: "REGISTRATION",
       entityId: registration.registration.id,

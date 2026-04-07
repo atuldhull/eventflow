@@ -71,12 +71,9 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
     },
   })
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (authStatus === "unauthenticated") {
-      router.push(`/login?callbackUrl=/events/${slug}/register`)
-    }
-  }, [authStatus, router, slug])
+  // Guest checkout: allow registration without account
+  // If logged in, pre-fill data. If not, show guest form fields.
+  const isGuest = authStatus === "unauthenticated"
 
   // Pre-fill user data
   useEffect(() => {
@@ -157,6 +154,8 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
             ...values.customFields,
           },
           couponCode: couponApplied ? couponCode : undefined,
+          // Guest checkout fields
+          ...(isGuest ? { guestEmail: values.email, guestName: values.name } : {}),
         }),
       })
       const data = await res.json()
@@ -318,6 +317,11 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
       {step === "details" && (
         <Card className="p-6 space-y-4">
           <h2 className="text-lg font-semibold">Your Details</h2>
+          {isGuest && (
+            <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 p-3 text-sm text-blue-700 dark:text-blue-400">
+              Registering as a guest. <a href={`/login?callbackUrl=/events/${slug}/register`} className="font-medium underline">Sign in</a> to save your tickets to your dashboard.
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Full Name *</Label>
@@ -325,7 +329,7 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
             </div>
             <div className="space-y-2">
               <Label>Email *</Label>
-              <Input type="email" {...form.register("email")} disabled className="bg-muted" />
+              <Input type="email" {...form.register("email")} disabled={!isGuest} className={!isGuest ? "bg-muted" : ""} placeholder={isGuest ? "your@email.com" : ""} />
             </div>
           </div>
           <div className="space-y-2">

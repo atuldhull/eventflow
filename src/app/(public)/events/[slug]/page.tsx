@@ -6,12 +6,14 @@ import {
   Calendar, MapPin, Monitor, Users, Clock, Share2, Tag, Globe, Ticket,
   ChevronDown, ChevronUp, Loader2, Building2, Mail, Phone, ExternalLink,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ShareModal } from "@/components/events/ShareModal"
 import { AddToCalendar } from "@/components/events/AddToCalendar"
+import { CountdownTimer } from "@/components/events/CountdownTimer"
 import { cn } from "@/lib/utils"
 
 interface EventData {
@@ -280,6 +282,10 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
 
           {/* Sidebar */}
           <div className="space-y-4">
+            {/* Countdown Timer */}
+            {canRegister && new Date(event.startDate) > new Date() && (
+              <CountdownTimer targetDate={event.startDate} />
+            )}
             {/* Registration Card */}
             <Card className="p-6 space-y-4 sticky top-36">
               <div className="flex items-center gap-2">
@@ -397,6 +403,23 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
               </div>
             </Card>
 
+            {/* Who's Going */}
+            {event.currentRegistrations > 0 && event.visibility === "PUBLIC" && (
+              <Card className="p-6 space-y-3">
+                <h3 className="text-sm font-medium">{event.currentRegistrations} {event.currentRegistrations === 1 ? "person" : "people"} registered</h3>
+                <div className="flex -space-x-2">
+                  {Array.from({ length: Math.min(event.currentRegistrations, 8) }).map((_, i) => (
+                    <div key={i} className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary/10 text-xs font-medium text-primary">
+                      {String.fromCharCode(65 + (i % 26))}
+                    </div>
+                  ))}
+                  {event.currentRegistrations > 8 && (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium">+{event.currentRegistrations - 8}</div>
+                  )}
+                </div>
+              </Card>
+            )}
+
             {/* Organizer Card */}
             <Card className="p-6 space-y-3">
               <h3 className="text-sm font-medium">Organizer</h3>
@@ -415,6 +438,9 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
                   )}
                 </div>
               </div>
+              <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => { toast.success(`You'll be notified about events from ${event.organization.name}`) }}>
+                <Users className="h-3.5 w-3.5" /> Follow {event.organization.name}
+              </Button>
               {(event.contactEmail || event.contactPhone) && (
                 <>
                   <Separator />

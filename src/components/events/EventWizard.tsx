@@ -57,7 +57,9 @@ const EVENT_TYPES = [
 
 const CATEGORIES = [
   "TECH", "CULTURAL", "SPORTS", "WORKSHOP", "HACKATHON", "CONFERENCE",
-  "SEMINAR", "WEBINAR", "FEST", "COMPETITION", "MEETUP", "OTHER",
+  "SEMINAR", "WEBINAR", "FEST", "COMPETITION", "MEETUP",
+  "TRAINING", "TOWN_HALL", "TEAM_BUILDING", "CORPORATE", "NETWORKING",
+  "OTHER",
 ]
 
 const VISIBILITIES = [
@@ -115,6 +117,7 @@ const wizardSchema = z.object({
   allowTeamRegistration: z.boolean().default(false),
   minTeamSize: z.string().optional().or(z.literal("")),
   maxTeamSize: z.string().optional().or(z.literal("")),
+  allowedEmailDomains: z.string().optional().or(z.literal("")),
   // Step 5
   coverImage: z.string().optional().or(z.literal("")),
   rules: z.string().optional().or(z.literal("")),
@@ -237,6 +240,7 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
         sessions: [],
         gallery: [],
         seoKeywords: [],
+        settings: values.allowedEmailDomains ? { allowedEmailDomains: values.allowedEmailDomains } : undefined,
         status: "DRAFT",
       }
 
@@ -295,6 +299,7 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
         sessions: [],
         gallery: [],
         seoKeywords: [],
+        settings: values.allowedEmailDomains ? { allowedEmailDomains: values.allowedEmailDomains } : undefined,
         status: "PUBLISHED",
       }
 
@@ -569,6 +574,15 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
                 )}
               </div>
             </Card>
+
+            <Card className="p-6 space-y-4">
+              <h3 className="text-sm font-medium">Access Restrictions</h3>
+              <div className="space-y-2">
+                <Label>Allowed Email Domains</Label>
+                <Input placeholder="e.g., technova.com, company.org (comma-separated, leave blank for any)" {...register("allowedEmailDomains")} />
+                <p className="text-xs text-muted-foreground">Only users with these email domains can register. Leave blank to allow all.</p>
+              </div>
+            </Card>
           </div>
         )}
 
@@ -579,7 +593,7 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
               <h3 className="text-sm font-medium">Default Fields</h3>
               <p className="text-xs text-muted-foreground">Name and Email are always collected.</p>
               <div className="space-y-2">
-                {["Name (always required)", "Email (always required)", "Phone", "College/University", "Company"].map((field) => (
+                {["Name (always required)", "Email (always required)", "Phone", "Organization/Institution", "Department"].map((field) => (
                   <div key={field} className="flex items-center justify-between py-1">
                     <span className="text-sm">{field}</span>
                     {field.includes("always") ? <Badge variant="secondary">Required</Badge> : <Switch />}

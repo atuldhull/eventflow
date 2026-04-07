@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useRBAC } from "@/hooks/useRBAC"
 
-const CATEGORIES = ["TECHNICAL", "CULTURAL", "SPORTS", "ACADEMIC", "SOCIAL", "PROFESSIONAL", "OTHER"]
+const CATEGORIES = ["TECHNICAL", "CULTURAL", "SPORTS", "ACADEMIC", "SOCIAL", "PROFESSIONAL", "CORPORATE", "HR", "ENGINEERING", "MARKETING", "OTHER"]
 
 export default function CreateOrgPage() {
   const router = useRouter()

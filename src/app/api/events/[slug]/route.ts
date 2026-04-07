@@ -85,8 +85,30 @@ export async function GET(
   }
 
   const publicStatuses = ["PUBLISHED", "REGISTRATION_OPEN", "REGISTRATION_CLOSED", "ONGOING", "COMPLETED"]
-  if (!publicStatuses.includes(event.status) && event.visibility !== "UNLISTED") {
+  if (!publicStatuses.includes(event.status)) {
     return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
+  }
+
+  // PRIVATE and INVITE_ONLY events: return limited info to unauthenticated users
+  if (event.visibility === "PRIVATE" || event.visibility === "INVITE_ONLY") {
+    // Check if request has auth (via cookie-based session — not available in route handler without auth())
+    // For API routes, we return minimal info so the page can show "Private Event" messaging
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...event,
+        // Strip sensitive details for private events accessed publicly
+        description: null,
+        onlinePlatform: null,
+        contactEmail: null,
+        contactPhone: null,
+        rules: null,
+        termsAndConditions: null,
+        refundPolicy: null,
+        gallery: [],
+      },
+      isPrivate: true,
+    })
   }
 
   return NextResponse.json({ success: true, data: event })

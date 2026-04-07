@@ -37,7 +37,7 @@ const createOrgSchema = z.object({
 
 type CreateOrgInput = z.infer<typeof createOrgSchema>
 
-const categories = ["TECHNICAL", "CULTURAL", "SPORTS", "SOCIAL", "ACADEMIC", "OTHER"]
+const categories = ["TECHNICAL", "CULTURAL", "SPORTS", "SOCIAL", "ACADEMIC", "PROFESSIONAL", "CORPORATE", "HR", "ENGINEERING", "MARKETING", "OTHER"]
 
 export default function CreateOrganizationPage() {
   const router = useRouter()

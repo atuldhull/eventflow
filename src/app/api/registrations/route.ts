@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         id: true, title: true, slug: true, status: true, visibility: true, maxCapacity: true,
         currentRegistrations: true, waitlistEnabled: true, approvalRequired: true,
         isPaid: true, registrationStartDate: true, registrationEndDate: true,
-        organizationId: true, enterpriseId: true, termsAndConditions: true,
+        organizationId: true, enterpriseId: true, termsAndConditions: true, settings: true,
       },
     })
 
@@ -73,6 +73,19 @@ export async function POST(request: NextRequest) {
     const validStatuses = ["PUBLISHED", "REGISTRATION_OPEN"]
     if (!validStatuses.includes(event.status)) {
       return NextResponse.json({ success: false, message: "Registration is not open for this event" }, { status: 400 })
+    }
+
+    // Enforce email domain restriction (corporate events)
+    const settings = event.settings as any
+    if (settings?.allowedEmailDomains) {
+      const domains = (settings.allowedEmailDomains as string).split(",").map((d: string) => d.trim().toLowerCase()).filter(Boolean)
+      if (domains.length > 0) {
+        const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true } })
+        const userDomain = user?.email?.split("@")[1]?.toLowerCase()
+        if (!userDomain || !domains.includes(userDomain)) {
+          return NextResponse.json({ success: false, message: `Registration is restricted to ${domains.join(", ")} email addresses.` }, { status: 403 })
+        }
+      }
     }
 
     // Check registration window

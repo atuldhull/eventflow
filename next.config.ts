@@ -14,12 +14,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2mb",
     },
   },
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals.push("@prisma/client")
-    }
-    return config
-  },
+  turbopack: {},
 }
 
 export default nextConfig

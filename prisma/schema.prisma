@@ -6,3 +6,1332 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum Role {
+  SUPER_ADMIN
+  ENTERPRISE_ADMIN
+  ENTERPRISE_MANAGER
+  ORG_ADMIN
+  EVENT_MANAGER
+  COORDINATOR
+  FINANCE_MANAGER
+  VIEWER
+  USER
+}
+
+enum AccountType {
+  ENTERPRISE
+  ORGANIZATION
+  INDIVIDUAL
+}
+
+enum EventStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PUBLISHED
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  ONGOING
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+enum EventType {
+  SINGLE
+  MULTI_DAY
+  MULTI_TRACK
+  RECURRING
+  HYBRID
+  VIRTUAL
+  IN_PERSON
+}
+
+enum EventVisibility {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+  UNLISTED
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  WAITLISTED
+  REJECTED
+  CANCELLED
+  CHECKED_IN
+  NO_SHOW
+}
+
+enum RegistrationType {
+  INDIVIDUAL
+  TEAM
+  DELEGATION
+  INVITE
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  STRIPE
+  BANK_TRANSFER
+  CASH
+  FREE
+  COUPON
+}
+
+enum TicketStatus {
+  ACTIVE
+  USED
+  CANCELLED
+  EXPIRED
+  TRANSFERRED
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  IN_APP
+  WHATSAPP
+  PUSH
+}
+
+enum NotificationCategory {
+  REGISTRATION
+  PAYMENT
+  REMINDER
+  UPDATE
+  ANNOUNCEMENT
+  CERTIFICATE
+  SYSTEM
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  TRIAL
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  APPROVE
+  REJECT
+  REFUND
+  CHECK_IN
+  PUBLISH
+  CANCEL
+}
+
+enum FieldType {
+  TEXT
+  TEXTAREA
+  EMAIL
+  PHONE
+  NUMBER
+  DATE
+  SELECT
+  MULTI_SELECT
+  CHECKBOX
+  RADIO
+  FILE_UPLOAD
+  URL
+}
+
+enum CertificateStatus {
+  PENDING
+  GENERATED
+  SENT
+  DOWNLOADED
+}
+
+enum FeedbackStatus {
+  PENDING
+  SUBMITTED
+  REVIEWED
+}
+
+// ============================================================================
+// AUTH MODELS
+// ============================================================================
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  emailVerified    DateTime? @map("email_verified")
+  phone            String?   @unique
+  phoneVerified    Boolean   @default(false) @map("phone_verified")
+  passwordHash     String?   @map("password_hash")
+  name             String
+  firstName        String?   @map("first_name")
+  lastName         String?   @map("last_name")
+  avatar           String?
+  bio              String?   @db.Text
+  role             Role      @default(USER)
+  isActive         Boolean   @default(true) @map("is_active")
+  isBanned         Boolean   @default(false) @map("is_banned")
+  banReason        String?   @map("ban_reason")
+  lastLoginAt      DateTime? @map("last_login_at")
+  lastLoginIp      String?   @map("last_login_ip")
+  collegeName      String?   @map("college_name")
+  companyName      String?   @map("company_name")
+  designation      String?
+  city             String?
+  state            String?
+  country          String?   @default("India")
+  dateOfBirth      DateTime? @map("date_of_birth")
+  gender           String?
+  interests        String[]
+  metadata         Json?
+  twoFactorEnabled Boolean   @default(false) @map("two_factor_enabled")
+  twoFactorSecret  String?   @map("two_factor_secret")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  // Relations
+  accounts                Account[]
+  sessions                Session[]
+  refreshTokens           RefreshToken[]
+  otps                    OTP[]
+  ownedEnterprises        Enterprise[]
+  enterpriseMemberships   EnterpriseMember[]
+  organizationMemberships OrganizationMember[]
+  eventsCreated           Event[]               @relation("EventCreator")
+  eventsManaged           EventTeamMember[]
+  registrations           Registration[]
+  payments                Payment[]
+  tickets                 Ticket[]
+  checkIns                CheckIn[]             @relation("CheckInUser")
+  checkInsPerformed       CheckIn[]             @relation("CheckInPerformer")
+  certificates            Certificate[]
+  notifications           Notification[]        @relation("NotificationRecipient")
+  sentNotifications       Notification[]        @relation("NotificationSender")
+  feedbacks               Feedback[]
+  teamMemberships         TeamMember[]
+  teamsLed                Team[]
+  auditLogs               AuditLog[]
+  announcements           Announcement[]
+  mediaUploaded           EventMedia[]
+  certificateTemplates    CertificateTemplate[]
+  contactMessages         ContactMessage[]
+  waitlistEntries         WaitlistEntry[]
+  apiKeys                 ApiKey[]
+  webhookEndpoints        WebhookEndpoint[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?  @map("token_type")
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?  @map("session_state")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  email     String?
+  phone     String?
+  code      String
+  purpose   String
+  expiresAt DateTime @map("expires_at")
+  isUsed    Boolean  @default(false) @map("is_used")
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([phone])
+  @@index([code])
+  @@index([purpose])
+  @@map("otps")
+}
+
+// ============================================================================
+// TENANT MODELS
+// ============================================================================
+
+model Enterprise {
+  id             String    @id @default(cuid())
+  name           String
+  slug           String    @unique
+  description    String?   @db.Text
+  logo           String?
+  banner         String?
+  website        String?
+  email          String
+  phone          String?
+  address        String?   @db.Text
+  city           String?
+  state          String?
+  country        String?   @default("India")
+  type           String?
+  isVerified     Boolean   @default(false) @map("is_verified")
+  isActive       Boolean   @default(true) @map("is_active")
+  ownerId        String    @map("owner_id")
+  primaryColor   String?   @default("#000000") @map("primary_color")
+  secondaryColor String?   @default("#ffffff") @map("secondary_color")
+  customDomain   String?   @unique @map("custom_domain")
+  subdomain      String?   @unique
+  socialLinks    Json?     @map("social_links")
+  settings       Json?
+  subscriptionId String?   @unique @map("subscription_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  // Relations
+  owner                User                  @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  subscription         Subscription?         @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  organizations        Organization[]
+  members              EnterpriseMember[]
+  events               Event[]
+  coupons              Coupon[]
+  auditLogs            AuditLog[]
+  certificateTemplates CertificateTemplate[]
+  apiKeys              ApiKey[]
+  webhookEndpoints     WebhookEndpoint[]
+
+  @@index([slug])
+  @@index([ownerId])
+  @@index([isActive])
+  @@index([type])
+  @@map("enterprises")
+}
+
+model EnterpriseMember {
+  id           String   @id @default(cuid())
+  enterpriseId String   @map("enterprise_id")
+  userId       String   @map("user_id")
+  role         Role
+  isActive     Boolean  @default(true) @map("is_active")
+  joinedAt     DateTime @default(now()) @map("joined_at")
+  invitedBy    String?  @map("invited_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  enterprise Enterprise @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([enterpriseId, userId])
+  @@index([enterpriseId])
+  @@index([userId])
+  @@map("enterprise_members")
+}
+
+model Organization {
+  id             String    @id @default(cuid())
+  name           String
+  slug           String    @unique
+  description    String?   @db.Text
+  logo           String?
+  banner         String?
+  website        String?
+  email          String
+  phone          String?
+  address        String?   @db.Text
+  city           String?
+  state          String?
+  country        String?   @default("India")
+  category       String?
+  enterpriseId   String?   @map("enterprise_id")
+  isVerified     Boolean   @default(false) @map("is_verified")
+  isActive       Boolean   @default(true) @map("is_active")
+  primaryColor   String?   @default("#000000") @map("primary_color")
+  secondaryColor String?   @default("#ffffff") @map("secondary_color")
+  socialLinks    Json?     @map("social_links")
+  settings       Json?
+  maxEvents      Int?      @default(10) @map("max_events")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  // Relations
+  enterprise           Enterprise?           @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  members              OrganizationMember[]
+  events               Event[]
+  subscriptions        Subscription[]
+  auditLogs            AuditLog[]
+  certificateTemplates CertificateTemplate[]
+  apiKeys              ApiKey[]
+  webhookEndpoints     WebhookEndpoint[]
+
+  @@index([slug])
+  @@index([enterpriseId])
+  @@index([isActive])
+  @@index([category])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  role           Role
+  isActive       Boolean  @default(true) @map("is_active")
+  joinedAt       DateTime @default(now()) @map("joined_at")
+  invitedBy      String?  @map("invited_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+// ============================================================================
+// EVENT MODELS
+// ============================================================================
+
+model Event {
+  id                    String          @id @default(cuid())
+  title                 String
+  slug                  String          @unique
+  description           String          @db.Text
+  shortDescription      String?         @map("short_description")
+  status                EventStatus     @default(DRAFT)
+  type                  EventType       @default(SINGLE)
+  visibility            EventVisibility @default(PUBLIC)
+  category              String?
+  tags                  String[]
+  startDate             DateTime        @map("start_date")
+  endDate               DateTime        @map("end_date")
+  registrationStartDate DateTime?       @map("registration_start_date")
+  registrationEndDate   DateTime?       @map("registration_end_date")
+  timezone              String          @default("Asia/Kolkata")
+  venue                 String?
+  venueAddress          String?         @map("venue_address") @db.Text
+  venueCity             String?         @map("venue_city")
+  venueState            String?         @map("venue_state")
+  venueCountry          String?         @map("venue_country")
+  venueLatitude         Float?          @map("venue_latitude")
+  venueLongitude        Float?          @map("venue_longitude")
+  isOnline              Boolean         @default(false) @map("is_online")
+  onlinePlatform        String?         @map("online_platform")
+  onlineLink            String?         @map("online_link")
+  onlinePassword        String?         @map("online_password")
+  coverImage            String?         @map("cover_image")
+  thumbnailImage        String?         @map("thumbnail_image")
+  gallery               String[]
+  maxCapacity           Int?            @map("max_capacity")
+  currentRegistrations  Int             @default(0) @map("current_registrations")
+  waitlistEnabled       Boolean         @default(false) @map("waitlist_enabled")
+  waitlistCapacity      Int?            @map("waitlist_capacity")
+  approvalRequired      Boolean         @default(false) @map("approval_required")
+  isFeatured            Boolean         @default(false) @map("is_featured")
+  isPaid                Boolean         @default(false) @map("is_paid")
+  minTeamSize           Int?            @map("min_team_size")
+  maxTeamSize           Int?            @map("max_team_size")
+  allowTeamRegistration Boolean         @default(false) @map("allow_team_registration")
+  rules                 String?         @db.Text
+  termsAndConditions    String?         @map("terms_and_conditions") @db.Text
+  refundPolicy          String?         @map("refund_policy") @db.Text
+  contactEmail          String?         @map("contact_email")
+  contactPhone          String?         @map("contact_phone")
+  organizationId        String?         @map("organization_id")
+  enterpriseId          String?         @map("enterprise_id")
+  createdById           String          @map("created_by_id")
+  parentEventId         String?         @map("parent_event_id")
+  settings              Json?
+  seoTitle              String?         @map("seo_title")
+  seoDescription        String?         @map("seo_description")
+  seoKeywords           String[]        @map("seo_keywords")
+  publishedAt           DateTime?       @map("published_at")
+  cancelledAt           DateTime?       @map("cancelled_at")
+  cancellationReason    String?         @map("cancellation_reason")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  deletedAt             DateTime?       @map("deleted_at")
+
+  // Relations
+  organization     Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  enterprise       Enterprise?       @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  createdBy        User              @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  parentEvent      Event?            @relation("SubEvents", fields: [parentEventId], references: [id], onDelete: SetNull)
+  subEvents        Event[]           @relation("SubEvents")
+  sessions         EventSession[]
+  ticketTypes      TicketType[]
+  registrations    Registration[]
+  customFormFields CustomFormField[]
+  announcements    Announcement[]
+  media            EventMedia[]
+  feedbacks        Feedback[]
+  certificates     Certificate[]
+  coupons          Coupon[]
+  checkIns         CheckIn[]
+  teamMembers      EventTeamMember[]
+  sponsors         EventSponsor[]
+  faqs             EventFAQ[]
+  teams            Team[]
+  notifications    Notification[]
+  payments         Payment[]
+  tickets          Ticket[]
+  auditLogs        AuditLog[]
+  waitlistEntries  WaitlistEntry[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([type])
+  @@index([visibility])
+  @@index([category])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([organizationId])
+  @@index([enterpriseId])
+  @@index([createdById])
+  @@index([isFeatured])
+  @@index([parentEventId])
+  @@map("events")
+}
+
+model EventSession {
+  id            String   @id @default(cuid())
+  eventId       String   @map("event_id")
+  title         String
+  description   String?  @db.Text
+  speaker       String?
+  speakerBio    String?  @map("speaker_bio") @db.Text
+  speakerAvatar String?  @map("speaker_avatar")
+  startTime     DateTime @map("start_time")
+  endTime       DateTime @map("end_time")
+  venue         String?
+  track         String?
+  capacity      Int?
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkIns CheckIn[]
+
+  @@index([eventId])
+  @@index([startTime])
+  @@index([track])
+  @@map("event_sessions")
+}
+
+model EventTeamMember {
+  id          String   @id @default(cuid())
+  eventId     String   @map("event_id")
+  userId      String   @map("user_id")
+  role        String
+  permissions String[]
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_team_members")
+}
+
+model TicketType {
+  id            String    @id @default(cuid())
+  eventId       String    @map("event_id")
+  name          String
+  description   String?
+  price         Decimal   @default(0) @db.Decimal(10, 2)
+  currency      String    @default("INR")
+  quantity      Int?
+  sold          Int       @default(0)
+  maxPerUser    Int       @default(1) @map("max_per_user")
+  saleStartDate DateTime? @map("sale_start_date")
+  saleEndDate   DateTime? @map("sale_end_date")
+  isActive      Boolean   @default(true) @map("is_active")
+  isHidden      Boolean   @default(false) @map("is_hidden")
+  sortOrder     Int       @default(0) @map("sort_order")
+  metadata      Json?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets       Ticket[]
+  registrations Registration[]
+
+  @@index([eventId])
+  @@index([isActive])
+  @@map("ticket_types")
+}
+
+// ============================================================================
+// REGISTRATION & TICKETING MODELS
+// ============================================================================
+
+model Registration {
+  id                 String             @id @default(cuid())
+  registrationNumber String             @unique @map("registration_number")
+  eventId            String             @map("event_id")
+  userId             String             @map("user_id")
+  ticketTypeId       String             @map("ticket_type_id")
+  status             RegistrationStatus @default(PENDING)
+  type               RegistrationType   @default(INDIVIDUAL)
+  teamId             String?            @map("team_id")
+  formResponses      Json?              @map("form_responses")
+  notes              String?            @db.Text
+  approvedAt         DateTime?          @map("approved_at")
+  approvedBy         String?            @map("approved_by")
+  rejectedAt         DateTime?          @map("rejected_at")
+  rejectedBy         String?            @map("rejected_by")
+  rejectionReason    String?            @map("rejection_reason")
+  cancelledAt        DateTime?          @map("cancelled_at")
+  cancellationReason String?            @map("cancellation_reason")
+  waitlistPosition   Int?               @map("waitlist_position")
+  source             String?
+  metadata           Json?
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  team       Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  ticket     Ticket?
+  payment    Payment?
+  checkIn    CheckIn?
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([ticketTypeId])
+  @@index([status])
+  @@index([type])
+  @@index([teamId])
+  @@index([registrationNumber])
+  @@map("registrations")
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  eventId     String   @map("event_id")
+  leaderId    String   @map("leader_id")
+  maxSize     Int      @map("max_size")
+  currentSize Int      @default(1) @map("current_size")
+  isComplete  Boolean  @default(false) @map("is_complete")
+  inviteCode  String   @unique @map("invite_code")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  leader        User           @relation(fields: [leaderId], references: [id], onDelete: Restrict)
+  members       TeamMember[]
+  registrations Registration[]
+
+  @@index([eventId])
+  @@index([leaderId])
+  @@index([inviteCode])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String   @map("team_id")
+  userId    String   @map("user_id")
+  role      String   @default("MEMBER")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model Ticket {
+  id             String       @id @default(cuid())
+  ticketNumber   String       @unique @map("ticket_number")
+  registrationId String       @unique @map("registration_id")
+  ticketTypeId   String       @map("ticket_type_id")
+  userId         String       @map("user_id")
+  eventId        String       @map("event_id")
+  status         TicketStatus @default(ACTIVE)
+  qrCode         String       @unique @map("qr_code")
+  qrCodeUrl      String?      @map("qr_code_url")
+  barcode        String?      @unique
+  seatNumber     String?      @map("seat_number")
+  validFrom      DateTime?    @map("valid_from")
+  validUntil     DateTime?    @map("valid_until")
+  transferredTo  String?      @map("transferred_to")
+  transferredAt  DateTime?    @map("transferred_at")
+  metadata       Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  ticketType   TicketType   @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkIns     CheckIn[]
+
+  @@index([ticketNumber])
+  @@index([qrCode])
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+  @@map("tickets")
+}
+
+// ============================================================================
+// PAYMENT MODELS
+// ============================================================================
+
+model Payment {
+  id               String        @id @default(cuid())
+  paymentNumber    String        @unique @map("payment_number")
+  registrationId   String        @unique @map("registration_id")
+  userId           String        @map("user_id")
+  eventId          String        @map("event_id")
+  amount           Decimal       @db.Decimal(10, 2)
+  currency         String        @default("INR")
+  status           PaymentStatus @default(PENDING)
+  method           PaymentMethod
+  gatewayOrderId   String?       @map("gateway_order_id")
+  gatewayPaymentId String?       @map("gateway_payment_id")
+  gatewaySignature String?       @map("gateway_signature")
+  gatewayResponse  Json?         @map("gateway_response")
+  receiptUrl       String?       @map("receipt_url")
+  invoiceNumber    String?       @map("invoice_number")
+  taxAmount        Decimal?      @map("tax_amount") @db.Decimal(10, 2)
+  discountAmount   Decimal?      @map("discount_amount") @db.Decimal(10, 2)
+  couponId         String?       @map("coupon_id")
+  refundId         String?       @map("refund_id")
+  refundAmount     Decimal?      @map("refund_amount") @db.Decimal(10, 2)
+  refundReason     String?       @map("refund_reason")
+  refundedAt       DateTime?     @map("refunded_at")
+  paidAt           DateTime?     @map("paid_at")
+  failedAt         DateTime?     @map("failed_at")
+  failureReason    String?       @map("failure_reason")
+  metadata         Json?
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  coupon       Coupon?      @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  @@index([paymentNumber])
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+  @@index([method])
+  @@index([gatewayOrderId])
+  @@index([gatewayPaymentId])
+  @@map("payments")
+}
+
+model Coupon {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  eventId        String?  @map("event_id")
+  enterpriseId   String?  @map("enterprise_id")
+  discountType   String   @map("discount_type")
+  discountValue  Decimal  @map("discount_value") @db.Decimal(10, 2)
+  maxUses        Int?     @map("max_uses")
+  currentUses    Int      @default(0) @map("current_uses")
+  maxUsesPerUser Int      @default(1) @map("max_uses_per_user")
+  minOrderAmount Decimal? @map("min_order_amount") @db.Decimal(10, 2)
+  validFrom      DateTime @map("valid_from")
+  validUntil     DateTime @map("valid_until")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  event      Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  enterprise Enterprise? @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  payments   Payment[]
+
+  @@index([code])
+  @@index([eventId])
+  @@index([isActive])
+  @@map("coupons")
+}
+
+// ============================================================================
+// CHECK-IN MODEL
+// ============================================================================
+
+model CheckIn {
+  id             String   @id @default(cuid())
+  eventId        String   @map("event_id")
+  userId         String   @map("user_id")
+  registrationId String   @unique @map("registration_id")
+  ticketId       String   @map("ticket_id")
+  sessionId      String?  @map("session_id")
+  checkedInAt    DateTime @default(now()) @map("checked_in_at")
+  checkedInBy    String   @map("checked_in_by")
+  checkInMethod  String   @map("check_in_method")
+  location       String?
+  notes          String?
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user         User          @relation("CheckInUser", fields: [userId], references: [id], onDelete: Cascade)
+  registration Registration  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  ticket       Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  session      EventSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  performer    User          @relation("CheckInPerformer", fields: [checkedInBy], references: [id], onDelete: Restrict)
+
+  @@unique([ticketId, sessionId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([ticketId])
+  @@index([checkedInAt])
+  @@map("check_ins")
+}
+
+// ============================================================================
+// FORM & CONTENT MODELS
+// ============================================================================
+
+model CustomFormField {
+  id          String    @id @default(cuid())
+  eventId     String    @map("event_id")
+  label       String
+  fieldType   FieldType @map("field_type")
+  placeholder String?
+  helpText    String?   @map("help_text")
+  isRequired  Boolean   @default(false) @map("is_required")
+  options     String[]
+  validation  Json?
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([sortOrder])
+  @@map("custom_form_fields")
+}
+
+model Announcement {
+  id          String    @id @default(cuid())
+  eventId     String    @map("event_id")
+  title       String
+  content     String    @db.Text
+  priority    String    @default("NORMAL")
+  isPinned    Boolean   @default(false) @map("is_pinned")
+  publishedAt DateTime? @map("published_at")
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy User  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([eventId])
+  @@index([priority])
+  @@index([isPinned])
+  @@map("announcements")
+}
+
+model EventMedia {
+  id           String   @id @default(cuid())
+  eventId      String   @map("event_id")
+  url          String
+  type         String
+  title        String?
+  description  String?
+  fileSize     Int?     @map("file_size")
+  mimeType     String?  @map("mime_type")
+  sortOrder    Int      @default(0) @map("sort_order")
+  uploadedById String   @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  event      Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  uploadedBy User  @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([eventId])
+  @@index([type])
+  @@map("event_media")
+}
+
+model EventSponsor {
+  id        String   @id @default(cuid())
+  eventId   String   @map("event_id")
+  name      String
+  logo      String?
+  website   String?
+  tier      String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([tier])
+  @@map("event_sponsors")
+}
+
+model EventFAQ {
+  id          String   @id @default(cuid())
+  eventId     String   @map("event_id")
+  question    String
+  answer      String   @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_faqs")
+}
+
+// ============================================================================
+// FEEDBACK & CERTIFICATES
+// ============================================================================
+
+model Feedback {
+  id          String         @id @default(cuid())
+  eventId     String         @map("event_id")
+  userId      String         @map("user_id")
+  rating      Int
+  comment     String?        @db.Text
+  status      FeedbackStatus @default(PENDING)
+  responses   Json?
+  isAnonymous Boolean        @default(false) @map("is_anonymous")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([rating])
+  @@index([status])
+  @@map("feedbacks")
+}
+
+model Certificate {
+  id                String            @id @default(cuid())
+  certificateNumber String            @unique @map("certificate_number")
+  eventId           String            @map("event_id")
+  userId            String            @map("user_id")
+  templateId        String?           @map("template_id")
+  type              String
+  title             String
+  recipientName     String            @map("recipient_name")
+  issuedDate        DateTime          @map("issued_date")
+  fileUrl           String?           @map("file_url")
+  verificationCode  String            @unique @map("verification_code")
+  status            CertificateStatus @default(PENDING)
+  metadata          Json?
+  downloadedAt      DateTime?         @map("downloaded_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  event    Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template CertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([certificateNumber])
+  @@index([verificationCode])
+  @@index([status])
+  @@map("certificates")
+}
+
+model CertificateTemplate {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  templateHtml   String   @map("template_html") @db.Text
+  thumbnailUrl   String?  @map("thumbnail_url")
+  isDefault      Boolean  @default(false) @map("is_default")
+  organizationId String?  @map("organization_id")
+  enterpriseId   String?  @map("enterprise_id")
+  createdById    String   @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  enterprise   Enterprise?   @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  createdBy    User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  certificates Certificate[]
+
+  @@index([organizationId])
+  @@index([enterpriseId])
+  @@map("certificate_templates")
+}
+
+// ============================================================================
+// NOTIFICATION MODEL
+// ============================================================================
+
+model Notification {
+  id            String               @id @default(cuid())
+  userId        String               @map("user_id")
+  senderId      String?              @map("sender_id")
+  type          NotificationType
+  category      NotificationCategory
+  title         String
+  message       String               @db.Text
+  data          Json?
+  isRead        Boolean              @default(false) @map("is_read")
+  readAt        DateTime?            @map("read_at")
+  sentAt        DateTime?            @map("sent_at")
+  deliveredAt   DateTime?            @map("delivered_at")
+  failedAt      DateTime?            @map("failed_at")
+  failureReason String?              @map("failure_reason")
+  scheduledFor  DateTime?            @map("scheduled_for")
+  eventId       String?              @map("event_id")
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  // Relations
+  user   User   @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  sender User?  @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+  event  Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([category])
+  @@index([isRead])
+  @@index([eventId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ============================================================================
+// SUBSCRIPTION MODEL
+// ============================================================================
+
+model Subscription {
+  id                      String             @id @default(cuid())
+  organizationId          String?            @map("organization_id")
+  plan                    SubscriptionPlan   @default(FREE)
+  status                  SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart      DateTime           @map("current_period_start")
+  currentPeriodEnd        DateTime           @map("current_period_end")
+  cancelledAt             DateTime?          @map("cancelled_at")
+  trialEndsAt             DateTime?          @map("trial_ends_at")
+  maxEvents               Int                @default(5) @map("max_events")
+  maxParticipantsPerEvent Int                @default(100) @map("max_participants_per_event")
+  maxOrganizations        Int                @default(1) @map("max_organizations")
+  maxTeamMembers          Int                @default(5) @map("max_team_members")
+  features                String[]
+  gatewaySubscriptionId   String?            @map("gateway_subscription_id")
+  gatewayCustomerId       String?            @map("gateway_customer_id")
+  amount                  Decimal            @db.Decimal(10, 2)
+  currency                String             @default("INR")
+  billingInterval         String             @default("MONTHLY") @map("billing_interval")
+  metadata                Json?
+  createdAt               DateTime           @default(now()) @map("created_at")
+  updatedAt               DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  enterprise   Enterprise?   @relation
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([plan])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+// ============================================================================
+// AUDIT LOG MODEL
+// ============================================================================
+
+model AuditLog {
+  id             String      @id @default(cuid())
+  userId         String      @map("user_id")
+  action         AuditAction
+  entityType     String      @map("entity_type")
+  entityId       String      @map("entity_id")
+  description    String?
+  oldValues      Json?       @map("old_values")
+  newValues      Json?       @map("new_values")
+  ipAddress      String?     @map("ip_address")
+  userAgent      String?     @map("user_agent")
+  eventId        String?     @map("event_id")
+  enterpriseId   String?     @map("enterprise_id")
+  organizationId String?     @map("organization_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event        Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  enterprise   Enterprise?   @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([eventId])
+  @@index([enterpriseId])
+  @@index([organizationId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// WAITLIST MODEL
+// ============================================================================
+
+model WaitlistEntry {
+  id         String    @id @default(cuid())
+  eventId    String    @map("event_id")
+  userId     String    @map("user_id")
+  position   Int
+  promotedAt DateTime? @map("promoted_at")
+  isPromoted Boolean   @default(false) @map("is_promoted")
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([position])
+  @@index([isPromoted])
+  @@map("waitlist_entries")
+}
+
+// ============================================================================
+// CONTACT / SUPPORT MODEL
+// ============================================================================
+
+model ContactMessage {
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String    @db.Text
+  status    String    @default("NEW")
+  repliedAt DateTime? @map("replied_at")
+  repliedBy String?   @map("replied_by")
+  userId    String?   @map("user_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
+// ============================================================================
+// API & WEBHOOK MODELS
+// ============================================================================
+
+model ApiKey {
+  id             String    @id @default(cuid())
+  name           String
+  key            String    @unique
+  hashedKey      String    @map("hashed_key")
+  prefix         String
+  organizationId String?   @map("organization_id")
+  enterpriseId   String?   @map("enterprise_id")
+  createdById    String    @map("created_by_id")
+  scopes         String[]
+  isActive       Boolean   @default(true) @map("is_active")
+  lastUsedAt     DateTime? @map("last_used_at")
+  expiresAt      DateTime? @map("expires_at")
+  rateLimit      Int       @default(100) @map("rate_limit")
+  requestCount   Int       @default(0) @map("request_count")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  enterprise   Enterprise?   @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  createdBy    User          @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([key])
+  @@index([hashedKey])
+  @@index([organizationId])
+  @@index([enterpriseId])
+  @@map("api_keys")
+}
+
+model WebhookEndpoint {
+  id              String    @id @default(cuid())
+  url             String
+  description     String?
+  organizationId  String?   @map("organization_id")
+  enterpriseId    String?   @map("enterprise_id")
+  createdById     String    @map("created_by_id")
+  events          String[]
+  secret          String
+  isActive        Boolean   @default(true) @map("is_active")
+  failureCount    Int       @default(0) @map("failure_count")
+  lastDeliveredAt DateTime? @map("last_delivered_at")
+  lastFailedAt    DateTime? @map("last_failed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  enterprise   Enterprise?       @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  createdBy    User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([organizationId])
+  @@index([enterpriseId])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id             String    @id @default(cuid())
+  endpointId     String    @map("endpoint_id")
+  event          String
+  payload        Json
+  responseStatus Int?      @map("response_status")
+  responseBody   String?   @map("response_body") @db.Text
+  duration       Int?
+  status         String    @default("pending")
+  attempts       Int       @default(0)
+  nextRetryAt    DateTime? @map("next_retry_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("webhook_deliveries")
+}

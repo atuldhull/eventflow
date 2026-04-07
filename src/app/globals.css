@@ -130,3 +130,58 @@
     @apply font-sans;
   }
 }
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+/* Skip to content link */
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: 9999;
+}
+
+.skip-to-content:focus {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: auto;
+  height: auto;
+  padding: 1rem 2rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 1rem;
+  font-weight: 600;
+  z-index: 9999;
+}
+
+/* Focus visible indicators */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  .badge,
+  [data-slot="badge"] {
+    border: 1px solid currentColor;
+  }
+}

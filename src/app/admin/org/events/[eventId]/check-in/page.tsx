@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState, useCallback } from "react"
+import { use, useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { QrCode, Search, BarChart3, Users, ArrowLeft, Download } from "lucide-react"
 import { toast } from "sonner"
@@ -30,6 +30,21 @@ export default function EventCheckInPage({ params }: { params: Promise<{ eventId
   const [scanMode, setScanMode] = useState<"qr" | "manual">("qr")
   const [scanResult, setScanResult] = useState<ScanResult>(null)
   const [scannerEnabled, setScannerEnabled] = useState(true)
+  const [checkInStats, setCheckInStats] = useState({ expected: 0, checkedIn: 0, notArrived: 0 })
+
+  // Fetch real check-in stats
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch(`/api/check-in/stats?eventId=${eventId}`)
+        const json = await res.json()
+        if (json.success) setCheckInStats({ expected: json.data.expected || 0, checkedIn: json.data.checkedIn || 0, notArrived: json.data.notArrived || 0 })
+      } catch {}
+    }
+    fetchStats()
+    const interval = setInterval(fetchStats, 10000) // Refresh every 10s
+    return () => clearInterval(interval)
+  }, [eventId])
 
   const handleQRScan = useCallback(async (qrData: string) => {
     setScannerEnabled(false)
@@ -182,9 +197,9 @@ export default function EventCheckInPage({ params }: { params: Promise<{ eventId
         {/* Stats Tab */}
         <TabsContent value="stats" className="mt-4 space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard title="Expected" value="0" icon={Users} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-            <StatCard title="Checked In" value="0" icon={QrCode} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" description="0%" />
-            <StatCard title="Not Arrived" value="0" icon={Users} iconColor="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
+            <StatCard title="Expected" value={String(checkInStats.expected)} icon={Users} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+            <StatCard title="Checked In" value={String(checkInStats.checkedIn)} icon={QrCode} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" description={checkInStats.expected > 0 ? `${Math.round((checkInStats.checkedIn / checkInStats.expected) * 100)}%` : "0%"} />
+            <StatCard title="Not Arrived" value={String(checkInStats.notArrived)} icon={Users} iconColor="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
           </div>
 
           <Card className="p-6">

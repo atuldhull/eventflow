@@ -166,6 +166,12 @@ export default function TicketsPage() {
                 >
                   Download PDF
                 </button>
+                <button
+                  onClick={() => window.open(`/api/tickets/${selectedTicket.id}/calendar`, "_blank")}
+                  className="flex-1 rounded-lg border p-2 text-sm text-center hover:bg-accent transition-colors"
+                >
+                  Add to Calendar
+                </button>
               </div>
             </div>
           )}

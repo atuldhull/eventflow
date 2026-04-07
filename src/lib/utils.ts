@@ -34,3 +34,12 @@ export function truncate(text: string, length: number): string {
   if (text.length <= length) return text
   return text.slice(0, length) + "..."
 }
+
+/** Format amount in Indian number system: ₹5,00,000.00 */
+export function formatINR(amount: number, showDecimals = false): string {
+  const formatted = amount.toLocaleString("en-IN", {
+    maximumFractionDigits: showDecimals ? 2 : 0,
+    minimumFractionDigits: showDecimals ? 2 : 0,
+  })
+  return `₹${formatted}`
+}

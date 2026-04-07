@@ -49,7 +49,7 @@ export async function generateInvoiceData(paymentId: string): Promise<InvoiceDat
     amount: taxableAmount,
     sellerState: payment.event.organization?.state || undefined,
     buyerState: payment.user.state || undefined,
-    gstEnabled: false, // Can be made configurable per org
+    gstEnabled: Number(payment.amount) > 0, // Enable GST for paid events
   })
 
   const year = new Date().getFullYear()

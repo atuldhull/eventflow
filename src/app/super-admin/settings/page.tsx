@@ -20,9 +20,10 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      // API call would go here
-      await new Promise((r) => setTimeout(r, 500))
-      toast.success("Settings saved successfully")
+      const res = await fetch("/api/super-admin/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ updated: true }) })
+      const json = await res.json()
+      if (json.success) toast.success(json.message || "Settings saved")
+      else toast.error(json.message || "Failed to save")
     } catch {
       toast.error("Failed to save settings")
     } finally {

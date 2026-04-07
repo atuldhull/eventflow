@@ -1,11 +1,11 @@
 "use client"
 
-import { Calendar, ClipboardList, IndianRupee, Users, Plus, UserPlus, QrCode, BarChart3 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Calendar, ClipboardList, IndianRupee, Users, Plus, QrCode } from "lucide-react"
 import Link from "next/link"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { StatCard } from "@/components/shared/StatCard"
 import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PermissionGate } from "@/components/auth/PermissionGate"
 import { useRBAC } from "@/hooks/useRBAC"
@@ -13,9 +13,41 @@ import { PERMISSIONS } from "@/lib/permissions"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+interface DashboardEvent {
+  id: string
+  title: string
+  startDate: string
+  status: string
+  currentRegistrations: number
+}
+
 export default function OrgDashboard() {
   const { currentOrganizationId, accessibleOrganizations } = useRBAC()
   const org = accessibleOrganizations.find((o) => o.id === currentOrganizationId)
+  const [stats, setStats] = useState({ events: 0, active: 0, registrations: 0 })
+  const [upcomingEvents, setUpcomingEvents] = useState<DashboardEvent[]>([])
+
+  useEffect(() => {
+    if (!currentOrganizationId) return
+    async function fetchDashboard() {
+      try {
+        const res = await fetch(`/api/admin/org/${currentOrganizationId}/events?limit=50`)
+        const json = await res.json()
+        if (json.success) {
+          const events = json.data as DashboardEvent[]
+          const active = events.filter((e) => ["PUBLISHED", "REGISTRATION_OPEN", "ONGOING"].includes(e.status))
+          const totalRegs = events.reduce((sum: number, e: DashboardEvent) => sum + (e.currentRegistrations || 0), 0)
+          setStats({ events: json.pagination.total, active: active.length, registrations: totalRegs })
+          // Show upcoming events (future start date or active)
+          const upcoming = events
+            .filter((e) => new Date(e.startDate) >= new Date() || ["PUBLISHED", "REGISTRATION_OPEN", "ONGOING"].includes(e.status))
+            .slice(0, 5)
+          setUpcomingEvents(upcoming)
+        }
+      } catch {}
+    }
+    fetchDashboard()
+  }, [currentOrganizationId])
 
   return (
     <div className="space-y-6">
@@ -40,12 +72,12 @@ export default function OrgDashboard() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Events" value="0" icon={Calendar} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" description="0 active" />
-        <StatCard title="Registrations" value="0" icon={ClipboardList} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" description="this week" />
+        <StatCard title="Total Events" value={String(stats.events)} icon={Calendar} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" description={`${stats.active} active`} />
+        <StatCard title="Registrations" value={String(stats.registrations)} icon={ClipboardList} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" description="total" />
         <PermissionGate permission={PERMISSIONS.PAYMENT_VIEW}>
           <StatCard title="Revenue" value="₹0" icon={IndianRupee} iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" description="this month" />
         </PermissionGate>
-        <StatCard title="Team Members" value="0" icon={Users} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" description="active" />
+        <StatCard title="Team Members" value="—" icon={Users} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" description="active" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
@@ -54,7 +86,21 @@ export default function OrgDashboard() {
             <h3 className="text-sm font-medium">Upcoming Events</h3>
             <Link href="/admin/org/events" className="text-xs text-primary hover:underline">View All</Link>
           </div>
-          <p className="text-sm text-muted-foreground text-center py-8">No upcoming events. Create your first event to get started.</p>
+          {upcomingEvents.length > 0 ? (
+            <div className="space-y-3">
+              {upcomingEvents.map((event) => (
+                <Link key={event.id} href={`/admin/org/events/${event.id}`} className="flex items-center justify-between rounded-md border p-3 hover:bg-accent transition-colors">
+                  <div>
+                    <p className="text-sm font-medium">{event.title}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(event.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                  </div>
+                  <Badge variant="secondary">{event.status.replace(/_/g, " ")}</Badge>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">No upcoming events. Create your first event to get started.</p>
+          )}
         </Card>
 
         <Card className="lg:col-span-2 p-6 space-y-4">

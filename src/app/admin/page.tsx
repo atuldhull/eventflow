@@ -2,11 +2,14 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useRBAC } from "@/hooks/useRBAC"
-import { Building2, Users, Loader2 } from "lucide-react"
+import { Building2, Users, Loader2, ShieldCheck } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { buttonVariants } from "@/components/ui/button"
 import { getRoleLabel, getRoleColor } from "@/lib/permissions"
+import { cn } from "@/lib/utils"
 import type { Role } from "@/lib/constants"
 
 export default function AdminPage() {
@@ -24,10 +27,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (isLoading) return
-    if (isSuperAdmin) {
-      router.replace("/super-admin")
-      return
-    }
+    // Don't auto-redirect super admin — let them pick a workspace
+    if (isSuperAdmin) return
     if (currentEnterpriseId) {
       router.replace("/admin/enterprise")
       return
@@ -36,7 +37,6 @@ export default function AdminPage() {
       router.replace("/admin/org")
       return
     }
-    // Auto-select first enterprise if available
     if (accessibleEnterprises.length === 1) {
       setEnterpriseContext(accessibleEnterprises[0].id)
       router.replace("/admin/enterprise")
@@ -77,6 +77,15 @@ export default function AdminPage() {
           Select an enterprise or organization to manage
         </p>
       </div>
+
+      {isSuperAdmin && (
+        <div className="flex justify-center">
+          <Link href="/super-admin" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+            <ShieldCheck className="h-4 w-4" />
+            Go to Super Admin Panel
+          </Link>
+        </div>
+      )}
 
       {accessibleEnterprises.length > 0 && (
         <div className="space-y-3">

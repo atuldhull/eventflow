@@ -38,16 +38,16 @@ interface NavItem {
 }
 
 const adminNavItems: NavItem[] = [
-  { label: "Dashboard", href: "/admin", icon: <LayoutDashboard className="h-4 w-4" /> },
-  { label: "Events", href: "/admin/events", icon: <Calendar className="h-4 w-4" />, permission: PERMISSIONS.EVENT_VIEW },
-  { label: "Registrations", href: "/admin/registrations", icon: <Ticket className="h-4 w-4" />, permission: PERMISSIONS.REGISTRATION_VIEW },
-  { label: "Payments", href: "/admin/payments", icon: <CreditCard className="h-4 w-4" />, permission: PERMISSIONS.PAYMENT_VIEW },
-  { label: "Communications", href: "/admin/communications", icon: <Mail className="h-4 w-4" />, permission: PERMISSIONS.COMMUNICATION_SEND_EMAIL },
-  { label: "Certificates", href: "/admin/certificates", icon: <Award className="h-4 w-4" />, permission: PERMISSIONS.CERTIFICATE_VIEW },
-  { label: "Members", href: "/admin/members", icon: <Users className="h-4 w-4" />, permission: PERMISSIONS.MEMBER_VIEW },
-  { label: "Analytics", href: "/admin/analytics", icon: <BarChart3 className="h-4 w-4" />, permission: PERMISSIONS.ANALYTICS_VIEW_BASIC },
-  { label: "Audit Logs", href: "/admin/audit", icon: <ScrollText className="h-4 w-4" />, permission: PERMISSIONS.AUDIT_VIEW },
-  { label: "Settings", href: "/admin/settings", icon: <Settings className="h-4 w-4" />, permission: PERMISSIONS.ORG_MANAGE_SETTINGS },
+  { label: "Dashboard", href: "/admin/org", icon: <LayoutDashboard className="h-4 w-4" /> },
+  { label: "Events", href: "/admin/org/events", icon: <Calendar className="h-4 w-4" />, permission: PERMISSIONS.EVENT_VIEW },
+  { label: "Registrations", href: "/admin/org/registrations", icon: <Ticket className="h-4 w-4" />, permission: PERMISSIONS.REGISTRATION_VIEW },
+  { label: "Payments", href: "/admin/org/payments", icon: <CreditCard className="h-4 w-4" />, permission: PERMISSIONS.PAYMENT_VIEW },
+  { label: "Communications", href: "/admin/org/communications", icon: <Mail className="h-4 w-4" />, permission: PERMISSIONS.COMMUNICATION_SEND_EMAIL },
+  { label: "Certificates", href: "/admin/org/certificates", icon: <Award className="h-4 w-4" />, permission: PERMISSIONS.CERTIFICATE_VIEW },
+  { label: "Members", href: "/admin/org/members", icon: <Users className="h-4 w-4" />, permission: PERMISSIONS.MEMBER_VIEW },
+  { label: "Analytics", href: "/admin/org/analytics", icon: <BarChart3 className="h-4 w-4" />, permission: PERMISSIONS.ANALYTICS_VIEW_BASIC },
+  { label: "Audit Logs", href: "/admin/org/audit-logs", icon: <ScrollText className="h-4 w-4" />, permission: PERMISSIONS.AUDIT_VIEW },
+  { label: "Settings", href: "/admin/org/settings", icon: <Settings className="h-4 w-4" />, permission: PERMISSIONS.ORG_MANAGE_SETTINGS },
 ]
 
 const superAdminNavItems: NavItem[] = [
@@ -65,7 +65,9 @@ export function AdminSidebar() {
   const { hasPermission, hasAnyPermission, isSuperAdmin, role } = usePermissions()
   const { sidebarOpen, toggleSidebar } = useUIStore()
 
-  const navItems = isSuperAdmin ? superAdminNavItems : adminNavItems
+  // Show org/enterprise nav items when super admin is in an org/enterprise context
+  const isInOrgContext = pathname.startsWith("/admin/org") || pathname.startsWith("/admin/enterprise") || pathname.startsWith("/admin/events")
+  const navItems = (isSuperAdmin && !isInOrgContext) ? superAdminNavItems : adminNavItems
 
   const filteredItems = navItems.filter((item) => {
     if (!item.permission) return true
@@ -93,7 +95,7 @@ export function AdminSidebar() {
       </div>
 
       {/* Context Switcher */}
-      {sidebarOpen && !isSuperAdmin && (
+      {sidebarOpen && (!isSuperAdmin || isInOrgContext) && (
         <div className="border-b p-3">
           <ContextSwitcher />
         </div>

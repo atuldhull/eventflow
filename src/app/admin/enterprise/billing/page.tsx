@@ -164,8 +164,8 @@ export default function EnterpriseBillingPage() {
               const isCurrent = planId === currentPlan
               const price = plan.price[billingInterval]
               return (
-                <Card key={planId} className={cn("p-4 space-y-3 relative", isCurrent && "border-primary", plan.isPopular && "shadow-md")}>
-                  {plan.badge && <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 text-[10px]">{plan.badge}</Badge>}
+                <Card key={planId} className={cn("p-4 space-y-3 relative overflow-visible", isCurrent && "border-primary", plan.isPopular && "shadow-md")}>
+                  {plan.badge && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] z-10">{plan.badge}</Badge>}
                   <div>
                     <p className="font-semibold">{plan.name}</p>
                     <p className="text-xl font-bold mt-1">

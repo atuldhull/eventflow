@@ -68,6 +68,8 @@ const createSchema = z.object({
 export const POST = withSuperAdmin(async (req, { user }) => {
   try {
     const body = await req.json()
+    // Allow "current" as ownerId to use the logged-in user
+    if (body.ownerId === "current") body.ownerId = user.id
     const parsed = createSchema.safeParse(body)
 
     if (!parsed.success) {

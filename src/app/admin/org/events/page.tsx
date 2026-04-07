@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
 import { Calendar, Plus, MoreHorizontal, Star, LayoutGrid, List } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { StatCard } from "@/components/shared/StatCard"
@@ -27,6 +28,7 @@ import { cn } from "@/lib/utils"
 interface EventRow {
   id: string
   title: string
+  slug: string
   category: string | null
   status: string
   type: string
@@ -54,8 +56,8 @@ const columns: ColumnDef<EventRow, unknown>[] = [
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
         <div>
-          <p className="font-medium">{row.original.title}</p>
-          <p className="text-xs text-muted-foreground">{row.original.startDate}</p>
+          <Link href={`/admin/org/events/${row.original.id}`} className="font-medium hover:underline">{row.original.title}</Link>
+          <p className="text-xs text-muted-foreground">{new Date(row.original.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
         </div>
         {row.original.isFeatured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />}
       </div>
@@ -108,11 +110,10 @@ const columns: ColumnDef<EventRow, unknown>[] = [
           <MoreHorizontal className="h-4 w-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem>View Details</DropdownMenuItem>
-          <DropdownMenuItem>Edit</DropdownMenuItem>
-          <DropdownMenuItem>Registrations</DropdownMenuItem>
-          <DropdownMenuItem>Check-in</DropdownMenuItem>
-          <DropdownMenuItem>Duplicate</DropdownMenuItem>
+          <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}`} className="w-full">View Details</Link></DropdownMenuItem>
+          <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}/edit`} className="w-full">Edit</Link></DropdownMenuItem>
+          <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}/registrations`} className="w-full">Registrations</Link></DropdownMenuItem>
+          <DropdownMenuItem><Link href={`/admin/org/events/${row.original.id}/check-in`} className="w-full">Check-in</Link></DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-destructive">Cancel Event</DropdownMenuItem>
         </DropdownMenuContent>
@@ -126,8 +127,43 @@ export default function OrgEventsPage() {
   const [view, setView] = useState<"table" | "card">("table")
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
+  const [pageSize] = useState(10)
   const { accessibleOrganizations, currentOrganizationId } = useRBAC()
   const org = accessibleOrganizations.find((o) => o.id === currentOrganizationId)
+
+  const [events, setEvents] = useState<EventRow[]>([])
+  const [total, setTotal] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState({ total: 0, published: 0, ongoing: 0, completed: 0 })
+
+  const fetchEvents = useCallback(async () => {
+    if (!currentOrganizationId) return
+    setIsLoading(true)
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+      if (debouncedSearch) params.set("search", debouncedSearch)
+      const res = await fetch(`/api/admin/org/${currentOrganizationId}/events?${params}`)
+      const json = await res.json()
+      if (json.success) {
+        setEvents(json.data)
+        setTotal(json.pagination.total)
+        // Compute stats from all data
+        const all = json.data as EventRow[]
+        setStats({
+          total: json.pagination.total,
+          published: all.filter((e) => e.status === "PUBLISHED" || e.status === "REGISTRATION_OPEN").length,
+          ongoing: all.filter((e) => e.status === "ONGOING").length,
+          completed: all.filter((e) => e.status === "COMPLETED").length,
+        })
+      }
+    } catch {
+      toast.error("Failed to load events")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [currentOrganizationId, page, pageSize, debouncedSearch])
+
+  useEffect(() => { fetchEvents() }, [fetchEvents])
 
   return (
     <div className="space-y-6">
@@ -149,10 +185,10 @@ export default function OrgEventsPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <StatCard title="Total" value="0" icon={Calendar} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-        <StatCard title="Published" value="0" icon={Calendar} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
-        <StatCard title="Ongoing" value="0" icon={Calendar} iconColor="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" />
-        <StatCard title="Completed" value="0" icon={Calendar} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
+        <StatCard title="Total" value={String(stats.total)} icon={Calendar} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+        <StatCard title="Published" value={String(stats.published)} icon={Calendar} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
+        <StatCard title="Ongoing" value={String(stats.ongoing)} icon={Calendar} iconColor="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" />
+        <StatCard title="Completed" value={String(stats.completed)} icon={Calendar} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
       </div>
 
       <div className="flex items-center justify-between gap-4">
@@ -170,9 +206,9 @@ export default function OrgEventsPage() {
       {view === "table" ? (
         <DataTable
           columns={columns}
-          data={[]}
-          isLoading={false}
-          pagination={{ page, pageSize: 10, total: 0 }}
+          data={events}
+          isLoading={isLoading}
+          pagination={{ page, pageSize, total }}
           onPaginationChange={(p) => setPage(p)}
           emptyState={
             <div className="text-center py-4">
@@ -188,11 +224,31 @@ export default function OrgEventsPage() {
           }
         />
       ) : (
-        <div className="text-center py-12">
-          <Calendar className="mx-auto h-12 w-12 text-muted-foreground/30 mb-3" />
-          <p className="font-medium">No events yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Create your first event to get started.</p>
-        </div>
+        events.length === 0 && !isLoading ? (
+          <div className="text-center py-12">
+            <Calendar className="mx-auto h-12 w-12 text-muted-foreground/30 mb-3" />
+            <p className="font-medium">No events yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Create your first event to get started.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {events.map((event) => (
+              <Link key={event.id} href={`/admin/org/events/${event.id}`}>
+                <div className="rounded-lg border p-4 hover:border-primary transition-colors space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium truncate">{event.title}</p>
+                    {event.isFeatured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{new Date(event.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className={statusColors[event.status] || ""}>{event.status.replace(/_/g, " ")}</Badge>
+                    <span className="text-xs text-muted-foreground">{event.currentRegistrations} registrations</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )
       )}
     </div>
   )

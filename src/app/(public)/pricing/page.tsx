@@ -91,10 +91,10 @@ export default function PricingPage() {
         <p className="text-muted-foreground max-w-md mx-auto">Start free, upgrade as you grow. No hidden fees.</p>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-3 max-w-5xl mx-auto">
+      <div className="grid gap-6 sm:grid-cols-3 max-w-5xl mx-auto pt-4">
         {plans.map((plan) => (
           <Card key={plan.name} className={cn("p-6 space-y-6 relative overflow-visible", plan.popular && "border-primary shadow-lg")}>
-            {plan.popular && <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2">Most Popular</Badge>}
+            {plan.popular && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">Most Popular</Badge>}
             <div>
               <h3 className="text-lg font-semibold">{plan.name}</h3>
               <p className="text-sm text-muted-foreground">{plan.description}</p>

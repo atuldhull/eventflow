@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { type ColumnDef } from "@tanstack/react-table"
-import { Building2, Plus, MoreHorizontal, CheckCircle, XCircle } from "lucide-react"
+import { Building2, Plus, MoreHorizontal, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
@@ -11,6 +11,14 @@ import { DataTable } from "@/components/tables/DataTable"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -108,15 +116,68 @@ const columns: ColumnDef<Enterprise, unknown>[] = [
 ]
 
 export default function EnterprisesPage() {
+  const router = useRouter()
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [data, setData] = useState<Enterprise[]>([])
+  const [total, setTotal] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Data would come from API in production
-  const data: Enterprise[] = []
-  const total = 0
-  const isLoading = false
+  // Create dialog state
+  const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({ name: "", slug: "", email: "", type: "", description: "" })
+
+  const fetchEnterprises = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+      if (debouncedSearch) params.set("search", debouncedSearch)
+      const res = await fetch(`/api/super-admin/enterprises?${params}`)
+      const json = await res.json()
+      if (json.success) {
+        setData(json.data)
+        setTotal(json.pagination.total)
+      }
+    } catch {
+      toast.error("Failed to load enterprises")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [page, pageSize, debouncedSearch])
+
+  useEffect(() => { fetchEnterprises() }, [fetchEnterprises])
+
+  const handleCreate = async () => {
+    if (!form.name || !form.email) { toast.error("Name and email are required"); return }
+    setCreating(true)
+    try {
+      const res = await fetch("/api/super-admin/enterprises", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          slug: form.slug || form.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
+          ownerId: "current", // will be resolved server-side
+        }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        toast.success("Enterprise created!")
+        setShowCreate(false)
+        setForm({ name: "", slug: "", email: "", type: "", description: "" })
+        fetchEnterprises()
+      } else {
+        toast.error(json.message || "Failed to create")
+      }
+    } catch {
+      toast.error("Failed to create enterprise")
+    } finally {
+      setCreating(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -128,7 +189,7 @@ export default function EnterprisesPage() {
           { label: "Enterprises" },
         ]}
         actions={
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" />
             Add Enterprise
           </Button>
@@ -158,6 +219,41 @@ export default function EnterprisesPage() {
           </div>
         }
       />
+
+      {/* Create Enterprise Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Enterprise</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Name *</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Demo University" />
+            </div>
+            <div className="space-y-2">
+              <Label>Slug</Label>
+              <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="auto-generated from name" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email *</Label>
+              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="admin@enterprise.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Input value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} placeholder="UNIVERSITY, COMPANY, etc." />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={creating}>{creating ? "Creating..." : "Create"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

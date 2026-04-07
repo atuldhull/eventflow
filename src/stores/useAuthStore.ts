@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 import type { Role } from "@/lib/constants"
 import type { Permission } from "@/lib/permissions"
 
@@ -35,36 +36,47 @@ interface AuthState {
   reset: () => void
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  permissions: [],
-  currentEnterpriseId: null,
-  currentOrganizationId: null,
-  accessibleEnterprises: [],
-  accessibleOrganizations: [],
-  isInitialized: false,
-
-  setPermissions: (permissions) => set({ permissions }),
-  setCurrentEnterprise: (currentEnterpriseId) =>
-    set({ currentEnterpriseId, currentOrganizationId: null }),
-  setCurrentOrganization: (currentOrganizationId) => set({ currentOrganizationId }),
-  setAccessibleEntities: (accessibleEnterprises, accessibleOrganizations) =>
-    set({ accessibleEnterprises, accessibleOrganizations }),
-  initialize: (data) =>
-    set({
-      permissions: data.permissions,
-      accessibleEnterprises: data.enterprises,
-      accessibleOrganizations: data.organizations,
-      currentEnterpriseId: data.currentEnterpriseId || null,
-      currentOrganizationId: data.currentOrganizationId || null,
-      isInitialized: true,
-    }),
-  reset: () =>
-    set({
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
       permissions: [],
       currentEnterpriseId: null,
       currentOrganizationId: null,
       accessibleEnterprises: [],
       accessibleOrganizations: [],
       isInitialized: false,
+
+      setPermissions: (permissions) => set({ permissions }),
+      setCurrentEnterprise: (currentEnterpriseId) =>
+        set({ currentEnterpriseId, currentOrganizationId: null }),
+      setCurrentOrganization: (currentOrganizationId) => set({ currentOrganizationId }),
+      setAccessibleEntities: (accessibleEnterprises, accessibleOrganizations) =>
+        set({ accessibleEnterprises, accessibleOrganizations }),
+      initialize: (data) =>
+        set({
+          permissions: data.permissions,
+          accessibleEnterprises: data.enterprises,
+          accessibleOrganizations: data.organizations,
+          currentEnterpriseId: data.currentEnterpriseId || null,
+          currentOrganizationId: data.currentOrganizationId || null,
+          isInitialized: true,
+        }),
+      reset: () =>
+        set({
+          permissions: [],
+          currentEnterpriseId: null,
+          currentOrganizationId: null,
+          accessibleEnterprises: [],
+          accessibleOrganizations: [],
+          isInitialized: false,
+        }),
     }),
-}))
+    {
+      name: "eventflow-auth",
+      partialize: (state) => ({
+        currentEnterpriseId: state.currentEnterpriseId,
+        currentOrganizationId: state.currentOrganizationId,
+      }),
+    }
+  )
+)

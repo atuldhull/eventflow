@@ -142,14 +142,14 @@ export default function LandingPage() {
           <h2 className="text-3xl font-bold">Simple, Transparent Pricing</h2>
           <p className="text-muted-foreground mt-2">Start free, upgrade as you grow</p>
         </div>
-        <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto">
+        <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto pt-4">
           {[
             { name: "Free", price: "₹0", period: "/month", features: ["5 events/month", "100 participants", "Basic analytics", "Email support"], cta: "Get Started", href: "/signup" },
             { name: "Pro", price: "₹999", period: "/month", features: ["Unlimited events", "5,000 participants", "Advanced analytics", "Custom branding", "Priority support"], cta: "Start Free Trial", href: "/signup?plan=pro", popular: true },
             { name: "Enterprise", price: "Custom", period: "", features: ["Unlimited everything", "White-label", "SSO integration", "Dedicated support", "API access"], cta: "Contact Sales", href: "/contact" },
           ].map((plan) => (
-            <Card key={plan.name} className={cn("p-6 space-y-4 relative", plan.popular && "border-primary shadow-lg")}>
-              {plan.popular && <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2">Most Popular</Badge>}
+            <Card key={plan.name} className={cn("p-6 space-y-4 relative overflow-visible", plan.popular && "border-primary shadow-lg")}>
+              {plan.popular && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">Most Popular</Badge>}
               <div>
                 <h3 className="font-semibold">{plan.name}</h3>
                 <p className="text-3xl font-bold mt-1">{plan.price}<span className="text-sm font-normal text-muted-foreground">{plan.period}</span></p>

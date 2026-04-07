@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Save, Loader2 } from "lucide-react"
+import { useRBAC } from "@/hooks/useRBAC"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { Card } from "@/components/ui/card"
@@ -21,13 +22,36 @@ import {
 } from "@/components/ui/select"
 
 export default function EnterpriseSettingsPage() {
+  const { currentEnterpriseId } = useRBAC()
   const [isSaving, setIsSaving] = useState(false)
+  const [form, setForm] = useState({ name: "", type: "", description: "", email: "", phone: "" })
+
+  useEffect(() => {
+    if (!currentEnterpriseId) return
+    async function load() {
+      try {
+        const res = await fetch(`/api/admin/enterprise/${currentEnterpriseId}/settings`)
+        const json = await res.json()
+        if (json.success && json.data) {
+          setForm({ name: json.data.name || "", type: json.data.type || "", description: json.data.description || "", email: json.data.email || "", phone: json.data.phone || "" })
+        }
+      } catch {}
+    }
+    load()
+  }, [currentEnterpriseId])
 
   const handleSave = async () => {
+    if (!currentEnterpriseId) return
     setIsSaving(true)
     try {
-      await new Promise((r) => setTimeout(r, 500))
-      toast.success("Settings saved")
+      const res = await fetch(`/api/admin/enterprise/${currentEnterpriseId}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      const json = await res.json()
+      if (json.success) toast.success("Settings saved")
+      else toast.error(json.message || "Failed to save")
     } catch {
       toast.error("Failed to save")
     } finally {

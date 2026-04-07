@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Save, Loader2, Upload } from "lucide-react"
+import { useRBAC } from "@/hooks/useRBAC"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { Card } from "@/components/ui/card"
@@ -12,13 +13,40 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 
 export default function EnterpriseBrandingPage() {
+  const { currentEnterpriseId } = useRBAC()
   const [isSaving, setIsSaving] = useState(false)
+  const [primaryColor, setPrimaryColor] = useState("#09090b")
+  const [secondaryColor, setSecondaryColor] = useState("#ffffff")
+  const [customDomain, setCustomDomain] = useState("")
+
+  useEffect(() => {
+    if (!currentEnterpriseId) return
+    async function load() {
+      try {
+        const res = await fetch(`/api/admin/enterprise/${currentEnterpriseId}/branding`)
+        const json = await res.json()
+        if (json.success && json.data) {
+          if (json.data.primaryColor) setPrimaryColor(json.data.primaryColor)
+          if (json.data.secondaryColor) setSecondaryColor(json.data.secondaryColor)
+          if (json.data.customDomain) setCustomDomain(json.data.customDomain)
+        }
+      } catch {}
+    }
+    load()
+  }, [currentEnterpriseId])
 
   const handleSave = async () => {
+    if (!currentEnterpriseId) return
     setIsSaving(true)
     try {
-      await new Promise((r) => setTimeout(r, 500))
-      toast.success("Branding saved successfully")
+      const res = await fetch(`/api/admin/enterprise/${currentEnterpriseId}/branding`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ primaryColor, secondaryColor, customDomain: customDomain || undefined }),
+      })
+      const json = await res.json()
+      if (json.success) toast.success("Branding saved successfully")
+      else toast.error(json.message || "Failed to save")
     } catch {
       toast.error("Failed to save")
     } finally {

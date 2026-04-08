@@ -50,7 +50,7 @@ export function TeamProfilesAdmin({ config, orgSlug, isPreview }: ModuleProps) {
 
   async function fetchMembers() {
     try {
-      const res = await fetch(`/api/modules/merchandise-store/products?orgSlug=${orgSlug}&moduleId=team-profiles&status=all`)
+      const res = await fetch(`/api/modules/team-profiles/members?orgSlug=${orgSlug}&status=all`)
       const json = await res.json()
       if (json.success) setMembers(json.data)
     } catch {} finally { setIsLoading(false) }
@@ -83,7 +83,7 @@ export function TeamProfilesAdmin({ config, orgSlug, isPreview }: ModuleProps) {
     const social = { linkedin, twitter, github, website: webUrl }
 
     try {
-      const url = `/api/modules/merchandise-store/products?orgSlug=${orgSlug}&moduleId=team-profiles${editingMember ? `&productId=${editingMember.id}` : ""}`
+      const url = `/api/modules/team-profiles/members?orgSlug=${orgSlug}${editingMember ? `&memberId=${editingMember.id}` : ""}`
       const method = editingMember ? "PATCH" : "POST"
       const res = await fetch(url, {
         method,
@@ -101,7 +101,7 @@ export function TeamProfilesAdmin({ config, orgSlug, isPreview }: ModuleProps) {
   const handleDelete = async (memberId: string) => {
     if (isPreview) return
     try {
-      const res = await fetch(`/api/modules/merchandise-store/products?orgSlug=${orgSlug}&moduleId=team-profiles&productId=${memberId}`, { method: "DELETE" })
+      const res = await fetch(`/api/modules/team-profiles/members?orgSlug=${orgSlug}&memberId=${memberId}`, { method: "DELETE" })
       const json = await res.json()
       if (json.success) { toast.success("Member removed"); fetchMembers() }
     } catch { toast.error("Failed to delete") }

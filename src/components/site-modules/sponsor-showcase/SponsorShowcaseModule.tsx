@@ -54,7 +54,7 @@ export function SponsorShowcaseModule({ config, orgSlug, isPreview }: ModuleProp
     if (isPreview) { setSponsors(SAMPLE_SPONSORS); setIsLoading(false); return }
     async function fetch_() {
       try {
-        const res = await fetch(`/api/modules/photo-gallery/albums?orgSlug=${orgSlug}&moduleId=sponsor-showcase`)
+        const res = await fetch(`/api/modules/sponsor-showcase/sponsors?orgSlug=${orgSlug}`)
         const json = await res.json()
         if (json.success) setSponsors(json.data)
       } catch {} finally { setIsLoading(false) }

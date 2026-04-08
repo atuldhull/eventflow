@@ -50,7 +50,7 @@ export function SponsorShowcaseAdmin({ config, orgSlug, isPreview }: ModuleProps
 
   async function fetchSponsors() {
     try {
-      const res = await fetch(`/api/modules/merchandise-store/products?orgSlug=${orgSlug}&moduleId=sponsor-showcase`)
+      const res = await fetch(`/api/modules/sponsor-showcase/sponsors?orgSlug=${orgSlug}`)
       const json = await res.json()
       if (json.success) setSponsors(json.data)
     } catch {} finally { setIsLoading(false) }
@@ -74,7 +74,7 @@ export function SponsorShowcaseAdmin({ config, orgSlug, isPreview }: ModuleProps
     if (isPreview) { toast.info("Disabled in preview"); return }
     setIsSaving(true)
     try {
-      const url = `/api/modules/merchandise-store/products?orgSlug=${orgSlug}&moduleId=sponsor-showcase${editingSponsor ? `&productId=${editingSponsor.id}` : ""}`
+      const url = `/api/modules/sponsor-showcase/sponsors?orgSlug=${orgSlug}${editingSponsor ? `&sponsorId=${editingSponsor.id}` : ""}`
       const method = editingSponsor ? "PATCH" : "POST"
       const res = await fetch(url, {
         method,
@@ -92,7 +92,7 @@ export function SponsorShowcaseAdmin({ config, orgSlug, isPreview }: ModuleProps
   const handleDelete = async (sponsorId: string) => {
     if (isPreview) return
     try {
-      const res = await fetch(`/api/modules/merchandise-store/products?orgSlug=${orgSlug}&moduleId=sponsor-showcase&productId=${sponsorId}`, { method: "DELETE" })
+      const res = await fetch(`/api/modules/sponsor-showcase/sponsors?orgSlug=${orgSlug}&sponsorId=${sponsorId}`, { method: "DELETE" })
       const json = await res.json()
       if (json.success) { toast.success("Sponsor removed"); fetchSponsors() }
     } catch { toast.error("Failed to delete") }

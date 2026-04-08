@@ -51,7 +51,7 @@ export function TeamProfilesModule({ config, orgSlug, isPreview }: ModuleProps) 
     if (isPreview) { setMembers(SAMPLE_MEMBERS); setIsLoading(false); return }
     async function fetch_() {
       try {
-        const res = await fetch(`/api/modules/photo-gallery/albums?orgSlug=${orgSlug}&moduleId=team-profiles`)
+        const res = await fetch(`/api/modules/team-profiles/members?orgSlug=${orgSlug}`)
         const json = await res.json()
         if (json.success) setMembers(json.data)
       } catch {} finally { setIsLoading(false) }

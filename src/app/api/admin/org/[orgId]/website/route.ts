@@ -143,7 +143,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ or
   if (body.isPublished !== undefined) updateData.isPublished = body.isPublished
   if (body.seoTitle !== undefined) updateData.seoTitle = body.seoTitle
   if (body.seoDescription !== undefined) updateData.seoDescription = body.seoDescription
+  if (body.seoKeywords !== undefined) updateData.seoKeywords = body.seoKeywords
   if (body.customCss !== undefined) updateData.customCss = body.customCss
+  if (body.favicon !== undefined) updateData.favicon = body.favicon
+  if (body.ogImage !== undefined) updateData.ogImage = body.ogImage
 
   const updated = await prisma.siteConfig.update({ where: { organizationId: orgId }, data: updateData })
 

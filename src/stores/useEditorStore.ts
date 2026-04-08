@@ -1,21 +1,27 @@
 import { create } from "zustand"
-import type { SectionConfig, SiteStyles } from "@/types/site-builder"
+import type { SectionConfig, SiteStyles, NavItem, FooterConfig } from "@/types/site-builder"
 
-interface SiteConfigState {
+export interface SiteConfigState {
   id: string
   siteName: string
   tagline: string | null
+  siteDescription: string | null
+  favicon: string | null
+  ogImage: string | null
   sections: SectionConfig[]
   styles: SiteStyles
   enabledFeatures: any[]
-  navigation: any[]
-  footer: any
+  navigation: NavItem[]
+  footer: FooterConfig | null
   isPublished: boolean
   customCss: string | null
   seoTitle: string | null
   seoDescription: string | null
+  seoKeywords: string[]
   templateId: string
 }
+
+export type PanelView = "sections" | "section-editor" | "styles" | "navigation" | "settings" | "seo" | "pages"
 
 interface EditorState {
   // Data
@@ -29,7 +35,7 @@ interface EditorState {
   isSaving: boolean
   isLoaded: boolean
   previewMode: "desktop" | "tablet" | "mobile"
-  leftPanelView: "sections" | "section-editor" | "styles" | "settings"
+  leftPanelView: PanelView
 
   // Undo/Redo
   undoStack: SiteConfigState[]
@@ -53,9 +59,23 @@ interface EditorState {
   updateStyles: (updates: Partial<SiteStyles>) => void
   updateSiteName: (name: string) => void
 
+  // Navigation actions
+  updateNavigation: (items: NavItem[]) => void
+  addNavItem: (item: NavItem) => void
+  removeNavItem: (index: number) => void
+
+  // Footer actions
+  updateFooter: (footer: FooterConfig) => void
+
+  // SEO actions
+  updateSEO: (updates: Partial<Pick<SiteConfigState, "seoTitle" | "seoDescription" | "seoKeywords" | "ogImage">>) => void
+
+  // Settings actions
+  updateSiteIdentity: (updates: Partial<Pick<SiteConfigState, "siteName" | "tagline" | "siteDescription" | "favicon">>) => void
+
   // Preview
   setPreviewMode: (mode: "desktop" | "tablet" | "mobile") => void
-  setLeftPanelView: (view: "sections" | "section-editor" | "styles" | "settings") => void
+  setLeftPanelView: (view: PanelView) => void
 
   // Undo/Redo
   undo: () => void
@@ -179,6 +199,51 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { siteConfig } = get()
     if (!siteConfig) return
     set({ siteConfig: { ...siteConfig, siteName: name }, isDirty: true })
+  },
+
+  // Navigation
+  updateNavigation: (items) => {
+    const { siteConfig } = get()
+    if (!siteConfig) return
+    get().pushUndo()
+    set({ siteConfig: { ...siteConfig, navigation: items }, isDirty: true })
+  },
+  addNavItem: (item) => {
+    const { siteConfig } = get()
+    if (!siteConfig) return
+    get().pushUndo()
+    set({ siteConfig: { ...siteConfig, navigation: [...siteConfig.navigation, item] }, isDirty: true })
+  },
+  removeNavItem: (index) => {
+    const { siteConfig } = get()
+    if (!siteConfig) return
+    get().pushUndo()
+    const navigation = siteConfig.navigation.filter((_, i) => i !== index)
+    set({ siteConfig: { ...siteConfig, navigation }, isDirty: true })
+  },
+
+  // Footer
+  updateFooter: (footer) => {
+    const { siteConfig } = get()
+    if (!siteConfig) return
+    get().pushUndo()
+    set({ siteConfig: { ...siteConfig, footer }, isDirty: true })
+  },
+
+  // SEO
+  updateSEO: (updates) => {
+    const { siteConfig } = get()
+    if (!siteConfig) return
+    get().pushUndo()
+    set({ siteConfig: { ...siteConfig, ...updates }, isDirty: true })
+  },
+
+  // Settings
+  updateSiteIdentity: (updates) => {
+    const { siteConfig } = get()
+    if (!siteConfig) return
+    get().pushUndo()
+    set({ siteConfig: { ...siteConfig, ...updates }, isDirty: true })
   },
 
   setPreviewMode: (mode) => set({ previewMode: mode }),

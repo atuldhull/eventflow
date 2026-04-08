@@ -6,10 +6,17 @@ import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { useRBAC } from "@/hooks/useRBAC"
 import { useEditorStore } from "@/stores/useEditorStore"
+import { FileText, Palette, Navigation, Settings, Search, FileStack } from "lucide-react"
 import { EditorTopBar } from "@/components/website/editor/EditorTopBar"
 import { SectionListPanel } from "@/components/website/editor/SectionListPanel"
 import { SectionEditor } from "@/components/website/editor/SectionEditor"
 import { EditorPreview } from "@/components/website/editor/EditorPreview"
+import { StylesPanel } from "@/components/website/editor/StylesPanel"
+import { NavigationPanel } from "@/components/website/editor/NavigationPanel"
+import { SettingsPanel } from "@/components/website/editor/SettingsPanel"
+import { SEOPanel } from "@/components/website/editor/SEOPanel"
+import { PagesPanel } from "@/components/website/editor/PagesPanel"
+import type { PanelView } from "@/stores/useEditorStore"
 
 export default function WebsiteEditorPage() {
   const router = useRouter()
@@ -31,6 +38,9 @@ export default function WebsiteEditorPage() {
             id: sc.id,
             siteName: sc.siteName,
             tagline: sc.tagline,
+            siteDescription: sc.siteDescription,
+            favicon: sc.favicon,
+            ogImage: sc.ogImage,
             sections: sc.sections || [],
             styles: sc.styles || {},
             enabledFeatures: sc.enabledFeatures || [],
@@ -40,6 +50,7 @@ export default function WebsiteEditorPage() {
             customCss: sc.customCss,
             seoTitle: sc.seoTitle,
             seoDescription: sc.seoDescription,
+            seoKeywords: sc.seoKeywords || [],
             templateId: sc.templateId,
           }, currentOrganizationId!, String((org as any)?.slug || ""))
         } else {
@@ -91,6 +102,9 @@ export default function WebsiteEditorPage() {
           customCss: state.siteConfig.customCss,
           seoTitle: state.siteConfig.seoTitle,
           seoDescription: state.siteConfig.seoDescription,
+          seoKeywords: state.siteConfig.seoKeywords,
+          tagline: state.siteConfig.tagline,
+          siteDescription: state.siteConfig.siteDescription,
         }),
       })
       const json = await res.json()
@@ -147,7 +161,38 @@ export default function WebsiteEditorPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel */}
         <div className="w-80 border-r bg-background flex flex-col overflow-hidden shrink-0">
-          {leftPanelView === "section-editor" ? <SectionEditor /> : <SectionListPanel />}
+          {/* Panel tabs */}
+          <div className="flex items-center border-b px-1 shrink-0">
+            {([
+              { view: "sections" as PanelView, icon: <FileText className="h-3.5 w-3.5" />, label: "Sections" },
+              { view: "styles" as PanelView, icon: <Palette className="h-3.5 w-3.5" />, label: "Styles" },
+              { view: "navigation" as PanelView, icon: <Navigation className="h-3.5 w-3.5" />, label: "Nav" },
+              { view: "settings" as PanelView, icon: <Settings className="h-3.5 w-3.5" />, label: "Settings" },
+              { view: "seo" as PanelView, icon: <Search className="h-3.5 w-3.5" />, label: "SEO" },
+              { view: "pages" as PanelView, icon: <FileStack className="h-3.5 w-3.5" />, label: "Pages" },
+            ]).map((tab) => (
+              <button key={tab.view} onClick={() => useEditorStore.getState().setLeftPanelView(tab.view)}
+                title={tab.label}
+                className={`flex-1 flex items-center justify-center py-2.5 transition-colors border-b-2 ${
+                  leftPanelView === tab.view || (tab.view === "sections" && leftPanelView === "section-editor")
+                    ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}>
+                {tab.icon}
+              </button>
+            ))}
+          </div>
+
+          {/* Panel content */}
+          <div className="flex-1 overflow-hidden">
+            {(leftPanelView === "sections" || leftPanelView === "section-editor") && (
+              leftPanelView === "section-editor" ? <SectionEditor /> : <SectionListPanel />
+            )}
+            {leftPanelView === "styles" && <StylesPanel />}
+            {leftPanelView === "navigation" && <NavigationPanel />}
+            {leftPanelView === "settings" && <SettingsPanel />}
+            {leftPanelView === "seo" && <SEOPanel />}
+            {leftPanelView === "pages" && <PagesPanel />}
+          </div>
         </div>
 
         {/* Right Panel — Preview */}

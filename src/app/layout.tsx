@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "next-themes"
 import { Toaster } from "@/components/ui/sonner"
 import { Providers } from "./providers"
+import { PWARegister } from "@/components/PWARegister"
 import "./globals.css"
 
 const inter = Inter({
@@ -39,6 +40,7 @@ export default function RootLayout({
           <Providers>
             {children}
             <Toaster />
+            <PWARegister />
           </Providers>
         </ThemeProvider>
       </body>

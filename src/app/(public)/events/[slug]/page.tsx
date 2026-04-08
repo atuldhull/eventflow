@@ -15,6 +15,7 @@ import { ShareModal } from "@/components/events/ShareModal"
 import { AddToCalendar } from "@/components/events/AddToCalendar"
 import { CountdownTimer } from "@/components/events/CountdownTimer"
 import { VenueMap } from "@/components/events/VenueMap"
+import { EventDiscussion } from "@/components/events/EventDiscussion"
 import { cn } from "@/lib/utils"
 
 interface EventData {
@@ -253,6 +254,10 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
                 </section>
               </>
             )}
+
+            {/* Discussion */}
+            <Separator />
+            <EventDiscussion slug={slug} />
 
             {/* Rules */}
             {event.rules && (

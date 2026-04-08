@@ -4,16 +4,29 @@ import { auth } from "@/lib/auth"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
 
+async function checkModuleEnabled(orgId: string) {
+  const siteConfig = await prisma.siteConfig.findUnique({
+    where: { organizationId: orgId },
+    select: { enabledFeatures: true },
+  })
+  const features = (siteConfig?.enabledFeatures as any[]) || []
+  return features.some((f: any) => f.moduleId === "blog-posts" && f.enabled)
+}
+
 // GET — Single post detail
 export async function GET(req: NextRequest, { params }: { params: Promise<{ postId: string }> }) {
   const { postId } = await params
 
   const post = await prisma.featureModuleData.findUnique({
     where: { id: postId },
-    select: { id: true, title: true, data: true, isPublished: true, participantCount: true, createdAt: true },
+    select: { id: true, title: true, data: true, isPublished: true, participantCount: true, organizationId: true, createdAt: true },
   })
 
   if (!post) return NextResponse.json({ success: false, message: "Post not found" }, { status: 404 })
+
+  if (post.organizationId && !(await checkModuleEnabled(post.organizationId))) {
+    return NextResponse.json({ success: false, message: "This feature is not available" }, { status: 404 })
+  }
 
   // Increment view count
   await prisma.featureModuleData.update({

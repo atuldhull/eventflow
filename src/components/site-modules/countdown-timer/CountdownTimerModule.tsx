@@ -7,7 +7,7 @@ import type { ModuleProps } from "@/lib/site-builder/module-renderer"
 
 interface TimeLeft { days: number; hours: number; minutes: number; seconds: number }
 
-function FlipUnit({ value, label, color }: { value: number; label: string; color: string }) {
+function FlipUnit({ value, label, color }: { value: number; max?: number; label: string; color: string }) {
   return (
     <div className="flex flex-col items-center">
       <div className="relative bg-zinc-900 rounded-xl px-3 py-2 sm:px-5 sm:py-3 shadow-lg">
@@ -21,7 +21,7 @@ function FlipUnit({ value, label, color }: { value: number; label: string; color
   )
 }
 
-function MinimalUnit({ value, label, color }: { value: number; label: string; color: string }) {
+function MinimalUnit({ value, label, color }: { value: number; max?: number; label: string; color: string }) {
   return (
     <div className="text-center">
       <span className="text-4xl sm:text-5xl md:text-7xl font-bold tabular-nums" style={{ color }}>{String(value).padStart(2, "0")}</span>
@@ -30,7 +30,7 @@ function MinimalUnit({ value, label, color }: { value: number; label: string; co
   )
 }
 
-function BoldUnit({ value, label, color }: { value: number; label: string; color: string }) {
+function BoldUnit({ value, label, color }: { value: number; max?: number; label: string; color: string }) {
   return (
     <div className="flex flex-col items-center">
       <div className="rounded-2xl p-4 sm:p-6 shadow-md" style={{ backgroundColor: color }}>
@@ -120,7 +120,7 @@ export function CountdownTimerModule({ config, orgSlug, isPreview }: ModuleProps
       <div className="flex justify-center items-center gap-3 sm:gap-6">
         {units.map((u, i) => (
           <div key={u.key} className="flex items-center gap-3 sm:gap-6">
-            {style === "circular" ? <CircularUnit value={u.value} max={u.max} label={u.label} color={color} /> : <UnitComponent value={u.value} label={u.label} color={color} />}
+            <UnitComponent value={u.value} max={u.max} label={u.label} color={color} />
             {i < units.length - 1 && style === "minimal" && <span className="text-3xl sm:text-5xl font-bold opacity-20">:</span>}
           </div>
         ))}

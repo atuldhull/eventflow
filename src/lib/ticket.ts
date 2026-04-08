@@ -119,6 +119,10 @@ export async function validateTicketQR(qrDataString: string) {
       return { valid: false, reason: "EXPIRED", message: "This ticket has expired" }
     }
 
+    if (ticket.status === "TRANSFERRED") {
+      return { valid: false, reason: "TRANSFERRED", message: "This ticket has been transferred to another person" }
+    }
+
     if (ticket.eventId !== payload.e) {
       return { valid: false, reason: "WRONG_EVENT", message: "Ticket is for a different event" }
     }

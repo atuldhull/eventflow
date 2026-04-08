@@ -32,7 +32,12 @@ export async function GET(
   // Use Notification model as a lightweight message store via metadata
   // In production, you'd have a dedicated Discussion/Comment model
   const messages = await prisma.notification.findMany({
-    where: { type: "IN_APP", category: "ANNOUNCEMENT", data: { path: ["eventId"], equals: event.id }, title: { startsWith: "Discussion:" } },
+    where: {
+      type: "IN_APP",
+      category: "ANNOUNCEMENT",
+      title: { startsWith: `Discussion: ` },
+      data: { path: ["eventId"], equals: event.id },
+    },
     orderBy: { createdAt: "desc" },
     skip: (page - 1) * limit,
     take: limit,

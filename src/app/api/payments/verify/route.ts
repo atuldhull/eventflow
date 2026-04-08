@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     select: { registrationNumber: true, ticketTypeId: true },
   })
 
-  if (reg) {
+  if (reg && reg.ticketTypeId) {
     const ticketNum = `TKT-${Date.now().toString(36).toUpperCase()}`
     const { createQRPayload } = await import("@/lib/ticket")
     const qrData = createQRPayload(ticketNum, payment.eventId, reg.registrationNumber)
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         registrationId: payment.registrationId!,
         userId: session.user.id,
         eventId: payment.eventId,
-        ticketTypeId: reg.ticketTypeId || "",
+        ticketTypeId: reg.ticketTypeId,
         ticketNumber: ticketNum,
         qrCode: qrData,
         status: "ACTIVE",

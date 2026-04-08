@@ -5,6 +5,9 @@ import prisma from "@/lib/prisma"
 // Lazy init to avoid crash when keys not set
 let _razorpay: any = null
 function getRazorpay() {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error("RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set")
+  }
   if (!_razorpay) {
     const Razorpay = require("razorpay")
     _razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET })
@@ -46,13 +49,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: "Invalid ticket price" }, { status: 400 })
   }
 
-  if (!registration) {
-    return NextResponse.json({ success: false, message: "Registration not found" }, { status: 404 })
-  }
-
-  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    return NextResponse.json({ success: false, message: "Payment gateway not configured" }, { status: 503 })
-  }
+  // Razorpay key check happens inside getRazorpay() — fail fast with clear error
 
   try {
     const order = await getRazorpay().orders.create({

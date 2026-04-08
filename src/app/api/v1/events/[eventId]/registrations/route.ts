@@ -92,13 +92,13 @@ export const POST = withApiAuth("registrations:write", async (req, ctx, routeCtx
     await prisma.event.update({ where: { id: eventId }, data: { currentRegistrations: { increment: 1 } } })
   }
 
-  // Generate ticket for free confirmed registrations
+  // Generate ticket for free confirmed registrations (only if ticketTypeId is provided)
   let ticket = null
-  if (status === "CONFIRMED" && !event.isPaid) {
+  if (status === "CONFIRMED" && !event.isPaid && ticketTypeId) {
     const ticketNum = `TKT-${Date.now().toString(36).toUpperCase()}`
     const qrData = createQRPayload(ticketNum, eventId, regNumber)
     ticket = await prisma.ticket.create({
-      data: { registrationId: registration.id, userId: user.id, eventId, ticketTypeId: ticketTypeId || undefined, ticketNumber: ticketNum, qrCode: qrData, status: "ACTIVE" },
+      data: { registrationId: registration.id, userId: user.id, eventId, ticketTypeId, ticketNumber: ticketNum, qrCode: qrData, status: "ACTIVE" },
     })
   }
 

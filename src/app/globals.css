@@ -178,6 +178,56 @@
   }
 }
 
+/* ============ MICRO ANIMATIONS ============ */
+
+/* Smooth transitions on all interactive elements */
+a, button, [role="button"], input, textarea, select {
+  transition: all 0.2s cubic-bezier(0.25, 0.4, 0.25, 1);
+}
+
+/* Card hover lift */
+[data-slot="card"]:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus ring animation */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+  transition: outline-offset 0.15s ease;
+}
+
+/* Skeleton loading shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+[data-slot="skeleton"] {
+  background: linear-gradient(90deg, var(--muted) 25%, var(--accent) 50%, var(--muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Badge hover scale */
+[data-slot="badge"] {
+  transition: transform 0.15s ease;
+}
+[data-slot="badge"]:hover {
+  transform: scale(1.03);
+}
+
+/* Table row hover */
+tr {
+  transition: background-color 0.15s ease;
+}
+
 /* High contrast mode support */
 @media (forced-colors: active) {
   .badge,

@@ -47,10 +47,10 @@ export function Navbar() {
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
         isTransparent
           ? "bg-transparent"
-          : "bg-background/95 backdrop-blur-sm border-b shadow-sm"
+          : "bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm supports-backdrop-filter:bg-background/60"
       )}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4">

@@ -24,6 +24,7 @@
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
     "date-fns": "4.1.0",
+    "framer-motion": "12.38.0",
     "html5-qrcode": "2.3.8",
     "ioredis": "5.10.1",
     "isomorphic-dompurify": "3.7.1",

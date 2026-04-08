@@ -1,16 +1,7 @@
 import { headers } from "next/headers"
 import { SectionList } from "@/lib/site-builder/section-renderer"
+import { getSiteData } from "@/lib/site-builder/fetch-site"
 import type { SectionConfig, SiteStyles } from "@/types/site-builder"
-
-async function getSiteData(orgSlug: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  try {
-    const res = await fetch(`${baseUrl}/api/site/${orgSlug}`, { next: { revalidate: 120 } })
-    if (!res.ok) return null
-    const json = await res.json()
-    return json.exists ? json : null
-  } catch { return null }
-}
 
 export default async function SiteHomePage() {
   const headerList = await headers()

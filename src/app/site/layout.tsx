@@ -1,19 +1,10 @@
 import { headers } from "next/headers"
 import type { Metadata } from "next"
 import { generateCSSVariables, getGoogleFontsUrl, sanitizeCustomCss } from "@/lib/site-builder/styles"
+import { getSiteData } from "@/lib/site-builder/fetch-site"
 import { SiteNavbar } from "@/components/website/render/SiteNavbar"
 import { SiteFooter } from "@/components/website/render/SiteFooter"
 import type { SiteStyles, NavItem, FooterConfig } from "@/types/site-builder"
-
-async function getSiteData(orgSlug: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  try {
-    const res = await fetch(`${baseUrl}/api/site/${orgSlug}`, { next: { revalidate: 120 } })
-    if (!res.ok) return null
-    const json = await res.json()
-    return json.exists ? json : null
-  } catch { return null }
-}
 
 export async function generateMetadata(): Promise<Metadata> {
   const headerList = await headers()

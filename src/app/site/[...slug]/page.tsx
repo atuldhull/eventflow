@@ -2,29 +2,10 @@ import { headers } from "next/headers"
 import type { Metadata } from "next"
 import { SectionList } from "@/lib/site-builder/section-renderer"
 import { getModuleIdFromSlug } from "@/lib/site-builder/styles"
+import { getSiteData, getPageData } from "@/lib/site-builder/fetch-site"
 import { SiteNotFound } from "@/components/website/render/SiteNotFound"
 import { ModulePage } from "@/components/website/render/ModulePage"
 import type { SectionConfig, SiteStyles } from "@/types/site-builder"
-
-async function getSiteData(orgSlug: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  try {
-    const res = await fetch(`${baseUrl}/api/site/${orgSlug}`, { next: { revalidate: 120 } })
-    if (!res.ok) return null
-    const json = await res.json()
-    return json.exists ? json : null
-  } catch { return null }
-}
-
-async function getPageData(orgSlug: string, pageSlug: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  try {
-    const res = await fetch(`${baseUrl}/api/site/${orgSlug}/pages/${pageSlug}`, { next: { revalidate: 120 } })
-    if (!res.ok) return null
-    const json = await res.json()
-    return json.success ? json.page : null
-  } catch { return null }
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string[] }> }): Promise<Metadata> {
   const { slug } = await params

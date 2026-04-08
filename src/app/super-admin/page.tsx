@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 
 export default function SuperAdminDashboard() {
   const [stats, setStats] = useState({ totalUsers: 0, totalEvents: 0, activeEnterprises: 0, totalRevenue: 0 })
+  const [health, setHealth] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -20,7 +21,11 @@ export default function SuperAdminDashboard() {
         if (json.success) setStats(json.data)
       } catch {} finally { setIsLoading(false) }
     }
+    async function fetchHealth() {
+      try { const res = await fetch("/api/health"); const json = await res.json(); setHealth(json) } catch {}
+    }
     fetchStats()
+    fetchHealth()
   }, [])
 
   return (
@@ -52,9 +57,9 @@ export default function SuperAdminDashboard() {
             <h3 className="text-sm font-medium">System Health</h3>
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Database</span><Badge variant="default" className="bg-green-500">Connected</Badge></div>
-            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Email Service</span><Badge variant="default" className="bg-green-500">Active</Badge></div>
-            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">API</span><Badge variant="default" className="bg-green-500">Healthy</Badge></div>
+            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Database</span><Badge variant="default" className={health?.checks?.database?.status === "up" ? "bg-green-500" : "bg-red-500"}>{health?.checks?.database?.status === "up" ? "Connected" : "Down"}</Badge></div>
+            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Email Service</span><Badge variant="default" className={health?.checks?.email?.status === "configured" ? "bg-green-500" : "bg-amber-500"}>{health?.checks?.email?.status || "Checking..."}</Badge></div>
+            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Overall</span><Badge variant="default" className={health?.status === "healthy" ? "bg-green-500" : "bg-amber-500"}>{health?.status || "Checking..."}</Badge></div>
           </div>
         </Card>
       </div>

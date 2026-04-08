@@ -8,10 +8,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="space-y-4">
           <blockquote className="space-y-2">
             <p className="text-lg leading-relaxed text-zinc-300">
-              &ldquo;EventFlow transformed how we manage campus events. Registration, ticketing, and certificates — all in one place.&rdquo;
+              Create events, manage registrations, process payments, scan QR tickets, and generate certificates — all in one platform.
             </p>
             <footer className="text-sm text-zinc-400">
-              — Student Council President, IIT Delhi
+              Built for universities, companies, and organizations
             </footer>
           </blockquote>
         </div>

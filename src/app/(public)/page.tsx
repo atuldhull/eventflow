@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState, useEffect } from "react"
 import Link from "next/link"
 import { motion, useScroll, useTransform, useInView } from "framer-motion"
 import { ArrowRight, Calendar, ClipboardCheck, PartyPopper, Layout, FormInput, CreditCard, ScanLine, BarChart3, Award, Code, Palette, Trophy, GraduationCap, Users, BookOpen, Monitor, Braces, CheckCircle, Sparkles, Zap, Shield } from "lucide-react"
@@ -33,6 +33,19 @@ function Counter({ target, suffix = "" }: { target: string; suffix?: string }) {
 }
 
 export default function LandingPage() {
+  const [stats, setStats] = useState({ events: 0, registrations: 0, organizations: 0 })
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch("/api/stats")
+        const json = await res.json()
+        if (json.success) setStats(json.data)
+      } catch {}
+    }
+    fetchStats()
+  }, [])
+
   const heroRef = useRef(null)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] })
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 200])
@@ -65,7 +78,7 @@ export default function LandingPage() {
           {/* Badge */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.6 }}>
             <Badge className="bg-white/5 text-white/80 border-white/10 backdrop-blur-sm gap-1.5 px-4 py-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" /> Trusted by 100+ organizations
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" /> Open-source Event Management Platform
             </Badge>
           </motion.div>
 
@@ -113,7 +126,7 @@ export default function LandingPage() {
               ))}
             </div>
             <p className="text-sm text-zinc-500">
-              <span className="text-white font-medium">500+</span> organizers already onboard
+              Start creating events today
             </p>
           </motion.div>
         </motion.div>
@@ -175,7 +188,7 @@ export default function LandingPage() {
           </AnimatedSection>
           <div className="grid gap-8 sm:grid-cols-3 max-w-4xl mx-auto">
             {[
-              { step: 1, icon: Calendar, title: "Discover", desc: "Browse thousands of events across categories and locations", gradient: "from-blue-500 to-cyan-500" },
+              { step: 1, icon: Calendar, title: "Discover", desc: "Browse events across categories and locations", gradient: "from-blue-500 to-cyan-500" },
               { step: 2, icon: ClipboardCheck, title: "Register", desc: "Sign up in seconds with a simple, customizable form", gradient: "from-violet-500 to-purple-500" },
               { step: 3, icon: PartyPopper, title: "Attend", desc: "Show your QR ticket at the venue and enjoy", gradient: "from-emerald-500 to-teal-500" },
             ].map(({ step, icon: Icon, title, desc, gradient }, i) => (
@@ -235,10 +248,10 @@ export default function LandingPage() {
         <div className="relative container mx-auto px-4">
           <div className="grid gap-8 grid-cols-2 lg:grid-cols-4 text-center">
             {[
-              { value: "10,000+", label: "Events Created" },
-              { value: "500,000+", label: "Registrations" },
-              { value: "100+", label: "Organizations" },
-              { value: "4.8/5", label: "Average Rating" },
+              { value: String(stats.events), label: "Events Created" },
+              { value: String(stats.registrations), label: "Registrations" },
+              { value: String(stats.organizations), label: "Organizations" },
+              { value: "—", label: "Average Rating" },
             ].map(({ value, label }, i) => (
               <AnimatedSection key={label} delay={i * 0.1}>
                 <p className="text-4xl sm:text-5xl font-bold"><Counter target={value} /></p>
@@ -300,7 +313,7 @@ export default function LandingPage() {
           </motion.div>
           <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground">Ready to Create Your Next Event?</h2>
           <p className="text-primary-foreground/70 max-w-md mx-auto text-lg">
-            Join thousands of organizers who trust EventFlow to deliver exceptional events.
+            Create, manage, and grow your events with the most complete platform available.
           </p>
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
             <Link href="/signup" className={cn(buttonVariants({ size: "lg" }), "bg-white text-primary hover:bg-white/90 text-base px-10 h-12 rounded-xl shadow-xl")}>

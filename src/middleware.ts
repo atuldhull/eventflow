@@ -21,6 +21,7 @@ const PUBLIC_ROUTES = [
   "/api/health/ready",
   "/api/events",
   "/api/events/featured",
+  "/api/stats",
   "/api/search",
   "/api/contact",
   "/api/certificates/verify",

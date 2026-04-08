@@ -121,7 +121,7 @@ export default function PricingPage() {
       </div>
 
       <div className="text-center text-sm text-muted-foreground">
-        All plans include SSL security, 99.9% uptime, and free updates.
+        All plans include SSL security and free updates.
       </div>
     </div>
   )

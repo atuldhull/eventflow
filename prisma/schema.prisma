@@ -392,6 +392,7 @@ model Enterprise {
   certificateTemplates CertificateTemplate[]
   apiKeys              ApiKey[]
   webhookEndpoints     WebhookEndpoint[]
+  siteConfig           SiteConfig?
 
   @@index([slug])
   @@index([ownerId])
@@ -457,6 +458,7 @@ model Organization {
   certificateTemplates CertificateTemplate[]
   apiKeys              ApiKey[]
   webhookEndpoints     WebhookEndpoint[]
+  siteConfig           SiteConfig?
 
   @@index([slug])
   @@index([enterpriseId])
@@ -1335,4 +1337,132 @@ model WebhookDelivery {
   @@index([status])
   @@index([createdAt])
   @@map("webhook_deliveries")
+}
+
+// ============================================================================
+// SITE BUILDER MODELS
+// ============================================================================
+
+model SiteTemplate {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String   @db.Text
+  longDescription   String?  @map("long_description") @db.Text
+  category          String
+  thumbnail         String?
+  previewImages     String[] @map("preview_images")
+  previewUrl        String?  @map("preview_url")
+  defaultSections   Json     @map("default_sections")
+  defaultStyles     Json     @map("default_styles")
+  supportedFeatures String[] @map("supported_features")
+  sectionLayout     String   @default("single-column") @map("section_layout")
+  version           String   @default("1.0.0")
+  author            String?
+  tags              String[]
+  isPremium         Boolean  @default(false) @map("is_premium")
+  isActive          Boolean  @default(true) @map("is_active")
+  isFeatured        Boolean  @default(false) @map("is_featured")
+  requiredPlan      String   @default("FREE") @map("required_plan")
+  installCount      Int      @default(0) @map("install_count")
+  rating            Float    @default(0)
+  ratingCount       Int      @default(0) @map("rating_count")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  siteConfigs SiteConfig[]
+
+  @@index([category])
+  @@index([isActive, isFeatured])
+  @@index([requiredPlan])
+  @@map("site_templates")
+}
+
+model SiteConfig {
+  id              String    @id @default(cuid())
+  organizationId  String?   @unique @map("organization_id")
+  enterpriseId    String?   @unique @map("enterprise_id")
+  templateId      String    @map("template_id")
+  siteName        String    @map("site_name")
+  tagline         String?
+  siteDescription String?   @map("site_description") @db.Text
+  favicon         String?
+  ogImage         String?   @map("og_image")
+  sections        Json
+  styles          Json
+  customCss       String?   @map("custom_css") @db.Text
+  navigation      Json?
+  footer          Json?
+  enabledFeatures Json      @map("enabled_features")
+  content         Json?
+  seoTitle        String?   @map("seo_title")
+  seoDescription  String?   @map("seo_description")
+  seoKeywords     String[]  @map("seo_keywords")
+  isPublished     Boolean   @default(false) @map("is_published")
+  publishedAt     DateTime? @map("published_at")
+  lastEditedAt    DateTime? @map("last_edited_at")
+  lastEditedBy    String?   @map("last_edited_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  template     SiteTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enterprise   Enterprise?   @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  pages        SitePage[]
+  mediaItems   SiteMedia[]
+
+  @@index([organizationId])
+  @@index([enterpriseId])
+  @@index([templateId])
+  @@index([isPublished])
+  @@map("site_configs")
+}
+
+model SitePage {
+  id             String   @id @default(cuid())
+  siteConfigId   String   @map("site_config_id")
+  title          String
+  slug           String
+  sections       Json
+  isPublished    Boolean  @default(true) @map("is_published")
+  showInNav      Boolean  @default(true) @map("show_in_nav")
+  navOrder       Int      @default(0) @map("nav_order")
+  navIcon        String?  @map("nav_icon")
+  seoTitle       String?  @map("seo_title")
+  seoDescription String?  @map("seo_description")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  siteConfig SiteConfig @relation(fields: [siteConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([siteConfigId, slug])
+  @@index([siteConfigId])
+  @@map("site_pages")
+}
+
+model SiteMedia {
+  id           String   @id @default(cuid())
+  siteConfigId String   @map("site_config_id")
+  fileName     String   @map("file_name")
+  fileUrl      String   @map("file_url")
+  fileType     String   @map("file_type")
+  fileSize     Int      @map("file_size")
+  altText      String?  @map("alt_text")
+  folder       String   @default("general")
+  tags         String[]
+  width        Int?
+  height       Int?
+  uploadedById String   @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  siteConfig SiteConfig @relation(fields: [siteConfigId], references: [id], onDelete: Cascade)
+
+  @@index([siteConfigId])
+  @@index([folder])
+  @@index([fileType])
+  @@map("site_media")
 }

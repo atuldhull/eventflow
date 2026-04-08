@@ -81,3 +81,4 @@ export function HeroFull({ config, content, siteStyles }: SectionProps) {
     </section>
   )
 }
+export default HeroFull

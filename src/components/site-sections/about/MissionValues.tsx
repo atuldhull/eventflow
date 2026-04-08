@@ -68,3 +68,4 @@ export function MissionValues({ config, content, siteStyles }: SectionProps) {
     </section>
   )
 }
+export default MissionValues

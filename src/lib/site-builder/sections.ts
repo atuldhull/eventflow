@@ -246,6 +246,110 @@ const eventsTimeline: SectionTypeDefinition = {
   defaultContent: { heading: "Event Timeline", subtitle: "What's happening and when" },
 }
 
+// ── GALLERY SECTIONS ──
+
+const galleryMasonry: SectionTypeDefinition = {
+  id: "gallery-masonry", name: "Masonry Photo Gallery", description: "Pinterest-style masonry photo grid with lightbox", category: "gallery", icon: "Image",
+  configSchema: { columns: { type: "select", label: "Columns", options: ["2", "3", "4"], default: "3" }, maxImages: { type: "number", label: "Max Images", min: 4, max: 24, default: 12 }, enableLightbox: { type: "boolean", label: "Enable Lightbox", default: true } },
+  contentSchema: { heading: { type: "text", label: "Section Title" }, images: { type: "image-list", label: "Images", max: 24, fields: ["url", "caption", "altText"] } },
+  defaultConfig: { columns: "3", maxImages: 12, enableLightbox: true },
+  defaultContent: { heading: "Gallery", images: [] },
+}
+
+const galleryCarousel: SectionTypeDefinition = {
+  id: "gallery-carousel", name: "Photo Carousel", description: "Full-width image slideshow", category: "gallery", icon: "GalleryHorizontal",
+  configSchema: { autoPlay: { type: "boolean", label: "Auto-play", default: true }, interval: { type: "number", label: "Interval (seconds)", min: 3, max: 15, default: 5 }, showCaptions: { type: "boolean", label: "Show Captions", default: true } },
+  contentSchema: { heading: { type: "text", label: "Section Title" }, images: { type: "image-list", label: "Images", max: 12, fields: ["url", "caption"] } },
+  defaultConfig: { autoPlay: true, interval: 5, showCaptions: true },
+  defaultContent: { heading: "Photo Highlights", images: [] },
+}
+
+// ── TEAM SECTION ──
+
+const teamGrid: SectionTypeDefinition = {
+  id: "team-grid", name: "Team Members", description: "Display team or club member profiles", category: "team", icon: "Users",
+  configSchema: { columns: { type: "select", label: "Columns", options: ["2", "3", "4"], default: "3" }, cardStyle: { type: "select", label: "Card Style", options: ["circle-avatar", "square-avatar", "full-card"], default: "circle-avatar" }, showSocial: { type: "boolean", label: "Show Social Links", default: true } },
+  contentSchema: { heading: { type: "text", label: "Section Title" }, members: { type: "team-list", label: "Team Members", max: 20, fields: ["name", "role", "avatar", "bio", "linkedin", "twitter", "email"] } },
+  defaultConfig: { columns: "3", cardStyle: "circle-avatar", showSocial: true },
+  defaultContent: { heading: "Meet Our Team", members: [{ name: "Alex Johnson", role: "President", avatar: "" }, { name: "Priya Sharma", role: "Vice President", avatar: "" }, { name: "Rahul Mehta", role: "Event Coordinator", avatar: "" }] },
+}
+
+// ── SOCIAL SECTIONS ──
+
+const testimonials: SectionTypeDefinition = {
+  id: "testimonials", name: "Testimonials", description: "Member and attendee testimonials", category: "social", icon: "MessageCircle",
+  configSchema: { layout: { type: "select", label: "Layout", options: ["carousel", "grid", "masonry"], default: "carousel" }, showRating: { type: "boolean", label: "Show Ratings", default: true }, autoRotate: { type: "boolean", label: "Auto-rotate (carousel)", default: true } },
+  contentSchema: { heading: { type: "text", label: "Section Title" }, testimonials: { type: "testimonial-list", label: "Testimonials", max: 10, fields: ["quote", "name", "role", "avatar", "rating"] } },
+  defaultConfig: { layout: "carousel", showRating: true, autoRotate: true },
+  defaultContent: { heading: "What People Say", testimonials: [{ quote: "An incredible experience that brought our community closer together.", name: "Anita Desai", role: "Community Member", rating: 5 }, { quote: "The best organized events I've ever attended. Highly recommended!", name: "Vikram Singh", role: "Regular Attendee", rating: 5 }] },
+}
+
+const socialFeed: SectionTypeDefinition = {
+  id: "social-feed", name: "Social Media Feed", description: "Display social media posts or curated content", category: "social", icon: "Instagram",
+  configSchema: { columns: { type: "select", label: "Columns", options: ["2", "3", "4"], default: "3" }, platform: { type: "select", label: "Platform", options: ["manual", "instagram", "twitter"], default: "manual" } },
+  contentSchema: { heading: { type: "text", label: "Section Title" }, posts: { type: "social-post-list", label: "Posts", max: 12, fields: ["image", "caption", "link"] }, profileLink: { type: "text", label: "Profile Link Text" } },
+  defaultConfig: { columns: "3", platform: "manual" },
+  defaultContent: { heading: "Follow Our Journey", posts: [], profileLink: "" },
+}
+
+// ── STATS SECTION ──
+
+const statsBar: SectionTypeDefinition = {
+  id: "stats-bar", name: "Statistics Bar", description: "Animated number counters showcasing key metrics", category: "stats", icon: "BarChart3",
+  configSchema: { background: { type: "select", label: "Background", options: ["transparent", "primary", "dark", "gradient"], default: "dark" } },
+  contentSchema: { stats: { type: "stats-list", label: "Statistics", max: 6, fields: ["value", "label", "suffix"] } },
+  defaultConfig: { background: "dark" },
+  defaultContent: { stats: [{ value: "500", label: "Members", suffix: "+" }, { value: "120", label: "Events Hosted", suffix: "" }, { value: "15", label: "Cities", suffix: "" }, { value: "98", label: "Satisfaction", suffix: "%" }] },
+}
+
+// ── CTA SECTION ──
+
+const ctaBanner: SectionTypeDefinition = {
+  id: "cta-banner", name: "Call to Action", description: "Full-width CTA banner driving users to take action", category: "cta", icon: "Megaphone",
+  configSchema: { background: { type: "select", label: "Background", options: ["primary", "dark", "gradient", "image"], default: "gradient" } },
+  contentSchema: { heading: { type: "text", label: "Heading", required: true }, subtitle: { type: "text", label: "Subtitle" }, ctaButtons: { type: "cta-buttons", label: "Buttons", max: 2 }, backgroundImage: { type: "image", label: "Background Image (for image bg)" } },
+  defaultConfig: { background: "gradient" },
+  defaultContent: { heading: "Ready to Join Us?", subtitle: "Sign up today and become part of our growing community", ctaButtons: [{ text: "Get Started", href: "/signup", variant: "primary" }] },
+}
+
+// ── CONTACT SECTION ──
+
+const contactForm: SectionTypeDefinition = {
+  id: "contact-form", name: "Contact Form", description: "Contact form with optional info and map", category: "contact", icon: "Mail",
+  configSchema: { layout: { type: "select", label: "Layout", options: ["form-only", "form-info", "form-map"], default: "form-info" }, showSocial: { type: "boolean", label: "Show Social Links", default: true } },
+  contentSchema: { heading: { type: "text", label: "Section Title" }, email: { type: "text", label: "Contact Email" }, phone: { type: "text", label: "Contact Phone" }, address: { type: "textarea", label: "Address" }, mapUrl: { type: "url", label: "Google Maps Embed URL" }, socialLinks: { type: "social-links", label: "Social Links" } },
+  defaultConfig: { layout: "form-info", showSocial: true },
+  defaultContent: { heading: "Get in Touch", email: "hello@community.com", phone: "+91 98765 43210", address: "Mumbai, Maharashtra, India" },
+}
+
+// ── SPONSORS SECTION ──
+
+const sponsorsGrid: SectionTypeDefinition = {
+  id: "sponsors-grid", name: "Sponsors & Partners", description: "Display sponsor logos grouped by tier", category: "sponsors", icon: "Award",
+  configSchema: { grouped: { type: "boolean", label: "Group by Tier", default: true }, logoSize: { type: "select", label: "Logo Size", options: ["small", "medium", "large"], default: "medium" } },
+  contentSchema: { heading: { type: "text", label: "Section Title" }, sponsors: { type: "sponsor-list", label: "Sponsors", max: 30, fields: ["name", "logo", "website", "tier"] } },
+  defaultConfig: { grouped: true, logoSize: "medium" },
+  defaultContent: { heading: "Our Sponsors & Partners", sponsors: [] },
+}
+
+// ── UTILITY SECTIONS ──
+
+const faqSection: SectionTypeDefinition = {
+  id: "faq", name: "FAQ", description: "Frequently asked questions with expandable answers", category: "utility", icon: "HelpCircle",
+  configSchema: { style: { type: "select", label: "Style", options: ["accordion", "two-column", "cards"], default: "accordion" } },
+  contentSchema: { heading: { type: "text", label: "Section Title" }, subtitle: { type: "text", label: "Subtitle" }, faqs: { type: "faq-list", label: "FAQs", max: 20, fields: ["question", "answer"] } },
+  defaultConfig: { style: "accordion" },
+  defaultContent: { heading: "Frequently Asked Questions", subtitle: "Can't find your answer? Contact us", faqs: [{ question: "How do I register for an event?", answer: "Visit the event page and click the Register button. Follow the steps to complete your registration." }, { question: "Can I get a refund?", answer: "Refund policies vary by event. Check the event's refund policy on its page for details." }, { question: "How do I contact the organizer?", answer: "Each event page has contact information for the organizer. You can also use the contact form on this page." }] },
+}
+
+const newsletter: SectionTypeDefinition = {
+  id: "newsletter", name: "Newsletter Signup", description: "Email subscription form", category: "utility", icon: "Mail",
+  configSchema: { layout: { type: "select", label: "Layout", options: ["inline", "card", "full-width"], default: "card" }, background: { type: "select", label: "Background", options: ["transparent", "primary", "dark"], default: "transparent" } },
+  contentSchema: { heading: { type: "text", label: "Heading" }, subtitle: { type: "text", label: "Subtitle" }, placeholder: { type: "text", label: "Input Placeholder" }, buttonText: { type: "text", label: "Button Text" } },
+  defaultConfig: { layout: "card", background: "transparent" },
+  defaultContent: { heading: "Stay Updated", subtitle: "Subscribe to our newsletter for event updates", placeholder: "Enter your email", buttonText: "Subscribe" },
+}
+
 // ── REGISTRY ──
 
 export const SECTION_REGISTRY: Record<string, SectionTypeDefinition> = {
@@ -257,6 +361,17 @@ export const SECTION_REGISTRY: Record<string, SectionTypeDefinition> = {
   "events-grid": eventsGrid,
   "events-carousel": eventsCarousel,
   "events-timeline": eventsTimeline,
+  "gallery-masonry": galleryMasonry,
+  "gallery-carousel": galleryCarousel,
+  "team-grid": teamGrid,
+  "testimonials": testimonials,
+  "social-feed": socialFeed,
+  "stats-bar": statsBar,
+  "cta-banner": ctaBanner,
+  "contact-form": contactForm,
+  "sponsors-grid": sponsorsGrid,
+  "faq": faqSection,
+  "newsletter": newsletter,
 }
 
 export function getSectionDefinition(type: string): SectionTypeDefinition | undefined {

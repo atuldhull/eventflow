@@ -122,3 +122,4 @@ export function EventsTimeline({ config, content, siteStyles, orgSlug, isPreview
     </section>
   )
 }
+export default EventsTimeline

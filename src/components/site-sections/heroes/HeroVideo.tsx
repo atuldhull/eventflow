@@ -75,3 +75,4 @@ export function HeroVideo({ config, content, siteStyles }: SectionProps) {
     </section>
   )
 }
+export default HeroVideo

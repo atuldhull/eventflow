@@ -46,3 +46,4 @@ export function AboutSimple({ config, content, siteStyles }: SectionProps) {
     </section>
   )
 }
+export default AboutSimple

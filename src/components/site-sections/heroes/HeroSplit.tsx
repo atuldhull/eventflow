@@ -63,3 +63,4 @@ export function HeroSplit({ config, content, siteStyles }: SectionProps) {
     </section>
   )
 }
+export default HeroSplit

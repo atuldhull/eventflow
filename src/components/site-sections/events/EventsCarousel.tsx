@@ -96,3 +96,4 @@ export function EventsCarousel({ config, content, siteStyles, orgSlug, isPreview
     </section>
   )
 }
+export default EventsCarousel

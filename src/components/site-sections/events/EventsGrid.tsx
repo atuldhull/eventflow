@@ -118,3 +118,4 @@ export function EventsGrid({ config, content, siteStyles, orgSlug, isPreview }: 
     </section>
   )
 }
+export default EventsGrid

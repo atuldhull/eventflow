@@ -18,6 +18,7 @@ import {
   Ticket,
   ChevronLeft,
   LogOut,
+  Globe,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePermissions } from "@/hooks/usePermissions"
@@ -47,6 +48,7 @@ const adminNavItems: NavItem[] = [
   { label: "Members", href: "/admin/org/members", icon: <Users className="h-4 w-4" />, permission: PERMISSIONS.MEMBER_VIEW },
   { label: "Analytics", href: "/admin/org/analytics", icon: <BarChart3 className="h-4 w-4" />, permission: PERMISSIONS.ANALYTICS_VIEW_BASIC },
   { label: "Audit Logs", href: "/admin/org/audit-logs", icon: <ScrollText className="h-4 w-4" />, permission: PERMISSIONS.AUDIT_VIEW },
+  { label: "Website", href: "/admin/org/website", icon: <Globe className="h-4 w-4" />, permission: PERMISSIONS.ORG_VIEW },
   { label: "Settings", href: "/admin/org/settings", icon: <Settings className="h-4 w-4" />, permission: PERMISSIONS.ORG_MANAGE_SETTINGS },
 ]
 

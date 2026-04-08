@@ -393,6 +393,7 @@ model Enterprise {
   apiKeys              ApiKey[]
   webhookEndpoints     WebhookEndpoint[]
   siteConfig           SiteConfig?
+  featureModuleData    FeatureModuleData[]
 
   @@index([slug])
   @@index([ownerId])
@@ -459,6 +460,7 @@ model Organization {
   apiKeys              ApiKey[]
   webhookEndpoints     WebhookEndpoint[]
   siteConfig           SiteConfig?
+  featureModuleData    FeatureModuleData[]
 
   @@index([slug])
   @@index([enterpriseId])
@@ -553,30 +555,31 @@ model Event {
   deletedAt             DateTime?       @map("deleted_at")
 
   // Relations
-  organization     Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  enterprise       Enterprise?       @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
-  createdBy        User              @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  parentEvent      Event?            @relation("SubEvents", fields: [parentEventId], references: [id], onDelete: SetNull)
-  subEvents        Event[]           @relation("SubEvents")
-  sessions         EventSession[]
-  ticketTypes      TicketType[]
-  registrations    Registration[]
-  customFormFields CustomFormField[]
-  announcements    Announcement[]
-  media            EventMedia[]
-  feedbacks        Feedback[]
-  certificates     Certificate[]
-  coupons          Coupon[]
-  checkIns         CheckIn[]
-  teamMembers      EventTeamMember[]
-  sponsors         EventSponsor[]
-  faqs             EventFAQ[]
-  teams            Team[]
-  notifications    Notification[]
-  payments         Payment[]
-  tickets          Ticket[]
-  auditLogs        AuditLog[]
-  waitlistEntries  WaitlistEntry[]
+  organization      Organization?       @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  enterprise        Enterprise?         @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  createdBy         User                @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  parentEvent       Event?              @relation("SubEvents", fields: [parentEventId], references: [id], onDelete: SetNull)
+  subEvents         Event[]             @relation("SubEvents")
+  sessions          EventSession[]
+  ticketTypes       TicketType[]
+  registrations     Registration[]
+  customFormFields  CustomFormField[]
+  announcements     Announcement[]
+  media             EventMedia[]
+  feedbacks         Feedback[]
+  certificates      Certificate[]
+  coupons           Coupon[]
+  checkIns          CheckIn[]
+  teamMembers       EventTeamMember[]
+  sponsors          EventSponsor[]
+  faqs              EventFAQ[]
+  teams             Team[]
+  notifications     Notification[]
+  payments          Payment[]
+  tickets           Ticket[]
+  auditLogs         AuditLog[]
+  waitlistEntries   WaitlistEntry[]
+  featureModuleData FeatureModuleData[]
 
   @@index([slug])
   @@index([status])
@@ -1465,4 +1468,81 @@ model SiteMedia {
   @@index([folder])
   @@index([fileType])
   @@map("site_media")
+}
+
+model FeatureModule {
+  id                  String   @id @default(cuid())
+  moduleId            String   @unique @map("module_id")
+  name                String
+  description         String   @db.Text
+  shortDescription    String?  @map("short_description")
+  icon                String
+  coverImage          String?  @map("cover_image")
+  screenshots         String[]
+  category            String
+  componentPath       String   @map("component_path")
+  configSchema        Json     @map("config_schema")
+  defaultConfig       Json     @map("default_config")
+  hasAdminPanel       Boolean  @default(true) @map("has_admin_panel")
+  adminComponentPath  String?  @map("admin_component_path")
+  dataSchema          Json?    @map("data_schema")
+  requiredPlan        String   @default("FREE") @map("required_plan")
+  requiredPermissions String[] @map("required_permissions")
+  supportedTemplates  String[] @map("supported_templates")
+  incompatibleWith    String[] @map("incompatible_with")
+  supportedPlacements String[] @map("supported_placements")
+  isPremium           Boolean  @default(false) @map("is_premium")
+  isActive            Boolean  @default(true) @map("is_active")
+  isBeta              Boolean  @default(false) @map("is_beta")
+  isNew               Boolean  @default(false) @map("is_new")
+  sortOrder           Int      @default(0) @map("sort_order")
+  setupGuide          String?  @map("setup_guide") @db.Text
+  docsUrl             String?  @map("docs_url")
+  installCount        Int      @default(0) @map("install_count")
+  rating              Float    @default(0)
+  ratingCount         Int      @default(0) @map("rating_count")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([isActive])
+  @@index([requiredPlan])
+  @@index([sortOrder])
+  @@map("feature_modules")
+}
+
+model FeatureModuleData {
+  id               String    @id @default(cuid())
+  moduleId         String    @map("module_id")
+  organizationId   String?   @map("organization_id")
+  enterpriseId     String?   @map("enterprise_id")
+  eventId          String?   @map("event_id")
+  dataType         String    @map("data_type")
+  title            String?
+  data             Json
+  isActive         Boolean   @default(true) @map("is_active")
+  isPublished      Boolean   @default(true) @map("is_published")
+  sortOrder        Int       @default(0) @map("sort_order")
+  metadata         Json?
+  participantCount Int       @default(0) @map("participant_count")
+  lastActivityAt   DateTime? @map("last_activity_at")
+  createdById      String?   @map("created_by_id")
+  updatedById      String?   @map("updated_by_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enterprise   Enterprise?   @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  event        Event?        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([moduleId])
+  @@index([organizationId])
+  @@index([enterpriseId])
+  @@index([eventId])
+  @@index([moduleId, organizationId])
+  @@index([moduleId, eventId])
+  @@index([dataType])
+  @@index([isActive, isPublished])
+  @@map("feature_module_data")
 }

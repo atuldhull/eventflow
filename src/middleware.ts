@@ -60,6 +60,13 @@ function isPublicRoute(pathname: string): boolean {
   return false
 }
 
+// Paths that should never be rewritten to the site renderer
+const EXCLUDED_FROM_SITE = ["/admin", "/super-admin", "/api", "/dashboard", "/login", "/signup", "/embed", "/_next", "/images", "/icons", "/fonts", "/forgot-password", "/reset-password", "/verify-email", "/verify", "/site"]
+
+function isSiteExcluded(pathname: string) {
+  return EXCLUDED_FROM_SITE.some((p) => pathname.startsWith(p)) || pathname.includes(".")
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -74,6 +81,28 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ── Subdomain Tenant Detection ──
+  const hostname = request.headers.get("host") || ""
+  const mainDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "eventflow.com"
+  const isSubdomain = hostname !== mainDomain && hostname !== `www.${mainDomain}` && !hostname.startsWith("localhost") && !hostname.startsWith("127.0.0.1") && hostname.endsWith(`.${mainDomain}`)
+
+  if (isSubdomain && !isSiteExcluded(pathname)) {
+    const subdomain = hostname.replace(`.${mainDomain}`, "")
+    // Rewrite to /site route group with tenant context in headers
+    const url = request.nextUrl.clone()
+    url.pathname = pathname === "/" ? "/site" : `/site${pathname}`
+
+    const response = NextResponse.rewrite(url)
+    response.headers.set("x-tenant-slug", subdomain)
+    response.headers.set("x-tenant-host", hostname)
+
+    // Add security headers
+    response.headers.set("X-Frame-Options", "DENY")
+    response.headers.set("X-Content-Type-Options", "nosniff")
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
+  }
+
   // Add security headers
   const response = NextResponse.next()
   // Allow iframe embedding for /embed/* routes, deny for all others
@@ -83,7 +112,7 @@ export function middleware(request: NextRequest) {
   response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
   response.headers.set("X-XSS-Protection", "1; mode=block")
   response.headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")
-  response.headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://api.razorpay.com https://*.supabase.com; frame-src https://api.razorpay.com https://checkout.razorpay.com;")
+  response.headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.razorpay.com https://*.supabase.com; frame-src https://api.razorpay.com https://checkout.razorpay.com;")
 
   // Maintenance mode — allow super-admin and health check only
   if (process.env.MAINTENANCE_MODE === "true") {

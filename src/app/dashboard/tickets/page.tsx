@@ -172,6 +172,19 @@ export default function TicketsPage() {
                 >
                   Add to Calendar
                 </button>
+                <button
+                  onClick={async () => {
+                    const email = prompt("Enter recipient's email address:")
+                    if (!email) return
+                    const res = await fetch(`/api/tickets/${selectedTicket.id}/transfer`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recipientEmail: email }) })
+                    const json = await res.json()
+                    if (json.success) { toast.success(json.message); setSelectedTicket(null) }
+                    else toast.error(json.message)
+                  }}
+                  className="flex-1 rounded-lg border p-2 text-sm text-center hover:bg-accent transition-colors"
+                >
+                  Transfer
+                </button>
               </div>
             </div>
           )}

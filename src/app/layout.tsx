@@ -23,6 +23,8 @@ export const metadata: Metadata = {
     siteName: "EventFlow",
     type: "website",
   },
+  manifest: "/manifest.json",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "EventFlow" },
 }
 
 export default function RootLayout({

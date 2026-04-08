@@ -14,6 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { ShareModal } from "@/components/events/ShareModal"
 import { AddToCalendar } from "@/components/events/AddToCalendar"
 import { CountdownTimer } from "@/components/events/CountdownTimer"
+import { VenueMap } from "@/components/events/VenueMap"
 import { cn } from "@/lib/utils"
 
 interface EventData {
@@ -418,6 +419,11 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
                   )}
                 </div>
               </Card>
+            )}
+
+            {/* Venue Map */}
+            {!event.isOnline && event.venue && (
+              <VenueMap venue={event.venue} address={event.venueAddress} city={event.venueCity} state={event.venueState} country={event.venueCountry} />
             )}
 
             {/* Organizer Card */}

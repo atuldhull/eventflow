@@ -297,6 +297,18 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
             </div>
           )}
 
+          {/* Quantity Selector */}
+          {selectedTicket && selectedTicket.maxPerUser > 1 && (
+            <div className="flex items-center justify-between border-t pt-3">
+              <span className="text-sm text-muted-foreground">Quantity</span>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="h-8 w-8 rounded-md border text-center hover:bg-accent" disabled={quantity <= 1}>−</button>
+                <span className="w-8 text-center font-medium">{quantity}</span>
+                <button onClick={() => setQuantity(Math.min(selectedTicket.maxPerUser, quantity + 1))} className="h-8 w-8 rounded-md border text-center hover:bg-accent" disabled={quantity >= selectedTicket.maxPerUser}>+</button>
+              </div>
+            </div>
+          )}
+
           {/* Summary */}
           {selectedTicket && (
             <div className="border-t pt-3 space-y-1 text-sm">

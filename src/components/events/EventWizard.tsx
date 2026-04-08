@@ -124,6 +124,8 @@ const wizardSchema = z.object({
   budgetAmount: z.string().optional().or(z.literal("")),
   budgetNotes: z.string().optional().or(z.literal("")),
   maxGuestsPerRegistration: z.string().optional().or(z.literal("")),
+  enableDynamicPricing: z.boolean().default(false),
+  dynamicPricingTiers: z.string().optional().or(z.literal("")),
   // Step 5
   coverImage: z.string().optional().or(z.literal("")),
   rules: z.string().optional().or(z.literal("")),
@@ -158,6 +160,7 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
   const [customFields, setCustomFields] = useState<CustomFormFieldInput[]>(initialData?.customFormFields || [])
   const [faqs, setFaqs] = useState<{ question: string; answer: string }[]>([])
   const [sponsors, setSponsors] = useState<{ name: string; tier: string; website: string }[]>([])
+  const [addons, setAddons] = useState<{ name: string; price: number; category: string; maxQuantity: number }[]>([])
 
   const {
     register,
@@ -251,6 +254,8 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
           ...(values.recurrencePattern ? { recurrencePattern: values.recurrencePattern, recurrenceCount: parseInt(values.recurrenceCount || "1") } : {}),
           ...(values.budgetAmount ? { budgetAmount: parseFloat(values.budgetAmount), budgetNotes: values.budgetNotes || "" } : {}),
           ...(values.maxGuestsPerRegistration ? { maxGuestsPerRegistration: parseInt(values.maxGuestsPerRegistration) } : {}),
+          ...(addons.length > 0 ? { addons } : {}),
+          ...(values.enableDynamicPricing ? { enableDynamicPricing: true, dynamicPricingTiers: values.dynamicPricingTiers } : {}),
         },
         status: "DRAFT",
       }
@@ -315,6 +320,8 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
           ...(values.recurrencePattern ? { recurrencePattern: values.recurrencePattern, recurrenceCount: parseInt(values.recurrenceCount || "1") } : {}),
           ...(values.budgetAmount ? { budgetAmount: parseFloat(values.budgetAmount), budgetNotes: values.budgetNotes || "" } : {}),
           ...(values.maxGuestsPerRegistration ? { maxGuestsPerRegistration: parseInt(values.maxGuestsPerRegistration) } : {}),
+          ...(addons.length > 0 ? { addons } : {}),
+          ...(values.enableDynamicPricing ? { enableDynamicPricing: true, dynamicPricingTiers: values.dynamicPricingTiers } : {}),
         },
         status: "PUBLISHED",
       }
@@ -647,6 +654,43 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
               </div>
               <p className="text-xs text-muted-foreground">Track event budget for internal reporting. This is not visible to participants.</p>
             </Card>
+
+            <Card className="p-6 space-y-4">
+              <h3 className="text-sm font-medium">Ticket Add-ons</h3>
+              <p className="text-xs text-muted-foreground">Optional extras participants can purchase with their ticket (meals, parking, merchandise)</p>
+              {addons.map((addon, i) => (
+                <div key={i} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Add-on {i + 1}</Label>
+                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => setAddons(addons.filter((_, j) => j !== i))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-4">
+                    <Input placeholder="Name (e.g., Lunch)" value={addon.name} onChange={(e) => { const u = [...addons]; u[i] = { ...u[i], name: e.target.value }; setAddons(u) }} />
+                    <Input type="number" placeholder="Price (₹)" value={addon.price || ""} onChange={(e) => { const u = [...addons]; u[i] = { ...u[i], price: parseFloat(e.target.value) || 0 }; setAddons(u) }} />
+                    <Input placeholder="Category" value={addon.category} onChange={(e) => { const u = [...addons]; u[i] = { ...u[i], category: e.target.value }; setAddons(u) }} />
+                    <Input type="number" placeholder="Max qty" value={addon.maxQuantity || ""} onChange={(e) => { const u = [...addons]; u[i] = { ...u[i], maxQuantity: parseInt(e.target.value) || 0 }; setAddons(u) }} />
+                  </div>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => setAddons([...addons, { name: "", price: 0, category: "Food", maxQuantity: 1 }])} className="gap-1"><Plus className="h-3.5 w-3.5" /> Add Item</Button>
+            </Card>
+
+            {isPaid && (
+              <Card className="p-6 space-y-4">
+                <h3 className="text-sm font-medium">Dynamic Pricing</h3>
+                <div className="flex items-center justify-between">
+                  <div><p className="text-sm">Enable Dynamic Pricing</p><p className="text-xs text-muted-foreground">Ticket price increases automatically as event fills up</p></div>
+                  <Switch checked={watch("enableDynamicPricing")} onCheckedChange={(v) => setValue("enableDynamicPricing", !!v)} />
+                </div>
+                {watch("enableDynamicPricing") && (
+                  <div className="space-y-2">
+                    <Label>Price Tiers (JSON)</Label>
+                    <Textarea rows={3} placeholder={'[\n  { "fillPercent": 50, "priceMultiplier": 1.2 },\n  { "fillPercent": 80, "priceMultiplier": 1.5 },\n  { "fillPercent": 95, "priceMultiplier": 2.0 }\n]'} {...register("dynamicPricingTiers")} />
+                    <p className="text-xs text-muted-foreground">When event is 50% full, prices increase by 1.2x. At 80%, 1.5x. At 95%, 2x.</p>
+                  </div>
+                )}
+              </Card>
+            )}
           </div>
         )}
 
@@ -787,6 +831,8 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
                 {watch("budgetAmount") && <div className="flex justify-between"><span className="text-muted-foreground">Budget</span><span>₹{parseInt(watch("budgetAmount") || "0").toLocaleString("en-IN")}</span></div>}
                 {watch("maxGuestsPerRegistration") && <div className="flex justify-between"><span className="text-muted-foreground">Max Guests</span><span>{watch("maxGuestsPerRegistration")} per registration</span></div>}
                 {watch("recurrencePattern") && <div className="flex justify-between"><span className="text-muted-foreground">Recurrence</span><span>{watch("recurrencePattern")} × {watch("recurrenceCount") || "1"}</span></div>}
+                {addons.length > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Add-ons</span><span>{addons.length} items</span></div>}
+                {watch("enableDynamicPricing") && <div className="flex justify-between"><span className="text-muted-foreground">Dynamic Pricing</span><span>Enabled</span></div>}
               </div>
             </Card>
 

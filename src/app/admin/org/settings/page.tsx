@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Save, Loader2 } from "lucide-react"
+import { useRBAC } from "@/hooks/useRBAC"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { Card } from "@/components/ui/card"
@@ -19,12 +20,18 @@ import { PERMISSIONS } from "@/lib/permissions"
 const categories = ["TECHNICAL", "CULTURAL", "SPORTS", "SOCIAL", "ACADEMIC", "OTHER"]
 
 export default function OrgSettingsPage() {
+  const { currentOrganizationId } = useRBAC()
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSave = async () => {
+    if (!currentOrganizationId) return
     setIsSaving(true)
-    try { await new Promise((r) => setTimeout(r, 500)); toast.success("Settings saved") }
-    catch { toast.error("Failed to save") }
+    try {
+      const res = await fetch(`/api/admin/org/${currentOrganizationId}/settings`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ updated: true }) })
+      const json = await res.json()
+      if (json.success) toast.success("Settings saved")
+      else toast.error(json.message || "Failed to save")
+    } catch { toast.error("Failed to save") }
     finally { setIsSaving(false) }
   }
 

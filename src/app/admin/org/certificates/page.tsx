@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
 import { Award, Plus, Download, Send, MoreHorizontal, FileText } from "lucide-react"
 import Link from "next/link"
@@ -75,6 +75,12 @@ const columns: ColumnDef<CertRow, unknown>[] = [
 
 export default function CertificatesPage() {
   const [page, setPage] = useState(1)
+  const [certs, setCerts] = useState<CertRow[]>([])
+  const [certTotal, setCertTotal] = useState(0)
+  const [isLoadingCerts, setIsLoadingCerts] = useState(false)
+
+  // Fetch issued certificates would go here when org context is available
+  // For now, the API at /api/admin/org/[orgId]/certificates exists for templates
 
   return (
     <div className="space-y-6">

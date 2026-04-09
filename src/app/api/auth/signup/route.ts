@@ -25,11 +25,15 @@ export async function POST(request: Request) {
     })
 
     if (existingUser) {
-      // Generic message to prevent email enumeration
-      return NextResponse.json(
-        { success: false, message: "Unable to create account. Please try logging in or use a different email." },
-        { status: 409 }
-      )
+      if (!existingUser.emailVerified) {
+        // Allow re-registration: delete unverified user so they can try again
+        await prisma.user.delete({ where: { id: existingUser.id } })
+      } else {
+        return NextResponse.json(
+          { success: false, message: "Unable to create account. Please try logging in or use a different email." },
+          { status: 409 }
+        )
+      }
     }
 
     if (phone) {

@@ -33,7 +33,8 @@ function getTransporter() {
 }
 
 export async function sendEmail({ to, subject, html, text }: SendEmailParams): Promise<SendEmailResult> {
-  const from = process.env.EMAIL_FROM || "noreply@eventflow.com"
+  // Use Resend's test sender in development (no domain verification needed)
+  const from = process.env.EMAIL_FROM || "EventFlow <onboarding@resend.dev>"
 
   try {
     if (process.env.RESEND_API_KEY) {

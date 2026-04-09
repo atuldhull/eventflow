@@ -7,6 +7,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { Eye, EyeOff, ArrowLeft, ArrowRight, Loader2, Check, Mail } from "lucide-react"
+import { AutocompleteInput } from "@/components/shared/AutocompleteInput"
+import { searchColleges, searchCompanies } from "@/lib/data/colleges"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -247,12 +249,24 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <Label htmlFor="college">College / University</Label>
-              <Input id="college" placeholder="e.g. IIT Delhi" {...register("collegeName")} />
+              <AutocompleteInput
+                id="college"
+                value={watch("collegeName") || ""}
+                onChange={(v) => setValue("collegeName", v)}
+                searchFn={searchColleges}
+                placeholder="Start typing... e.g. IIT, BITS, VIT"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="company">Company</Label>
-              <Input id="company" placeholder="e.g. Google" {...register("companyName")} />
+              <AutocompleteInput
+                id="company"
+                value={watch("companyName") || ""}
+                onChange={(v) => setValue("companyName", v)}
+                searchFn={searchCompanies}
+                placeholder="Start typing... e.g. Google, TCS"
+              />
             </div>
 
             <div className="flex gap-3">

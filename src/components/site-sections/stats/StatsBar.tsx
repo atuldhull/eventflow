@@ -3,6 +3,7 @@
 import { useRef } from "react"
 import { motion, useInView } from "framer-motion"
 import type { SectionProps } from "@/lib/site-builder/section-renderer"
+import { SECTION_DARK_BG, SECTION_WHITE_TEXT } from "@/lib/site-builder/section-constants"
 
 function AnimatedStat({ value, suffix, delay }: { value: string; suffix: string; delay: number }) {
   const ref = useRef(null)
@@ -26,11 +27,11 @@ export function StatsBar({ config, content, siteStyles }: SectionProps) {
   const bgStyles: Record<string, React.CSSProperties> = {
     transparent: { backgroundColor: siteStyles.backgroundColor },
     primary: { backgroundColor: siteStyles.primaryColor },
-    dark: { backgroundColor: "#111827" },
+    dark: { backgroundColor: SECTION_DARK_BG },
     gradient: { background: `linear-gradient(135deg, ${siteStyles.primaryColor}, ${siteStyles.secondaryColor})` },
   }
   const isLight = bg === "transparent"
-  const textColor = isLight ? siteStyles.textColor : "#FFFFFF"
+  const textColor = isLight ? siteStyles.textColor : SECTION_WHITE_TEXT
 
   return (
     <section className="py-16 md:py-20" style={bgStyles[bg] || bgStyles.transparent}>

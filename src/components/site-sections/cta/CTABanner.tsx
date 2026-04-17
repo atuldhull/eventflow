@@ -3,12 +3,13 @@
 import Link from "next/link"
 import { motion } from "framer-motion"
 import type { SectionProps } from "@/lib/site-builder/section-renderer"
+import { SECTION_DARK_BG } from "@/lib/site-builder/section-constants"
 
 export function CTABanner({ config, content, siteStyles }: SectionProps) {
   const bg = config.background || "primary"
   const bgStyles: Record<string, React.CSSProperties> = {
     primary: { backgroundColor: siteStyles.primaryColor },
-    dark: { backgroundColor: "#111827" },
+    dark: { backgroundColor: SECTION_DARK_BG },
     gradient: { background: `linear-gradient(135deg, ${siteStyles.primaryColor}, ${siteStyles.secondaryColor})` },
     image: { backgroundImage: content.backgroundImage ? `url(${content.backgroundImage})` : undefined, backgroundSize: "cover", backgroundPosition: "center" },
   }

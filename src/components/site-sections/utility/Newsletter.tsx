@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import type { SectionProps } from "@/lib/site-builder/section-renderer"
+import { SECTION_DARK_BG, SECTION_WHITE_TEXT, SECTION_SUCCESS_GREEN } from "@/lib/site-builder/section-constants"
 
 export function Newsletter({ config, content, siteStyles, isPreview }: SectionProps) {
   const [email, setEmail] = useState("")
@@ -18,10 +19,10 @@ export function Newsletter({ config, content, siteStyles, isPreview }: SectionPr
   const bgStyles: Record<string, React.CSSProperties> = {
     transparent: { backgroundColor: siteStyles.backgroundColor },
     primary: { backgroundColor: siteStyles.primaryColor },
-    dark: { backgroundColor: "#111827" },
+    dark: { backgroundColor: SECTION_DARK_BG },
   }
   const isLight = bg === "transparent"
-  const textColor = isLight ? siteStyles.textColor : "#FFFFFF"
+  const textColor = isLight ? siteStyles.textColor : SECTION_WHITE_TEXT
 
   const handleSubmit = async () => {
     if (!email || !email.includes("@")) { toast.error("Please enter a valid email"); return }
@@ -37,7 +38,7 @@ export function Newsletter({ config, content, siteStyles, isPreview }: SectionPr
 
   const formContent = subscribed ? (
     <motion.div className="flex items-center gap-2 justify-center" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-      <CheckCircle className="h-5 w-5" style={{ color: isLight ? siteStyles.primaryColor : "#10B981" }} />
+      <CheckCircle className="h-5 w-5" style={{ color: isLight ? siteStyles.primaryColor : SECTION_SUCCESS_GREEN }} />
       <span className="font-medium" style={{ color: textColor }}>Subscribed!</span>
     </motion.div>
   ) : layout === "inline" ? (

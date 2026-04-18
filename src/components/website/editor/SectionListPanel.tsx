@@ -8,6 +8,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { GripVertical, Eye, EyeOff, MoreVertical, Plus, Pencil, Copy, Trash2, ChevronUp, ChevronDown, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useEditorStore } from "@/stores/useEditorStore"
 import { SECTION_REGISTRY, getAllSectionCategories } from "@/lib/site-builder/sections"
 import type { SectionConfig } from "@/types/site-builder"
@@ -17,9 +18,10 @@ function SortableSectionItem({ section, isSelected }: { section: SectionConfig; 
   const { selectSection, toggleSectionVisibility, duplicateSection, removeSection, reorderSections, siteConfig } = useEditorStore()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id })
   const [showMenu, setShowMenu] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const def = SECTION_REGISTRY[section.type]
 
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : undefined, opacity: isDragging ? 0.5 : 1 }
-  const def = SECTION_REGISTRY[section.type]
   const contentPreview = section.content?.title || section.content?.heading || section.content?.missionText || ""
 
   return (
@@ -27,7 +29,14 @@ function SortableSectionItem({ section, isSelected }: { section: SectionConfig; 
       onClick={() => selectSection(section.id)}
     >
       {/* Drag handle */}
-      <button {...attributes} {...listeners} className="shrink-0 cursor-grab active:cursor-grabbing touch-none p-0.5 text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+      <button
+        {...attributes}
+        {...listeners}
+        className="shrink-0 cursor-grab active:cursor-grabbing touch-none p-0.5 text-muted-foreground hover:text-foreground"
+        onClick={(e) => e.stopPropagation()}
+        aria-label={`Drag to reorder ${def?.name || section.type} section`}
+        title="Drag to reorder"
+      >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
 
@@ -39,11 +48,24 @@ function SortableSectionItem({ section, isSelected }: { section: SectionConfig; 
 
       {/* Actions */}
       <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={(e) => { e.stopPropagation(); toggleSectionVisibility(section.id) }} className="p-1 rounded hover:bg-muted" title={section.enabled ? "Hide" : "Show"}>
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleSectionVisibility(section.id) }}
+          className="p-1 rounded hover:bg-muted"
+          title={section.enabled ? "Hide section" : "Show section"}
+          aria-label={section.enabled ? "Hide section" : "Show section"}
+          aria-pressed={!section.enabled}
+        >
           {section.enabled ? <Eye className="h-3 w-3 text-muted-foreground" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
         </button>
         <div className="relative">
-          <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu) }} className="p-1 rounded hover:bg-muted">
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu) }}
+            className="p-1 rounded hover:bg-muted"
+            title="More actions"
+            aria-label="More actions"
+            aria-haspopup="menu"
+            aria-expanded={showMenu}
+          >
             <MoreVertical className="h-3 w-3 text-muted-foreground" />
           </button>
           {showMenu && (
@@ -57,7 +79,7 @@ function SortableSectionItem({ section, isSelected }: { section: SectionConfig; 
                   <Copy className="h-3 w-3" />Duplicate
                 </button>
                 <div className="h-px bg-border my-1" />
-                <button className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-muted" onClick={(e) => { e.stopPropagation(); removeSection(section.id); setShowMenu(false) }}>
+                <button className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-muted" onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true) }}>
                   <Trash2 className="h-3 w-3" />Delete
                 </button>
               </div>
@@ -65,6 +87,25 @@ function SortableSectionItem({ section, isSelected }: { section: SectionConfig; 
           )}
         </div>
       </div>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this section?</DialogTitle>
+            <DialogDescription>
+              {def?.name ? `The "${def.name}" section` : "This section"} will be removed from your website.
+              You can undo this action with Ctrl/Cmd+Z while the editor is open.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => { removeSection(section.id); setShowDeleteConfirm(false) }}>
+              <Trash2 className="h-4 w-4" />
+              Delete section
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

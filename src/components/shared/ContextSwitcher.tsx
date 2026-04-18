@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ChevronDown, Building2, Users, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,7 +20,6 @@ export function ContextSwitcher() {
     currentOrganizationId,
     setEnterpriseContext,
     setOrganizationContext,
-    can,
   } = useRBAC()
   const [open, setOpen] = useState(false)
 
@@ -35,7 +35,12 @@ export function ContextSwitcher() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          <Button variant="outline" size="sm" className="w-full justify-between gap-2 text-left" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-between gap-2 text-left"
+            aria-label={`Switch organization (currently ${displayName})`}
+          />
         }
       >
         <span className="flex items-center gap-2 truncate">
@@ -88,6 +93,16 @@ export function ContextSwitcher() {
             ))}
           </div>
         )}
+
+        <div className="my-1 h-px bg-border" />
+        <Link
+          href="/admin/create-org"
+          onClick={() => setOpen(false)}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Create organization
+        </Link>
       </PopoverContent>
     </Popover>
   )

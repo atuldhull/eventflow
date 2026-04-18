@@ -1,12 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, Undo2, Redo2, Monitor, Tablet, Smartphone, Save, Loader2, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { useEditorStore } from "@/stores/useEditorStore"
+
+function formatRelativeTime(then: number, now: number): string {
+  const diffSec = Math.max(0, Math.round((now - then) / 1000))
+  if (diffSec < 5) return "just now"
+  if (diffSec < 60) return `${diffSec}s ago`
+  const diffMin = Math.floor(diffSec / 60)
+  if (diffMin < 60) return `${diffMin} min ago`
+  const diffHr = Math.floor(diffMin / 60)
+  return `${diffHr}h ago`
+}
 
 interface EditorTopBarProps {
   onSave: () => Promise<void>
@@ -19,12 +29,35 @@ export function EditorTopBar({ onSave, onPublish }: EditorTopBarProps) {
   const [nameValue, setNameValue] = useState("")
   const [justSaved, setJustSaved] = useState(false)
   const [showPublishConfirm, setShowPublishConfirm] = useState(false)
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 15000)
+    return () => clearInterval(id)
+  }, [])
 
   const handleSave = async () => {
     await onSave()
     setJustSaved(true)
+    setLastSavedAt(Date.now())
     setTimeout(() => setJustSaved(false), 2000)
   }
+
+  useEffect(() => {
+    // When isSaving transitions from true -> false and we're no longer dirty, autosave succeeded
+    if (!isSaving && !isDirty && lastSavedAt === null) {
+      setLastSavedAt(Date.now())
+    }
+  }, [isSaving, isDirty, lastSavedAt])
+
+  useEffect(() => {
+    if (!isSaving && !isDirty && lastSavedAt !== null) {
+      // Mark most-recent saved time when a save cycle completes
+      setLastSavedAt(Date.now())
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSaving])
 
   const handlePublish = async () => {
     setShowPublishConfirm(false)
@@ -57,10 +90,10 @@ export function EditorTopBar({ onSave, onPublish }: EditorTopBarProps) {
 
         {/* Center */}
         <div className="flex items-center gap-1.5">
-          <Button variant="ghost" size="icon-sm" onClick={undo} disabled={undoStack.length === 0} title="Undo">
+          <Button variant="ghost" size="icon-sm" onClick={undo} disabled={undoStack.length === 0} title="Undo (Ctrl+Z)" aria-label="Undo">
             <Undo2 className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={redo} disabled={redoStack.length === 0} title="Redo">
+          <Button variant="ghost" size="icon-sm" onClick={redo} disabled={redoStack.length === 0} title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
             <Redo2 className="h-4 w-4" />
           </Button>
 
@@ -72,6 +105,8 @@ export function EditorTopBar({ onSave, onPublish }: EditorTopBarProps) {
                 key={mode}
                 onClick={() => setPreviewMode(mode)}
                 title={`${mode.charAt(0).toUpperCase() + mode.slice(1)} Preview`}
+                aria-label={`${mode.charAt(0).toUpperCase() + mode.slice(1)} preview`}
+                aria-pressed={previewMode === mode}
                 className={`p-1.5 rounded-md transition-colors ${previewMode === mode ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -79,14 +114,24 @@ export function EditorTopBar({ onSave, onPublish }: EditorTopBarProps) {
             ))}
           </div>
 
-          {isDirty && (
-            <>
-              <div className="h-4 w-px bg-border mx-1" />
-              <span className="flex items-center gap-1.5 text-xs text-amber-600">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                Unsaved
-              </span>
-            </>
+          <div className="h-4 w-px bg-border mx-1" />
+          {isSaving ? (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Saving…
+            </span>
+          ) : isDirty ? (
+            <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              Unsaved changes
+            </span>
+          ) : lastSavedAt ? (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Your work is saved">
+              <Check className="h-3 w-3 text-green-500" />
+              Saved {formatRelativeTime(lastSavedAt, now)}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">All changes saved</span>
           )}
         </div>
 

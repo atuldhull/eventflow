@@ -242,8 +242,20 @@ export default function EventsPage() {
           <Calendar className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
           <h3 className="text-lg font-semibold">No events found</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            {search || category !== "All" ? "Try different search terms or filters." : "Check back soon for upcoming events."}
+            {search || category !== "All" || pricing
+              ? "Try different search terms or filters."
+              : "Check back soon for upcoming events."}
           </p>
+          {(search || category !== "All" || pricing) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => { setSearch(""); setCategory("All"); setPricing(""); setPage(1) }}
+            >
+              Clear filters
+            </Button>
+          )}
         </div>
       )}
 

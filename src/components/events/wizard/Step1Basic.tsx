@@ -19,8 +19,12 @@ export function Step1Basic({ register, watch, setValue, errors }: StepProps) {
           <div className="flex justify-between"><p className="text-xs text-destructive">{errors.title?.message}</p><span className="text-xs text-muted-foreground">{(watch("title") || "").length}/150</span></div>
         </div>
         <div className="space-y-2">
-          <Label>Slug *</Label>
+          <Label>Event URL *</Label>
           <Input placeholder="tech-summit-2026" {...register("slug")} />
+          <p className="text-xs text-muted-foreground">
+            This is the web address of your event page. Use lowercase letters, numbers, and hyphens only.
+            Example: <span className="font-mono">events/tech-summit-2026</span>
+          </p>
           {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
         </div>
         <div className="space-y-2">
@@ -69,6 +73,9 @@ export function Step1Basic({ register, watch, setValue, errors }: StepProps) {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{VISIBILITIES.map((v) => <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>)}</SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              {VISIBILITIES.find((v) => v.value === watch("visibility"))?.description}
+            </p>
           </div>
         </div>
       </Card>

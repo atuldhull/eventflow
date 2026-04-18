@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { Check, ChevronLeft, ChevronRight, Save, Loader2, Eye } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { slugify } from "@/lib/utils"
 import type { TicketTypeInput, CustomFormFieldInput } from "@/lib/validations/event"
@@ -35,6 +36,7 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
   const [step, setStep] = useState(1)
   const [isSaving, setIsSaving] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false)
   const [ticketTypes, setTicketTypes] = useState<TicketTypeInput[]>(
     initialData?.ticketTypes || [{ name: "General Admission", price: 0, currency: "INR", maxPerUser: 1, isActive: true, isHidden: false, sortOrder: 0 }]
   )
@@ -154,10 +156,14 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
     } catch { toast.error("Failed to save draft") } finally { setIsSaving(false) }
   }
 
-  const publishEvent = async () => {
+  const requestPublish = async () => {
     const allValid = await trigger()
     if (!allValid) { toast.error("Please fill in all required fields"); return }
+    setShowPublishConfirm(true)
+  }
 
+  const confirmPublish = async () => {
+    setShowPublishConfirm(false)
     setIsPublishing(true)
     try {
       const result = await submitEvent("PUBLISHED")
@@ -238,7 +244,7 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
             ) : (
-              <Button type="button" onClick={publishEvent} disabled={isPublishing} className="gap-2">
+              <Button type="button" onClick={requestPublish} disabled={isPublishing} className="gap-2">
                 {isPublishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
                 Publish Event
               </Button>
@@ -246,6 +252,25 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
           </div>
         </div>
       </div>
+
+      <Dialog open={showPublishConfirm} onOpenChange={setShowPublishConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Publish this event?</DialogTitle>
+            <DialogDescription>
+              Your event will go live and become visible to everyone. People will be able to find and register for it.
+              You can still edit details later, but new attendees may already start signing up.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowPublishConfirm(false)}>Keep as Draft</Button>
+            <Button onClick={confirmPublish} className="gap-2">
+              <Eye className="h-4 w-4" />
+              Yes, publish now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

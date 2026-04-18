@@ -44,8 +44,16 @@ export function Step3Tickets({
               <div className="space-y-1"><Label className="text-xs">Price (&#8377;)</Label><Input type="number" min={0} value={tt.price} onChange={(e) => updateTicketType(i, "price", parseFloat(e.target.value) || 0)} disabled={!isPaid} /></div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1"><Label className="text-xs">Quantity (blank = unlimited)</Label><Input type="number" min={1} value={typeof tt.quantity === "number" ? tt.quantity : ""} onChange={(e) => updateTicketType(i, "quantity", e.target.value ? parseInt(e.target.value) : undefined)} /></div>
-              <div className="space-y-1"><Label className="text-xs">Max Per User</Label><Input type="number" min={1} max={10} value={tt.maxPerUser} onChange={(e) => updateTicketType(i, "maxPerUser", parseInt(e.target.value) || 1)} /></div>
+              <div className="space-y-1">
+                <Label className="text-xs">Total Tickets Available</Label>
+                <Input type="number" min={1} placeholder="Leave blank for unlimited" value={typeof tt.quantity === "number" ? tt.quantity : ""} onChange={(e) => updateTicketType(i, "quantity", e.target.value ? parseInt(e.target.value) : undefined)} />
+                <p className="text-[11px] text-muted-foreground">How many of this ticket exist in total.</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Max Tickets Per Person</Label>
+                <Input type="number" min={1} max={10} value={tt.maxPerUser} onChange={(e) => updateTicketType(i, "maxPerUser", parseInt(e.target.value) || 1)} />
+                <p className="text-[11px] text-muted-foreground">Limit how many one person can buy in a single order.</p>
+              </div>
             </div>
           </div>
         ))}

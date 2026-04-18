@@ -119,7 +119,7 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
         body: JSON.stringify({
           code: couponCode,
           eventId: formConfig.eventId,
-          ticketPrice: selectedTicket?.price || 0,
+          ticketTypeId: selectedTicket?.id,
           quantity,
         }),
       })

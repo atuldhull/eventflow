@@ -16,7 +16,11 @@ export async function POST(
 
   const registration = await prisma.registration.findUnique({
     where: { id: registrationId },
-    select: { id: true, userId: true, status: true, eventId: true, event: { select: { title: true, startDate: true } } },
+    select: {
+      id: true, userId: true, status: true, eventId: true,
+      event: { select: { title: true, startDate: true } },
+      payment: { select: { couponId: true } },
+    },
   })
 
   if (!registration) {
@@ -40,10 +44,13 @@ export async function POST(
     return NextResponse.json({ success: false, message: "Cannot cancel after event has started" }, { status: 400 })
   }
 
+  const couponId = registration.payment?.couponId
+
   await prisma.$transaction([
     prisma.registration.update({ where: { id: registrationId }, data: { status: "CANCELLED" } }),
     prisma.ticket.updateMany({ where: { registrationId }, data: { status: "CANCELLED" } }),
     prisma.event.update({ where: { id: registration.eventId }, data: { currentRegistrations: { decrement: 1 } } }),
+    ...(couponId ? [prisma.coupon.update({ where: { id: couponId }, data: { currentUses: { decrement: 1 } } })] : []),
   ])
 
   return NextResponse.json({ success: true, message: "Registration cancelled successfully" })

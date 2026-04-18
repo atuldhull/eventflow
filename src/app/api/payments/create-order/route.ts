@@ -2,15 +2,20 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
+
 // Lazy init to avoid crash when keys not set
-let _razorpay: any = null
-function getRazorpay() {
+type RazorpayClient = {
+  orders: { create: (opts: Record<string, unknown>) => Promise<{ id: string; amount: number; currency: string }> }
+}
+let _razorpay: RazorpayClient | null = null
+function getRazorpay(): RazorpayClient {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
     throw new Error("RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set")
   }
   if (!_razorpay) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Razorpay = require("razorpay")
-    _razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET })
+    _razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET }) as RazorpayClient
   }
   return _razorpay
 }
@@ -27,56 +32,67 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: "Registration ID required" }, { status: 400 })
   }
 
-  // Verify registration exists and belongs to this user — calculate amount SERVER-SIDE
-  const registration = await prisma.registration.findFirst({
-    where: { id: registrationId, userId: session.user.id },
+  // The Payment record is created by /api/registrations when amount > 0.
+  // We look it up rather than recomputing (to keep quantity + coupon discount correct) and
+  // reject any cross-user access.
+  const payment = await prisma.payment.findFirst({
+    where: { registrationId, userId: session.user.id },
     select: {
-      id: true, status: true,
-      ticketType: { select: { price: true, currency: true } },
-      event: { select: { title: true, id: true, isPaid: true } },
+      id: true, status: true, amount: true, currency: true, paymentNumber: true, gatewayOrderId: true,
+      registration: { select: { event: { select: { id: true, title: true, isPaid: true } } } },
     },
   })
 
-  if (!registration?.ticketType || !registration.event.isPaid) {
+  if (!payment) {
+    return NextResponse.json({ success: false, message: "No payment pending for this registration" }, { status: 404 })
+  }
+
+  if (payment.status === "COMPLETED") {
+    return NextResponse.json({ success: false, message: "This registration is already paid" }, { status: 400 })
+  }
+
+  if (payment.status === "REFUNDED") {
+    return NextResponse.json({ success: false, message: "This payment has been refunded" }, { status: 400 })
+  }
+
+  if (!payment.registration?.event.isPaid) {
     return NextResponse.json({ success: false, message: "No payment required for this registration" }, { status: 400 })
   }
 
-  // Amount calculated from database, NOT from client input (prevents price tampering)
-  const amount = Number(registration.ticketType.price)
-  const currency = registration.ticketType.currency || "INR"
-
+  const amount = Number(payment.amount)
   if (amount <= 0) {
-    return NextResponse.json({ success: false, message: "Invalid ticket price" }, { status: 400 })
+    return NextResponse.json({ success: false, message: "Invalid payment amount" }, { status: 400 })
   }
 
-  // Razorpay key check happens inside getRazorpay() — fail fast with clear error
+  // If we already created a gateway order and the payment is still PENDING, re-use it (idempotency)
+  if (payment.gatewayOrderId) {
+    return NextResponse.json({
+      success: true,
+      data: {
+        orderId: payment.gatewayOrderId,
+        amount: Math.round(amount * 100),
+        currency: payment.currency,
+        keyId: process.env.RAZORPAY_KEY_ID,
+        paymentNumber: payment.paymentNumber,
+      },
+    })
+  }
 
   try {
     const order = await getRazorpay().orders.create({
       amount: Math.round(amount * 100), // Razorpay expects paise
-      currency,
+      currency: payment.currency,
       receipt: `reg_${registrationId}`,
       notes: {
         registrationId,
-        eventId: registration.event.id,
+        eventId: payment.registration.event.id,
         userId: session.user.id,
       },
     })
 
-    // Create payment record in PENDING state
-    const paymentNumber = `PAY-${Date.now().toString(36).toUpperCase()}`
-    await prisma.payment.create({
-      data: {
-        registrationId,
-        userId: session.user.id,
-        eventId: registration.event.id,
-        amount,
-        currency,
-        status: "PENDING",
-        method: "RAZORPAY",
-        paymentNumber,
-        gatewayOrderId: order.id,
-      },
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { gatewayOrderId: order.id },
     })
 
     return NextResponse.json({
@@ -86,11 +102,11 @@ export async function POST(request: NextRequest) {
         amount: order.amount,
         currency: order.currency,
         keyId: process.env.RAZORPAY_KEY_ID,
-        paymentNumber,
+        paymentNumber: payment.paymentNumber,
       },
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error("Razorpay order creation failed:", error)
-    return NextResponse.json({ success: false, message: error.message || "Failed to create payment order" }, { status: 500 })
+    return NextResponse.json({ success: false, message: "Failed to create payment order" }, { status: 500 })
   }
 }

@@ -10,10 +10,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { code, eventId, ticketPrice, quantity } = await request.json()
+    const { code, eventId, ticketTypeId, quantity } = await request.json()
 
-    if (!code || !eventId) {
-      return NextResponse.json({ success: false, message: "Code and event ID required" }, { status: 400 })
+    if (!code || !eventId || !ticketTypeId) {
+      return NextResponse.json({ success: false, message: "Code, event ID, and ticket type required" }, { status: 400 })
+    }
+
+    const qty = Math.max(1, Number(quantity) || 1)
+
+    const ticketType = await prisma.ticketType.findFirst({
+      where: { id: ticketTypeId, eventId, isActive: true },
+      select: { id: true, price: true },
+    })
+
+    if (!ticketType) {
+      return NextResponse.json({ success: false, message: "Invalid ticket type" }, { status: 400 })
     }
 
     const now = new Date()
@@ -35,7 +46,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "This coupon has been fully redeemed" }, { status: 400 })
     }
 
-    const price = (ticketPrice || 0) * (quantity || 1)
+    const price = Number(ticketType.price) * qty
     if (coupon.minOrderAmount && price < Number(coupon.minOrderAmount)) {
       return NextResponse.json({ success: false, message: `Minimum order amount is ₹${coupon.minOrderAmount}` }, { status: 400 })
     }

@@ -25,7 +25,10 @@ export async function POST(
 
   const payment = await prisma.payment.findFirst({
     where: { id: paymentId, registration: { event: { organizationId: orgId } } },
-    select: { id: true, amount: true, status: true, userId: true, registrationId: true, registration: { select: { event: { select: { title: true } } } } },
+    select: {
+      id: true, amount: true, status: true, userId: true, registrationId: true, couponId: true,
+      registration: { select: { eventId: true, event: { select: { title: true } } } },
+    },
   })
 
   if (!payment) {
@@ -46,21 +49,32 @@ export async function POST(
   }
 
   // Process refund (mark as refunded — actual gateway refund would happen via Razorpay/Stripe SDK)
+  const eventId = payment.registration?.eventId
   await prisma.$transaction([
     prisma.payment.update({
       where: { id: paymentId },
       data: { status: "REFUNDED", refundAmount: refundAmount, refundReason: reason || null, refundedAt: new Date() },
     }),
-    // Update registration status
-    prisma.registration.update({
-      where: { id: payment.registrationId! },
-      data: { status: "CANCELLED" },
-    }),
-    // Decrement event count
     ...(payment.registrationId ? [
+      prisma.registration.update({
+        where: { id: payment.registrationId },
+        data: { status: "CANCELLED" },
+      }),
+      prisma.ticket.updateMany({
+        where: { registrationId: payment.registrationId },
+        data: { status: "CANCELLED" },
+      }),
+    ] : []),
+    ...(eventId ? [
       prisma.event.update({
-        where: { id: (await prisma.registration.findUnique({ where: { id: payment.registrationId }, select: { eventId: true } }))!.eventId },
+        where: { id: eventId },
         data: { currentRegistrations: { decrement: 1 } },
+      }),
+    ] : []),
+    ...(payment.couponId ? [
+      prisma.coupon.update({
+        where: { id: payment.couponId },
+        data: { currentUses: { decrement: 1 } },
       }),
     ] : []),
   ])

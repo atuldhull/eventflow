@@ -126,28 +126,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Invalid ticket type" }, { status: 400 })
     }
 
-    // Check ticket availability
-    if (ticketType.quantity) {
-      const remaining = ticketType.quantity - ticketType.sold
-      if (remaining < quantity) {
-        return NextResponse.json({ success: false, message: "Not enough tickets available" }, { status: 400 })
-      }
-    }
     if (quantity > ticketType.maxPerUser) {
       return NextResponse.json({ success: false, message: `Maximum ${ticketType.maxPerUser} tickets per person` }, { status: 400 })
     }
 
-    // Check capacity
-    let isWaitlisted = false
-    if (event.maxCapacity && event.currentRegistrations >= event.maxCapacity) {
-      if (event.waitlistEnabled) {
-        isWaitlisted = true
-      } else {
-        return NextResponse.json({ success: false, message: "Event is full" }, { status: 400 })
-      }
-    }
-
-    // Handle coupon
+    // Handle coupon (outside tx — validation only, actual increment inside tx)
     let discountAmount = 0
     let couponId: string | undefined
     if (couponCode) {
@@ -175,17 +158,61 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Determine status
-    let status: "PENDING" | "CONFIRMED" | "WAITLISTED" = "CONFIRMED"
-    if (isWaitlisted) status = "WAITLISTED"
-    else if (event.approvalRequired) status = "PENDING"
-    else if (event.isPaid && Number(ticketType.price) > 0) status = "PENDING"
-
     const registrationNumber = generateRegistrationNumber()
     const amount = Math.max(0, Number(ticketType.price) * quantity - discountAmount)
 
-    // Create registration in transaction
+    // Create registration in transaction (capacity + availability rechecked inside tx to avoid races)
+    let isWaitlisted = false
     const registration = await prisma.$transaction(async (tx) => {
+      // Re-check event capacity inside tx
+      const freshEvent = await tx.event.findUnique({
+        where: { id: eventId },
+        select: { maxCapacity: true, currentRegistrations: true, waitlistEnabled: true },
+      })
+      if (!freshEvent) {
+        throw new Error("EVENT_GONE")
+      }
+      if (freshEvent.maxCapacity && freshEvent.currentRegistrations >= freshEvent.maxCapacity) {
+        if (freshEvent.waitlistEnabled) {
+          isWaitlisted = true
+        } else {
+          throw new Error("EVENT_FULL")
+        }
+      }
+
+      // Re-check ticket type availability inside tx
+      const freshTicketType = await tx.ticketType.findUnique({
+        where: { id: ticketTypeId },
+        select: { quantity: true, sold: true },
+      })
+      if (!freshTicketType) {
+        throw new Error("TICKET_GONE")
+      }
+      if (freshTicketType.quantity && freshTicketType.quantity - freshTicketType.sold < quantity) {
+        throw new Error("TICKETS_SOLD_OUT")
+      }
+
+      // Re-check coupon cap inside tx
+      if (couponId) {
+        const freshCoupon = await tx.coupon.findUnique({
+          where: { id: couponId },
+          select: { maxUses: true, currentUses: true },
+        })
+        if (freshCoupon?.maxUses && freshCoupon.currentUses >= freshCoupon.maxUses) {
+          throw new Error("COUPON_EXHAUSTED")
+        }
+      }
+
+      // Determine status now that capacity is known
+      let status: "PENDING" | "CONFIRMED" | "WAITLISTED" = "CONFIRMED"
+      if (isWaitlisted) status = "WAITLISTED"
+      else if (event.approvalRequired) status = "PENDING"
+      else if (event.isPaid && Number(ticketType.price) > 0) status = "PENDING"
+
+      const waitlistPosition = isWaitlisted
+        ? freshEvent.currentRegistrations - (freshEvent.maxCapacity || 0) + 1
+        : null
+
       const reg = await tx.registration.create({
         data: {
           registrationNumber,
@@ -197,15 +224,18 @@ export async function POST(request: NextRequest) {
           teamId: teamId || null,
           formResponses: (formResponses as Prisma.InputJsonValue) || undefined,
           source: "WEBSITE",
-          waitlistPosition: isWaitlisted ? event.currentRegistrations - (event.maxCapacity || 0) + 1 : null,
+          waitlistPosition,
         },
       })
 
-      // Update event registration count
-      await tx.event.update({
-        where: { id: eventId },
-        data: { currentRegistrations: { increment: 1 } },
-      })
+      // Only count against capacity once the registration is confirmed or waitlisted.
+      // PENDING registrations (awaiting payment or approval) will be counted on confirmation.
+      if (status === "CONFIRMED" || status === "WAITLISTED") {
+        await tx.event.update({
+          where: { id: eventId },
+          data: { currentRegistrations: { increment: 1 } },
+        })
+      }
 
       // Update ticket sold count
       await tx.ticketType.update({
@@ -256,13 +286,13 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      return { registration: reg, ticket, payment }
+      return { registration: reg, ticket, payment, status }
     })
 
     // Send confirmation email
-    const emailSubject = status === "CONFIRMED"
+    const emailSubject = registration.status === "CONFIRMED"
       ? `Registration Confirmed — ${event.title}`
-      : status === "WAITLISTED"
+      : registration.status === "WAITLISTED"
         ? `You're on the Waitlist — ${event.title}`
         : `Registration Received — ${event.title}`
 
@@ -299,6 +329,17 @@ export async function POST(request: NextRequest) {
       },
     }, { status: 201 })
   } catch (error) {
+    const code = (error as Error)?.message
+    const knownErrors: Record<string, { status: number; message: string }> = {
+      EVENT_GONE: { status: 404, message: "Event no longer available" },
+      EVENT_FULL: { status: 400, message: "Event is full" },
+      TICKET_GONE: { status: 400, message: "Ticket type no longer available" },
+      TICKETS_SOLD_OUT: { status: 400, message: "Not enough tickets available" },
+      COUPON_EXHAUSTED: { status: 400, message: "Coupon has been fully redeemed" },
+    }
+    if (code && knownErrors[code]) {
+      return NextResponse.json({ success: false, message: knownErrors[code].message }, { status: knownErrors[code].status })
+    }
     console.error("Registration error:", error)
     return NextResponse.json({ success: false, message: "Registration failed. Please try again." }, { status: 500 })
   }

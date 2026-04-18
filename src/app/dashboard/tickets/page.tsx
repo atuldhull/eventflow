@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { Ticket, Calendar, Loader2 } from "lucide-react"
+import { Ticket, Calendar, Loader2, WifiOff } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
@@ -42,6 +42,20 @@ export default function TicketsPage() {
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null)
   const [showFullScreenQR, setShowFullScreenQR] = useState(false)
   const [tab, setTab] = useState("upcoming")
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== "undefined" ? !navigator.onLine : false
+  )
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false)
+    const handleOffline = () => setIsOffline(true)
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", handleOffline)
+    }
+  }, [])
 
   useEffect(() => {
     async function fetchTickets() {
@@ -50,9 +64,16 @@ export default function TicketsPage() {
         const data = await res.json()
         if (data.success) {
           setTickets(data.data || [])
+        } else if (!navigator.onLine) {
+          // SW returned the offline fallback body
+          setTickets([])
         }
       } catch {
-        toast.error("Failed to load tickets")
+        if (!navigator.onLine) {
+          setTickets([])
+        } else {
+          toast.error("Failed to load tickets")
+        }
       } finally {
         setIsLoading(false)
       }
@@ -74,6 +95,16 @@ export default function TicketsPage() {
         title="My Tickets"
         description={`${upcomingTickets.length} upcoming ticket${upcomingTickets.length !== 1 ? "s" : ""}`}
       />
+
+      {isOffline && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-300">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">You&apos;re offline</p>
+            <p className="text-xs">Showing the last tickets cached on this device. Your QR codes still work at venue check-in.</p>
+          </div>
+        </div>
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

@@ -1,4 +1,7 @@
-const CACHE_NAME = "eventflow-v1"
+// EventFlow service worker
+// Primary goal: make /dashboard/tickets usable offline so attendees can show
+// their QR at a venue with no signal.
+const CACHE_NAME = "eventflow-v2"
 const OFFLINE_URL = "/offline"
 
 // Assets to pre-cache on install
@@ -9,6 +12,17 @@ const PRECACHE_URLS = [
   "/dashboard/tickets",
   "/offline",
 ]
+
+// APIs whose JSON response we want available offline (stale-while-revalidate).
+// Keep this list tight — we don't want to leak stale data for things users
+// expect to be live (payments, notifications).
+const OFFLINE_CACHEABLE_API_PREFIXES = [
+  "/api/users/me/tickets",
+]
+
+function shouldCacheApi(pathname) {
+  return OFFLINE_CACHEABLE_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
 
 // Install: pre-cache core assets
 self.addEventListener("install", (event) => {
@@ -28,27 +42,59 @@ self.addEventListener("activate", (event) => {
   self.clients.claim()
 })
 
-// Fetch: network-first for API, cache-first for static assets
+// Fetch handler
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url)
 
-  // Skip non-GET requests
+  // Only handle same-origin GETs
   if (event.request.method !== "GET") return
+  if (url.origin !== self.location.origin) return
 
-  // API requests: network only (don't cache dynamic data)
-  if (url.pathname.startsWith("/api/")) return
+  // Allowlisted APIs: stale-while-revalidate
+  if (url.pathname.startsWith("/api/")) {
+    if (!shouldCacheApi(url.pathname)) return  // Default: network-only (no caching)
 
-  // For ticket pages: cache aggressively for offline access
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request)
+        const networkPromise = fetch(event.request)
+          .then((response) => {
+            // Only cache successful JSON responses to avoid storing 401/500 bodies
+            if (response && response.ok) {
+              cache.put(event.request, response.clone()).catch(() => {})
+            }
+            return response
+          })
+          .catch(() => null)
+
+        if (cached) {
+          // Fire and forget the network update
+          networkPromise.catch(() => {})
+          return cached
+        }
+        const network = await networkPromise
+        if (network) return network
+        return new Response(
+          JSON.stringify({ success: false, message: "Offline and no cached response available" }),
+          { status: 503, headers: { "Content-Type": "application/json" } }
+        )
+      })
+    )
+    return
+  }
+
+  // Ticket page: stale-while-revalidate against the cache so the HTML shell
+  // is still available offline.
   if (url.pathname.startsWith("/dashboard/tickets")) {
     event.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
         try {
           const response = await fetch(event.request)
-          cache.put(event.request, response.clone())
+          if (response && response.ok) cache.put(event.request, response.clone()).catch(() => {})
           return response
         } catch {
           const cached = await cache.match(event.request)
-          return cached || new Response("Offline — showing cached ticket", { status: 503 })
+          return cached || cache.match(OFFLINE_URL) || new Response("Offline", { status: 503 })
         }
       })
     )
@@ -63,9 +109,9 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.match(event.request).then((cached) =>
         cached || fetch(event.request).then((response) => {
-          if (response.ok) {
+          if (response && response.ok) {
             const clone = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => {})
           }
           return response
         })
@@ -74,7 +120,7 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
-  // HTML pages: network-first with offline fallback
+  // Other HTML/navigation: network-first with offline fallback
   event.respondWith(
     fetch(event.request).catch(() =>
       caches.match(event.request).then((cached) => cached || caches.match(OFFLINE_URL))

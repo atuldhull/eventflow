@@ -159,9 +159,28 @@ export function Navbar() {
                         <p className="text-sm font-medium">{session.user.name}</p>
                         <p className="text-xs text-muted-foreground">{session.user.email}</p>
                       </div>
-                      <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="block rounded-md px-3 py-2 text-sm hover:bg-accent">Dashboard</Link>
-                      {isAdmin && <Link href="/admin" onClick={() => setMobileOpen(false)} className="block rounded-md px-3 py-2 text-sm hover:bg-accent">Admin Panel</Link>}
-                      <button onClick={() => signOut({ callbackUrl: "/" })} className="w-full text-left rounded-md px-3 py-2 text-sm text-destructive hover:bg-accent">Log Out</button>
+                      <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
+                        <LayoutDashboard className="h-4 w-4" /> Dashboard
+                      </Link>
+                      <Link href="/dashboard/tickets" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
+                        <Ticket className="h-4 w-4" /> My Tickets
+                      </Link>
+                      <Link href="/dashboard/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
+                        <User className="h-4 w-4" /> Profile
+                      </Link>
+                      {isAdmin && (
+                        <Link href="/admin" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
+                          <Settings className="h-4 w-4" /> Admin Panel
+                        </Link>
+                      )}
+                      {isSuperAdmin && (
+                        <Link href="/super-admin" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
+                          <Shield className="h-4 w-4" /> Super Admin
+                        </Link>
+                      )}
+                      <button onClick={() => signOut({ callbackUrl: "/" })} className="flex items-center gap-2 w-full text-left rounded-md px-3 py-2 text-sm text-destructive hover:bg-accent">
+                        <LogOut className="h-4 w-4" /> Log Out
+                      </button>
                     </>
                   ) : (
                     <>

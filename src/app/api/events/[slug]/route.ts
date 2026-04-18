@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import prisma from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params
+  const session = await auth()
 
   const event = await prisma.event.findUnique({
     where: { slug },
@@ -111,6 +113,16 @@ export async function GET(
     })
   }
 
+  // If the viewer is signed in, surface their existing registration for this event (if any)
+  let myRegistration: { id: string; status: string; registrationNumber: string } | null = null
+  if (session?.user?.id) {
+    const reg = await prisma.registration.findUnique({
+      where: { eventId_userId: { eventId: event.id, userId: session.user.id } },
+      select: { id: true, status: true, registrationNumber: true },
+    })
+    if (reg) myRegistration = reg
+  }
+
   // Hide meeting link from public view — only show after registration
   return NextResponse.json({
     success: true,
@@ -118,6 +130,7 @@ export async function GET(
       ...event,
       onlineLink: null, // Hidden until registered
       onlinePassword: null,
+      myRegistration,
     },
   })
 }

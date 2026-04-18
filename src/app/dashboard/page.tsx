@@ -68,22 +68,45 @@ export default function DashboardPage() {
             <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : data?.upcomingEvents && data.upcomingEvents.length > 0 ? (
             <div className="space-y-3">
-              {data.upcomingEvents.map((event) => (
-                <Link key={event.registrationId} href={`/events/${event.slug}`} className="flex items-center justify-between rounded-md border p-3 hover:bg-accent transition-colors">
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium">{event.title}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{new Date(event.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
-                      <span>·</span>
-                      <span className="flex items-center gap-1">
-                        {event.isOnline ? <Monitor className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
-                        {event.isOnline ? "Online" : (event.venue || event.venueCity || "TBA")}
-                      </span>
+              {data.upcomingEvents.map((event) => {
+                const start = new Date(event.startDate)
+                const diffMs = start.getTime() - Date.now()
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+                const countdown =
+                  diffMs <= 0 ? "Happening now" :
+                  diffHours < 1 ? "Starting soon" :
+                  diffHours < 24 ? `in ${diffHours}h` :
+                  diffDays === 1 ? "Tomorrow" :
+                  diffDays < 7 ? `in ${diffDays} days` :
+                  diffDays < 30 ? `in ${Math.round(diffDays / 7)} week${Math.round(diffDays / 7) === 1 ? "" : "s"}` :
+                  `in ${Math.round(diffDays / 30)} month${Math.round(diffDays / 30) === 1 ? "" : "s"}`
+                const isSoon = diffDays < 3 && diffMs > 0
+                return (
+                  <Link key={event.registrationId} href={`/events/${event.slug}`} className="flex items-center justify-between rounded-md border p-3 hover:bg-accent transition-colors">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium truncate">{event.title}</p>
+                        {isSoon && <Badge variant="default" className="text-[10px] shrink-0">{countdown}</Badge>}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>
+                          {start.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                          {" \u00B7 "}
+                          {start.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span>·</span>
+                        <span className="flex items-center gap-1 truncate">
+                          {event.isOnline ? <Monitor className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
+                          <span className="truncate">{event.isOnline ? "Online" : (event.venue || event.venueCity || "TBA")}</span>
+                        </span>
+                      </div>
+                      {!isSoon && <p className="text-[11px] text-muted-foreground">{countdown}</p>}
                     </div>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px]">{event.category}</Badge>
-                </Link>
-              ))}
+                    <Badge variant="secondary" className="text-[10px] shrink-0 ml-2">{event.category}</Badge>
+                  </Link>
+                )
+              })}
             </div>
           ) : (
             <div className="text-center py-8">

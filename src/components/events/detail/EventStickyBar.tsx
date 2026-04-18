@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Calendar, MapPin, Monitor, Ticket } from "lucide-react"
+import { Calendar, MapPin, Monitor, Ticket, CheckCircle2 } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { AddToCalendar } from "@/components/events/AddToCalendar"
@@ -16,6 +16,7 @@ interface Props {
 }
 
 export function EventStickyBar({ event, eventUrl, canRegister, lowestPrice }: Props) {
+  const isRegistered = !!event.myRegistration && event.myRegistration.status !== "CANCELLED"
   return (
     <div className="border-b bg-background/95 backdrop-blur-sm sticky top-16 z-40">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-3">
@@ -32,7 +33,13 @@ export function EventStickyBar({ event, eventUrl, canRegister, lowestPrice }: Pr
         <div className="flex items-center gap-2">
           <AddToCalendar title={event.title} description={event.shortDescription} startDate={event.startDate} endDate={event.endDate} venue={event.isOnline ? undefined : event.venue} isOnline={event.isOnline} onlinePlatform={event.onlinePlatform} slug={event.slug} />
           <ShareModal url={eventUrl} title={event.title} description={event.shortDescription} />
-          {canRegister && (
+          {isRegistered ? (
+            <Link href="/dashboard/tickets" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span className="hidden sm:inline">You&apos;re registered</span>
+              <span className="sm:hidden">Registered</span>
+            </Link>
+          ) : canRegister && (
             <Link href={`/events/${event.slug}/register`} className={cn(buttonVariants(), "gap-2")}>
               Register Now
             </Link>

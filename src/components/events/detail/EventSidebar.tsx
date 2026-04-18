@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Calendar, Clock, MapPin, Monitor, Globe, Building2, Mail, Phone, Users, Share2 } from "lucide-react"
+import { Calendar, Clock, MapPin, Monitor, Globe, Building2, Mail, Phone, Users, Share2, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -26,6 +26,14 @@ interface Props {
 
 export function EventSidebar({ event, eventUrl, canRegister, isCancelled, isSoldOut, registrationNotOpenYet, spotsLeft, lowestPrice }: Props) {
   const status = statusConfig[event.status] || statusConfig.PUBLISHED
+  const myReg = event.myRegistration
+  const isRegistered = !!myReg && myReg.status !== "CANCELLED"
+  const regStatusLabel: Record<string, { label: string; color: string }> = {
+    CONFIRMED: { label: "You're registered", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
+    CHECKED_IN: { label: "Checked in", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+    PENDING: { label: "Pending payment / approval", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+    WAITLISTED: { label: "On the waitlist", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  }
 
   return (
     <div className="space-y-4">
@@ -40,6 +48,15 @@ export function EventSidebar({ event, eventUrl, canRegister, isCancelled, isSold
           <div className={cn("h-2 w-2 rounded-full", status.dot)} />
           <span className="text-sm font-medium">{status.label}</span>
         </div>
+        {isRegistered && (
+          <div className={cn("flex items-center gap-2 rounded-md p-2.5", regStatusLabel[myReg!.status]?.color || "bg-muted")}>
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium">{regStatusLabel[myReg!.status]?.label || "Registered"}</p>
+              <p className="text-[10px] font-mono opacity-80 truncate">#{myReg!.registrationNumber}</p>
+            </div>
+          </div>
+        )}
         <Separator />
 
         {/* Ticket Prices */}
@@ -81,7 +98,11 @@ export function EventSidebar({ event, eventUrl, canRegister, isCancelled, isSold
           </div>
         )}
 
-        {canRegister ? (
+        {isRegistered ? (
+          <Link href="/dashboard/tickets" className={cn(buttonVariants(), "w-full gap-2")}>
+            View my ticket
+          </Link>
+        ) : canRegister ? (
           <Link href={`/events/${event.slug}/register`} className={cn(buttonVariants(), "w-full")}>
             {event.isPaid ? `Register \u00B7 From \u20B9${lowestPrice}` : "Register for Free"}
           </Link>

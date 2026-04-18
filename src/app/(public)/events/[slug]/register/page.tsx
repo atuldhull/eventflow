@@ -38,6 +38,15 @@ interface TicketType {
 interface FormConfig {
   eventId: string
   title: string
+  slug: string
+  startDate: string
+  endDate: string
+  venue: string | null
+  venueAddress: string | null
+  venueCity: string | null
+  isOnline: boolean
+  onlinePlatform: string | null
+  contactEmail: string | null
   approvalRequired: boolean
   termsAndConditions: string | null
   isPaid: boolean
@@ -192,37 +201,150 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
 
   // SUCCESS SCREEN
   if (step === "success" && registrationResult) {
+    const startDate = new Date(formConfig.startDate)
+    const endDate = new Date(formConfig.endDate)
+    const sameDay = formConfig.startDate.slice(0, 10) === formConfig.endDate.slice(0, 10)
+    const fmtDate = (d: Date) => d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    const fmtTime = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+    const isPaidPending = registrationResult.payment && registrationResult.payment.status === "PENDING"
+    const hasQR = !!registrationResult.ticket?.qrCode
+    const locationLine = formConfig.isOnline
+      ? `${formConfig.onlinePlatform || "Online"} \u00B7 link will be emailed`
+      : [formConfig.venue, formConfig.venueCity].filter(Boolean).join(", ") || "Venue TBA"
+
+    // .ics download (browser-only: build a data URL)
+    const buildIcs = () => {
+      const toIcsDate = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")
+      const lines = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//EventFlow//EN", "BEGIN:VEVENT",
+        `UID:${registrationResult.registrationNumber}@eventflow`,
+        `DTSTAMP:${toIcsDate(new Date())}`,
+        `DTSTART:${toIcsDate(startDate)}`,
+        `DTEND:${toIcsDate(endDate)}`,
+        `SUMMARY:${formConfig.title}`,
+        `LOCATION:${(locationLine || "").replace(/\n/g, " ")}`,
+        `DESCRIPTION:Registration #${registrationResult.registrationNumber}`,
+        "END:VEVENT", "END:VCALENDAR",
+      ]
+      return "data:text/calendar;charset=utf8," + encodeURIComponent(lines.join("\r\n"))
+    }
+
     return (
-      <div className="container mx-auto px-4 py-12 max-w-lg text-center space-y-6">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mx-auto">
-          <CheckCircle className="h-8 w-8 text-green-600" />
+      <div className="container mx-auto px-4 py-10 max-w-xl space-y-6">
+        <div className="text-center space-y-3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mx-auto">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold">
+            {formConfig.approvalRequired
+              ? "Registration Submitted"
+              : isPaidPending
+                ? "Almost done — complete your payment"
+                : "You're Registered!"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            A confirmation has been sent to your email.
+          </p>
         </div>
-        <h1 className="text-2xl font-bold">
-          {formConfig.approvalRequired ? "Registration Submitted!" : "You're Registered!"}
-        </h1>
-        <p className="text-muted-foreground">
-          {formConfig.approvalRequired
-            ? "Your registration is pending approval. You'll receive an email once approved."
-            : `See you at ${formConfig.title}!`}
-        </p>
-        <Card className="p-6 text-left space-y-3">
+
+        {/* What you registered for */}
+        <Card className="p-5 space-y-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">You're going to</p>
+            <p className="font-semibold text-lg mt-0.5">{formConfig.title}</p>
+          </div>
+          <div className="grid gap-2 text-sm">
+            <div className="flex items-start gap-2">
+              <Calendar className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+              <div>
+                <p className="font-medium">{fmtDate(startDate)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {fmtTime(startDate)} &ndash; {sameDay ? fmtTime(endDate) : `${fmtDate(endDate)}, ${fmtTime(endDate)}`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+              <p className="text-muted-foreground">{locationLine}</p>
+            </div>
+          </div>
+          <Separator />
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Registration #</span>
             <span className="font-mono font-medium">{registrationResult.registrationNumber}</span>
           </div>
-          <Separator />
-          {registrationResult.ticket && (
-            <div className="flex justify-center py-4">
-              <QRCodeSVG value={registrationResult.ticket.qrCode} size={160} />
-            </div>
-          )}
         </Card>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link href="/dashboard/tickets" className={cn(buttonVariants(), "gap-2")}>
-            <Ticket className="h-4 w-4" /> View My Tickets
-          </Link>
-          <Link href="/events" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
-            Browse More Events
+
+        {/* QR code (when the ticket is already active — free events) */}
+        {hasQR && !isPaidPending && (
+          <Card className="p-5 space-y-3 text-center">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Your ticket</p>
+            <div className="flex justify-center py-2">
+              <QRCodeSVG value={registrationResult.ticket.qrCode} size={180} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Show this QR at the venue for check-in.
+            </p>
+          </Card>
+        )}
+
+        {/* What happens next */}
+        <Card className="p-5 space-y-2">
+          <p className="text-sm font-medium">What happens next</p>
+          <ul className="space-y-1.5 text-sm text-muted-foreground">
+            <li className="flex gap-2"><Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" /> Confirmation email sent{session?.user?.email ? ` to ${session.user.email}` : ""}.</li>
+            {isPaidPending && (
+              <li className="flex gap-2"><Check className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" /> Complete your payment from <Link href="/dashboard/payments" className="text-primary hover:underline">Payments</Link> to confirm your seat.</li>
+            )}
+            {formConfig.approvalRequired && (
+              <li className="flex gap-2"><Check className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" /> The organizer will review your registration and email you once approved.</li>
+            )}
+            {!isPaidPending && !formConfig.approvalRequired && (
+              <li className="flex gap-2"><Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" /> Your ticket is in <Link href="/dashboard/tickets" className="text-primary hover:underline">My Tickets</Link> — save it to your calendar so you don't miss it.</li>
+            )}
+            {formConfig.contactEmail && (
+              <li className="flex gap-2"><Check className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" /> Questions? Contact the organizer at <a href={`mailto:${formConfig.contactEmail}`} className="text-primary hover:underline">{formConfig.contactEmail}</a>.</li>
+            )}
+          </ul>
+        </Card>
+
+        {/* Primary actions */}
+        <div className="grid gap-2 sm:grid-cols-2">
+          <a href={buildIcs()} download={`${formConfig.slug}.ics`} className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+            <Calendar className="h-4 w-4" /> Add to Calendar
+          </a>
+          {hasQR && registrationResult.ticket?.id ? (
+            <a href={`/api/tickets/${registrationResult.ticket.id}/download`} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+              <Ticket className="h-4 w-4" /> Download Ticket
+            </a>
+          ) : (
+            <Link href="/dashboard/tickets" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+              <Ticket className="h-4 w-4" /> View My Tickets
+            </Link>
+          )}
+        </div>
+
+        {/* Share / secondary */}
+        <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            onClick={async () => {
+              const url = `${window.location.origin}/events/${formConfig.slug}`
+              const shareData = { title: formConfig.title, text: `I'm going to ${formConfig.title}!`, url }
+              if (typeof navigator !== "undefined" && navigator.share) {
+                try { await navigator.share(shareData) } catch { /* user cancelled */ }
+              } else {
+                await navigator.clipboard.writeText(url)
+                toast.success("Event link copied")
+              }
+            }}
+          >
+            <Share2 className="h-4 w-4" /> Share with friends
+          </Button>
+          <Link href="/events" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-2")}>
+            Browse more events
           </Link>
         </div>
       </div>

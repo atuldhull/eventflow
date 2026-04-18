@@ -14,6 +14,7 @@ export interface EventData {
   refundPolicy: string | null; contactEmail: string | null; contactPhone: string | null
   isFeatured: boolean
   organization: { id: string; name: string; logo: string | null; description: string | null; slug: string }
+  myRegistration: { id: string; status: string; registrationNumber: string } | null
   ticketTypes: { id: string; name: string; description: string | null; price: number; currency: string; quantity: number | null; sold: number; maxPerUser: number }[]
   sessions: { id: string; title: string; description: string | null; speaker: string | null; speakerBio: string | null; startTime: string; endTime: string; venue: string | null; track: string | null }[]
   sponsors: { id: string; name: string; logo: string | null; website: string | null; tier: string }[]

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { Check, ChevronLeft, ChevronRight, Save, Loader2, Eye } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, Save, Loader2, Eye, ExternalLink } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -156,6 +156,23 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
     } catch { toast.error("Failed to save draft") } finally { setIsSaving(false) }
   }
 
+  const previewAsAttendee = async () => {
+    // Save first so the preview reflects current form values, then open the public page in preview mode.
+    setIsSaving(true)
+    try {
+      const result = await submitEvent("DRAFT")
+      if (!result.success || !result.data?.slug) {
+        toast.error(result.message || "Save the event first to preview it")
+        return
+      }
+      window.open(`/events/${result.data.slug}?preview=1`, "_blank", "noopener,noreferrer")
+    } catch {
+      toast.error("Failed to open preview")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const requestPublish = async () => {
     const allValid = await trigger()
     if (!allValid) { toast.error("Please fill in all required fields"); return }
@@ -228,11 +245,24 @@ export function EventWizard({ orgId, initialData, mode = "create" }: EventWizard
 
       {/* Bottom Navigation */}
       <div className="sticky bottom-0 border-t bg-background p-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <Button type="button" variant="outline" onClick={saveAsDraft} disabled={isSaving} className="gap-2">
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save as Draft
-          </Button>
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={saveAsDraft} disabled={isSaving} className="gap-2">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save as Draft
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={previewAsAttendee}
+              disabled={isSaving || isPublishing}
+              className="gap-2"
+              title="Save a draft and open the public event page in a new tab"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Preview
+            </Button>
+          </div>
           <div className="flex gap-2">
             {step > 1 && (
               <Button type="button" variant="outline" onClick={goBack} className="gap-1">

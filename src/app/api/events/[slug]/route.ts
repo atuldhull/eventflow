@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { authorize } from "@/lib/authorization"
+import { PERMISSIONS } from "@/lib/permissions"
 
 export async function GET(
   request: NextRequest,
@@ -40,6 +42,7 @@ export async function GET(
       gallery: true,
       maxCapacity: true,
       currentRegistrations: true,
+      organizationId: true,
       waitlistEnabled: true,
       approvalRequired: true,
       allowTeamRegistration: true,
@@ -87,8 +90,19 @@ export async function GET(
   }
 
   const publicStatuses = ["PUBLISHED", "REGISTRATION_OPEN", "REGISTRATION_CLOSED", "ONGOING", "COMPLETED"]
+  const isPreview = request.nextUrl.searchParams.get("preview") === "1"
+  let isAuthorizedPreviewer = false
+
   if (!publicStatuses.includes(event.status)) {
-    return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
+    // Non-public event (DRAFT, etc.) — allow owners/editors to preview it
+    if (!isPreview || !session?.user?.id || !event.organizationId) {
+      return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
+    }
+    const authResult = await authorize(session.user.id, PERMISSIONS.EVENT_EDIT, { organizationId: event.organizationId })
+    if (!authResult.authorized) {
+      return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
+    }
+    isAuthorizedPreviewer = true
   }
 
   // PRIVATE and INVITE_ONLY events: return limited info to unauthenticated users
@@ -132,5 +146,6 @@ export async function GET(
       onlinePassword: null,
       myRegistration,
     },
+    preview: isAuthorizedPreviewer ? { status: event.status } : undefined,
   })
 }

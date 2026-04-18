@@ -2,7 +2,8 @@
 
 import { useState, useEffect, use } from "react"
 import Link from "next/link"
-import { Calendar, Tag, Loader2 } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { Calendar, Tag, Loader2, Eye } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { buttonVariants } from "@/components/ui/button"
@@ -18,25 +19,30 @@ import { cn } from "@/lib/utils"
 
 export default function PublicEventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
+  const searchParams = useSearchParams()
+  const isPreviewMode = searchParams.get("preview") === "1"
   const [event, setEvent] = useState<EventData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [isCancelled, setIsCancelled] = useState(false)
+  const [previewStatus, setPreviewStatus] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchEvent() {
       try {
-        const res = await fetch(`/api/events/${slug}`)
+        const url = isPreviewMode ? `/api/events/${slug}?preview=1` : `/api/events/${slug}`
+        const res = await fetch(url)
         const json = await res.json()
         if (json.success) {
           setEvent(json.data)
           if (json.cancelled) setIsCancelled(true)
+          if (json.preview?.status) setPreviewStatus(json.preview.status)
         } else setNotFound(true)
       } catch { setNotFound(true) }
       finally { setIsLoading(false) }
     }
     fetchEvent()
-  }, [slug])
+  }, [slug, isPreviewMode])
 
   if (isLoading) return <div className="flex justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
   if (notFound || !event) return (
@@ -57,6 +63,27 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
 
   return (
     <div>
+      {/* Preview Banner */}
+      {previewStatus && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900">
+          <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-3 text-sm text-amber-800 dark:text-amber-300">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 shrink-0" />
+              <span className="font-medium">Preview mode</span>
+              <span className="text-amber-700/80 dark:text-amber-400/80">
+                You&apos;re viewing this event as an attendee would. Status: {previewStatus.replace(/_/g, " ")}.
+              </span>
+            </div>
+            <Link
+              href={`/admin/org/events`}
+              className="text-xs font-medium underline hover:no-underline whitespace-nowrap"
+            >
+              Back to admin
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Cancelled Banner */}
       {isCancelled && (
         <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-900">

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ quiz
     select: { id: true, title: true, data: true, isPublished: true, isActive: true, participantCount: true, organizationId: true, createdAt: true },
   })
 
-  if (!quiz) {
+  if (!quiz || !quiz.isPublished || !quiz.isActive) {
     return NextResponse.json({ success: false, message: "Quiz not found" }, { status: 404 })
   }
 

@@ -33,7 +33,12 @@ function getTransporter() {
 }
 
 export async function sendEmail({ to, subject, html, text }: SendEmailParams): Promise<SendEmailResult> {
-  // Use Resend's test sender in development (no domain verification needed)
+  if (process.env.NODE_ENV === "production" && !process.env.EMAIL_FROM) {
+    console.error("EMAIL_FROM is not configured — refusing to send from Resend's shared sandbox domain in production")
+    return { success: false, error: "Email sender is not configured" }
+  }
+
+  // Use Resend's test sender in development only (no domain verification needed).
   const from = process.env.EMAIL_FROM || "EventFlow <onboarding@resend.dev>"
 
   try {

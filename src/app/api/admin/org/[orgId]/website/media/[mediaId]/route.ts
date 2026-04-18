@@ -4,6 +4,18 @@ import { auth } from "@/lib/auth"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
 
+async function loadOrgScopedMedia(orgId: string, mediaId: string) {
+  const siteConfig = await prisma.siteConfig.findUnique({
+    where: { organizationId: orgId },
+    select: { id: true },
+  })
+  if (!siteConfig) return null
+
+  const media = await prisma.siteMedia.findUnique({ where: { id: mediaId } })
+  if (!media || media.siteConfigId !== siteConfig.id) return null
+  return media
+}
+
 // GET — Single media detail
 export async function GET(req: NextRequest, { params }: { params: Promise<{ orgId: string; mediaId: string }> }) {
   const session = await auth()
@@ -13,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ orgI
   const authResult = await authorize(session.user.id, PERMISSIONS.ORG_VIEW, { organizationId: orgId })
   if (!authResult.authorized) return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
 
-  const media = await prisma.siteMedia.findUnique({ where: { id: mediaId } })
+  const media = await loadOrgScopedMedia(orgId, mediaId)
   if (!media) return NextResponse.json({ success: false, message: "Not found" }, { status: 404 })
 
   return NextResponse.json({ success: true, data: media })
@@ -28,11 +40,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ or
   const authResult = await authorize(session.user.id, PERMISSIONS.ORG_EDIT, { organizationId: orgId })
   if (!authResult.authorized) return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
 
-  const media = await prisma.siteMedia.findUnique({ where: { id: mediaId } })
+  const media = await loadOrgScopedMedia(orgId, mediaId)
   if (!media) return NextResponse.json({ success: false, message: "Not found" }, { status: 404 })
 
   const body = await req.json()
-  const updateData: any = {}
+  const updateData: Record<string, unknown> = {}
   if (body.fileName !== undefined) updateData.fileName = body.fileName
   if (body.altText !== undefined) updateData.altText = body.altText
   if (body.folder !== undefined) updateData.folder = body.folder
@@ -52,7 +64,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ o
   const authResult = await authorize(session.user.id, PERMISSIONS.ORG_EDIT, { organizationId: orgId })
   if (!authResult.authorized) return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
 
-  const media = await prisma.siteMedia.findUnique({ where: { id: mediaId } })
+  const media = await loadOrgScopedMedia(orgId, mediaId)
   if (!media) return NextResponse.json({ success: false, message: "Not found" }, { status: 404 })
 
   await prisma.siteMedia.delete({ where: { id: mediaId } })

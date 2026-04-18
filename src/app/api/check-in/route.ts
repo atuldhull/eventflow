@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { validateTicketQR } from "@/lib/ticket"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
+import { authorize } from "@/lib/authorization"
+import { PERMISSIONS } from "@/lib/permissions"
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -17,6 +19,11 @@ export async function POST(request: NextRequest) {
 
     if (!eventId) {
       return NextResponse.json({ success: false, message: "Event ID required" }, { status: 400 })
+    }
+
+    const authResult = await authorize(session.user.id, PERMISSIONS.CHECKIN_PERFORM, { eventId })
+    if (!authResult.authorized) {
+      return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
     }
 
     let registrationId: string | undefined

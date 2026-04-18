@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
+import { authorize } from "@/lib/authorization"
+import { PERMISSIONS } from "@/lib/permissions"
 
 export async function GET(request: NextRequest) {
   const session = await auth()
@@ -14,6 +16,11 @@ export async function GET(request: NextRequest) {
 
   if (!eventId) {
     return NextResponse.json({ success: false, message: "Event ID required" }, { status: 400 })
+  }
+
+  const authResult = await authorize(session.user.id, PERMISSIONS.CHECKIN_VIEW, { eventId })
+  if (!authResult.authorized) {
+    return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
   }
 
   if (!search || search.length < 2) {

@@ -14,10 +14,38 @@ const createOrgSchema = z.object({
   website: z.string().optional(),
 })
 
+const MAX_ORGS_PER_USER = 10
+
 export async function POST(request: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, emailVerified: true, isActive: true, isBanned: true },
+  })
+
+  if (!user || !user.isActive || user.isBanned) {
+    return NextResponse.json({ success: false, message: "Your account is not allowed to create organizations" }, { status: 403 })
+  }
+
+  if (!user.emailVerified) {
+    return NextResponse.json({ success: false, message: "Please verify your email before creating an organization" }, { status: 403 })
+  }
+
+  // Anti-spam: cap how many orgs a single user can admin via self-service
+  if (user.role !== "SUPER_ADMIN") {
+    const ownedOrgCount = await prisma.organizationMember.count({
+      where: { userId: session.user.id, role: "ORG_ADMIN", isActive: true },
+    })
+    if (ownedOrgCount >= MAX_ORGS_PER_USER) {
+      return NextResponse.json(
+        { success: false, message: `You have reached the limit of ${MAX_ORGS_PER_USER} organizations per account` },
+        { status: 403 }
+      )
+    }
   }
 
   const body = await request.json()
@@ -52,9 +80,8 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  // Upgrade user role to ORG_ADMIN if they're just a USER
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { role: true } })
-  if (user?.role === "USER") {
+  // Upgrade user role to ORG_ADMIN if they're just a USER (needed to access /admin shell)
+  if (user.role === "USER") {
     await prisma.user.update({ where: { id: session.user.id }, data: { role: "ORG_ADMIN" } })
   }
 

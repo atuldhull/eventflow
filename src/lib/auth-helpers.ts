@@ -66,7 +66,12 @@ export async function verifyOTP(params: {
     return { valid: false, error: "Too many attempts. Please request a new OTP." }
   }
 
-  if (otp.code !== code) {
+  const storedBuf = Buffer.from(otp.code)
+  const inputBuf = Buffer.from(code)
+  const codeMatches =
+    storedBuf.length === inputBuf.length && crypto.timingSafeEqual(storedBuf, inputBuf)
+
+  if (!codeMatches) {
     await prisma.oTP.update({
       where: { id: otp.id },
       data: { attempts: { increment: 1 } },

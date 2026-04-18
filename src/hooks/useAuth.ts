@@ -58,24 +58,21 @@ export function useAuth() {
   }
 
   const loginWithOtp = async (email: string, otp: string, callbackUrl?: string) => {
-    const res = await fetch("/api/auth/login-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.toLowerCase().trim(), otp }),
-    })
-
-    const data: AuthResponse = await res.json()
-
-    if (!data.success) {
-      throw new Error(data.message)
-    }
-
-    // Sign in with credentials after OTP verification
-    const result = await signIn("credentials", {
+    const result = await signIn("otp", {
       email: email.toLowerCase().trim(),
-      password: "__otp_verified__",
+      otp,
       redirect: false,
     })
+
+    if (result?.error) {
+      if (result.error === "ACCOUNT_INACTIVE" || result.error === "ACCOUNT_BANNED") {
+        throw new Error("Your account has been suspended. Contact support.")
+      }
+      if (result.error === "EMAIL_NOT_VERIFIED") {
+        throw new Error("Please verify your email before logging in.")
+      }
+      throw new Error("Invalid OTP. Please try again.")
+    }
 
     if (result?.ok) {
       router.push(callbackUrl || "/dashboard")

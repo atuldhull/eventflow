@@ -34,7 +34,6 @@ const AUTH_API_ROUTES = [
   "/api/auth/verify-email",
   "/api/auth/forgot-password",
   "/api/auth/reset-password",
-  "/api/auth/login-otp",
 ]
 
 const ADMIN_ROLES = [

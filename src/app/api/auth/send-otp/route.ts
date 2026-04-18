@@ -3,9 +3,28 @@ import prisma from "@/lib/prisma"
 import { createOTP, checkOTPRateLimit } from "@/lib/auth-helpers"
 import { sendOTPEmail } from "@/lib/email"
 import { sendOtpSchema } from "@/lib/validations/auth"
+import { rateLimiter } from "@/lib/rate-limiter"
+
+function getClientIp(request: Request): string {
+  const headers = request.headers
+  return (
+    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    headers.get("x-real-ip") ||
+    "unknown"
+  )
+}
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request)
+    const ipLimit = rateLimiter.check(`send-otp:ip:${ip}`, 10, 60_000) // 10/min per IP
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { success: false, message: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(ipLimit.retryAfter ?? 60) } }
+      )
+    }
+
     const body = await request.json()
     const parsed = sendOtpSchema.safeParse(body)
 

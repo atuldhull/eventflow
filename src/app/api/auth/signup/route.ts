@@ -24,23 +24,19 @@ export async function POST(request: Request) {
       where: { email: normalizedEmail },
     })
 
-    if (existingUser) {
-      if (!existingUser.emailVerified) {
-        // Allow re-registration: delete unverified user so they can try again
-        await prisma.user.delete({ where: { id: existingUser.id } })
-      } else {
-        return NextResponse.json(
-          { success: false, message: "Unable to create account. Please try logging in or use a different email." },
-          { status: 409 }
-        )
-      }
+    if (existingUser && existingUser.emailVerified) {
+      return NextResponse.json(
+        { success: false, message: "Unable to create account. Please try logging in or use a different email." },
+        { status: 409 }
+      )
     }
 
+    // Phone uniqueness check (skip checking against the same unverified user we're about to refresh)
     if (phone) {
       const existingPhone = await prisma.user.findUnique({
         where: { phone },
       })
-      if (existingPhone) {
+      if (existingPhone && existingPhone.id !== existingUser?.id) {
         return NextResponse.json(
           { success: false, message: "Unable to create account with this information. Please try different details." },
           { status: 409 }
@@ -50,17 +46,30 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(password, 12)
 
-    const user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        passwordHash,
-        name: name.trim(),
-        phone: phone || null,
-        collegeName: collegeName || null,
-        companyName: companyName || null,
-        role: "USER",
-      },
-    })
+    // If an unverified account exists, refresh its details rather than deleting it.
+    // Deleting would let an attacker replace a victim's in-flight signup.
+    const user = existingUser
+      ? await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            passwordHash,
+            name: name.trim(),
+            phone: phone || null,
+            collegeName: collegeName || null,
+            companyName: companyName || null,
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            email: normalizedEmail,
+            passwordHash,
+            name: name.trim(),
+            phone: phone || null,
+            collegeName: collegeName || null,
+            companyName: companyName || null,
+            role: "USER",
+          },
+        })
 
     const otp = await createOTP({
       email: normalizedEmail,

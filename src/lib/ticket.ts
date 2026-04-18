@@ -2,7 +2,14 @@ import crypto from "crypto"
 import prisma from "@/lib/prisma"
 
 const CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-const TICKET_SECRET = process.env.TICKET_SECRET || "default-ticket-secret"
+
+function getTicketSecret(): string {
+  const secret = process.env.TICKET_SECRET
+  if (!secret || secret.length < 32) {
+    throw new Error("TICKET_SECRET env var must be set to a random string of at least 32 characters")
+  }
+  return secret
+}
 
 function generateTicketNumber(): string {
   let number = "TKT-"
@@ -14,7 +21,7 @@ function generateTicketNumber(): string {
 
 function signQRPayload(ticketNumber: string, eventId: string, registrationNumber: string): string {
   const data = `${ticketNumber}:${eventId}:${registrationNumber}`
-  return crypto.createHmac("sha256", TICKET_SECRET).update(data).digest("hex").slice(0, 16)
+  return crypto.createHmac("sha256", getTicketSecret()).update(data).digest("hex")
 }
 
 export function createQRPayload(ticketNumber: string, eventId: string, registrationNumber: string): string {
@@ -29,8 +36,17 @@ export function createQRPayload(ticketNumber: string, eventId: string, registrat
 }
 
 export function verifyQRSignature(ticketNumber: string, eventId: string, registrationNumber: string, signature: string): boolean {
+  if (typeof signature !== "string") return false
   const expected = signQRPayload(ticketNumber, eventId, registrationNumber)
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+  const expectedBuf = Buffer.from(expected, "hex")
+  let sigBuf: Buffer
+  try {
+    sigBuf = Buffer.from(signature, "hex")
+  } catch {
+    return false
+  }
+  if (expectedBuf.length !== sigBuf.length) return false
+  return crypto.timingSafeEqual(expectedBuf, sigBuf)
 }
 
 export async function generateTicket(registrationId: string) {

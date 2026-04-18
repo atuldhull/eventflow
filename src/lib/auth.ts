@@ -7,6 +7,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import bcrypt from "bcryptjs"
 import prisma from "@/lib/prisma"
 import type { Role } from "@/lib/constants"
+import { verifyOTP } from "@/lib/auth-helpers"
 
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma) as NextAuthConfig["adapter"],
@@ -92,10 +93,57 @@ export const authConfig: NextAuthConfig = {
         }
       },
     }),
+    Credentials({
+      id: "otp",
+      name: "otp",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        otp: { label: "OTP", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.otp) {
+          return null
+        }
+
+        const email = (credentials.email as string).toLowerCase().trim()
+        const otp = credentials.otp as string
+
+        const user = await prisma.user.findUnique({
+          where: { email },
+          select: {
+            id: true, email: true, name: true, role: true,
+            isActive: true, isBanned: true, avatar: true, emailVerified: true,
+          },
+        })
+
+        if (!user) return null
+        if (!user.isActive) throw new Error("ACCOUNT_INACTIVE")
+        if (user.isBanned) throw new Error("ACCOUNT_BANNED")
+        if (!user.emailVerified) throw new Error("EMAIL_NOT_VERIFIED")
+
+        const result = await verifyOTP({ email, code: otp, purpose: "LOGIN" })
+        if (!result.valid) return null
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        })
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role as Role,
+          avatar: user.avatar,
+          isActive: user.isActive,
+          isBanned: user.isBanned,
+        }
+      },
+    }),
   ],
   callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === "credentials") {
+      if (account?.provider === "credentials" || account?.provider === "otp") {
         return true
       }
 

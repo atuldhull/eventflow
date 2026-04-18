@@ -52,55 +52,88 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ qui
   })
 
   const correctCount = scoredAnswers.filter((a) => a.correct).length
+  const participantId = session?.user?.id || null
 
-  // Store the response
-  const response = await prisma.featureModuleData.create({
-    data: {
-      moduleId: "live-quiz",
-      organizationId: quiz.organizationId,
-      dataType: "quiz_response",
-      title: `Response to ${quizData?.title || "Quiz"}`,
-      data: {
-        quizId,
-        participantId: session?.user?.id || "anonymous",
-        participantName: session?.user?.name || "Anonymous",
-        answers: scoredAnswers,
-        score: correctCount,
-        totalQuestions: questions.length,
-        totalPoints: score,
-        completedAt: new Date().toISOString(),
+  // Dedupe: if this signed-in user has already submitted to THIS quiz, keep their best score.
+  // (Anonymous submissions cannot be deduped reliably, so they're always stored.)
+  let existingResponseId: string | null = null
+  let existingBestPoints = -1
+  if (participantId) {
+    const prior = await prisma.featureModuleData.findFirst({
+      where: {
+        moduleId: "live-quiz",
+        dataType: "quiz_response",
+        organizationId: quiz.organizationId,
+        createdById: participantId,
+        data: { path: ["quizId"], equals: quizId },
       },
-      createdById: session?.user?.id,
-    },
-  })
+      select: { id: true, data: true },
+      orderBy: { createdAt: "desc" },
+    })
+    if (prior) {
+      existingResponseId = prior.id
+      existingBestPoints = Number((prior.data as { totalPoints?: number })?.totalPoints ?? 0)
+    }
+  }
 
-  // Increment participant count on the quiz
-  await prisma.featureModuleData.update({
-    where: { id: quizId },
-    data: {
-      participantCount: { increment: 1 },
-      lastActivityAt: new Date(),
-    },
-  })
+  const responseData = {
+    quizId,
+    participantId: participantId || "anonymous",
+    participantName: session?.user?.name || "Anonymous",
+    answers: scoredAnswers,
+    score: correctCount,
+    totalQuestions: questions.length,
+    totalPoints: score,
+    completedAt: new Date().toISOString(),
+  }
 
-  // Calculate rank
-  const allResponses = await prisma.featureModuleData.count({
-    where: {
-      moduleId: "live-quiz",
-      dataType: "quiz_response",
-      organizationId: quiz.organizationId,
-    },
-  })
+  if (existingResponseId !== null) {
+    // Keep the higher of the two scores
+    if (score > existingBestPoints) {
+      await prisma.featureModuleData.update({
+        where: { id: existingResponseId },
+        data: { data: responseData },
+      })
+    }
+    // Refresh quiz activity but do NOT bump participantCount (same participant)
+    await prisma.featureModuleData.update({
+      where: { id: quizId },
+      data: { lastActivityAt: new Date() },
+    })
+  } else {
+    await prisma.featureModuleData.create({
+      data: {
+        moduleId: "live-quiz",
+        organizationId: quiz.organizationId,
+        dataType: "quiz_response",
+        title: `Response to ${quizData?.title || "Quiz"}`,
+        data: responseData,
+        createdById: participantId,
+      },
+    })
+    await prisma.featureModuleData.update({
+      where: { id: quizId },
+      data: { participantCount: { increment: 1 }, lastActivityAt: new Date() },
+    })
+  }
 
-  const betterScores = await prisma.featureModuleData.findMany({
-    where: {
-      moduleId: "live-quiz",
-      dataType: "quiz_response",
-      organizationId: quiz.organizationId,
-    },
+  // Effective score to use in rank = max(new, existing) for logged-in; new for anon
+  const effectivePoints = participantId && existingBestPoints >= 0 ? Math.max(score, existingBestPoints) : score
+
+  // Calculate rank — scoped to THIS quiz only (via JSON path on `data.quizId`)
+  const quizResponseFilter = {
+    moduleId: "live-quiz",
+    dataType: "quiz_response",
+    organizationId: quiz.organizationId,
+    data: { path: ["quizId"], equals: quizId },
+  } as const
+
+  const allResponses = await prisma.featureModuleData.count({ where: quizResponseFilter })
+  const allScores = await prisma.featureModuleData.findMany({
+    where: quizResponseFilter,
     select: { data: true },
   })
-  const rank = betterScores.filter((r: any) => (r.data as any)?.totalPoints > score).length + 1
+  const rank = allScores.filter((r) => Number((r.data as { totalPoints?: number })?.totalPoints ?? 0) > effectivePoints).length + 1
 
   return NextResponse.json({
     success: true,

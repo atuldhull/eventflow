@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useDebounce } from "@/hooks/useDebounce"
+import { SaveEventButton } from "@/components/events/SaveEventButton"
 import { cn } from "@/lib/utils"
 
 const CATEGORIES = ["All", "TECH", "CULTURAL", "SPORTS", "WORKSHOP", "HACKATHON", "CONFERENCE", "SEMINAR", "WEBINAR", "FEST", "COMPETITION", "MEETUP", "OTHER"]
@@ -174,13 +175,14 @@ export default function EventsPage() {
                       <p className="text-lg font-bold leading-tight">{date.day}</p>
                     </div>
                     {/* Status badge */}
-                    <div className="absolute top-3 right-3">
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
                       {event.status === "ONGOING" && (
                         <Badge className="bg-emerald-500 text-white text-[10px]">Live Now</Badge>
                       )}
                       {event.isFeatured && (
                         <Badge className="bg-amber-500 text-white text-[10px]">Featured</Badge>
                       )}
+                      <SaveEventButton eventId={event.id} />
                     </div>
                     {/* Spots warning */}
                     {isAlmostFull && (

@@ -3,13 +3,14 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { Calendar, Ticket, Award, CreditCard, User, Bell, Settings, LayoutDashboard } from "lucide-react"
+import { Calendar, Ticket, Award, CreditCard, User, Bell, Settings, LayoutDashboard, Heart } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "My Events", href: "/dashboard/events", icon: Calendar },
   { label: "My Tickets", href: "/dashboard/tickets", icon: Ticket },
+  { label: "Saved Events", href: "/dashboard/saved", icon: Heart },
   { label: "Certificates", href: "/dashboard/certificates", icon: Award },
   { label: "Payments", href: "/dashboard/payments", icon: CreditCard },
   { label: "Notifications", href: "/dashboard/notifications", icon: Bell },

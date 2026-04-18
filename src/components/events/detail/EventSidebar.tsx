@@ -11,6 +11,7 @@ import { CountdownTimer } from "@/components/events/CountdownTimer"
 import { VenueMap } from "@/components/events/VenueMap"
 import { AddToCalendar } from "@/components/events/AddToCalendar"
 import { ShareModal } from "@/components/events/ShareModal"
+import { SaveEventButton } from "@/components/events/SaveEventButton"
 import { statusConfig, fmtDate, fmtTime, type EventData } from "./types"
 
 interface Props {
@@ -234,8 +235,9 @@ export function EventSidebar({ event, eventUrl, canRegister, isCancelled, isSold
         )}
       </Card>
 
-      {/* Calendar & Share */}
+      {/* Calendar, Save & Share */}
       <AddToCalendar title={event.title} description={event.shortDescription} startDate={event.startDate} endDate={event.endDate} venue={event.isOnline ? undefined : event.venue} isOnline={event.isOnline} onlinePlatform={event.onlinePlatform} slug={event.slug} className="w-full" />
+      <SaveEventButton eventId={event.id} variant="button" />
       <ShareModal url={eventUrl} title={event.title} description={event.shortDescription} trigger={
         <Button variant="outline" className="w-full gap-2"><Share2 className="h-4 w-4" /> Share This Event</Button>
       } />

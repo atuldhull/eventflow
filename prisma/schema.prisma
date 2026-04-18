@@ -252,6 +252,7 @@ model User {
   waitlistEntries         WaitlistEntry[]
   apiKeys                 ApiKey[]
   webhookEndpoints        WebhookEndpoint[]
+  savedEvents             SavedEvent[]
 
   @@index([email])
   @@index([phone])
@@ -259,6 +260,21 @@ model User {
   @@index([isActive])
   @@index([createdAt])
   @@map("users")
+}
+
+model SavedEvent {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  eventId   String   @map("event_id")
+  savedAt   DateTime @default(now()) @map("saved_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+  @@map("saved_events")
 }
 
 model Account {
@@ -580,6 +596,7 @@ model Event {
   auditLogs         AuditLog[]
   waitlistEntries   WaitlistEntry[]
   featureModuleData FeatureModuleData[]
+  savedBy           SavedEvent[]
 
   @@index([slug])
   @@index([status])

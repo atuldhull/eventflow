@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      select: { allowTeamRegistration: true, maxTeamSize: true },
+      select: { allowTeamRegistration: true, maxTeamSize: true, endDate: true },
     })
 
     if (!event?.allowTeamRegistration) {
@@ -45,6 +45,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "You're already in a team for this event" }, { status: 409 })
     }
 
+    // Invite code expires at event end (or 30 days from now if event has no end date)
+    const inviteCodeExpiresAt = event.endDate
+      ? new Date(event.endDate)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+
     const team = await prisma.team.create({
       data: {
         name: teamName,
@@ -52,6 +57,7 @@ export async function POST(request: NextRequest) {
         leaderId: session.user.id,
         maxSize: event.maxTeamSize || 5,
         inviteCode: generateInviteCode(),
+        inviteCodeExpiresAt,
         members: {
           create: { userId: session.user.id, role: "LEADER" },
         },

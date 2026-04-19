@@ -16,6 +16,7 @@ import { OTPInput } from "@/components/forms/OTPInput"
 import { SocialLoginButtons } from "@/components/forms/SocialLoginButtons"
 import { useAuth } from "@/hooks/useAuth"
 import { loginSchema, type LoginInput } from "@/lib/validations/auth"
+import { PageTransition } from "@/components/motion/primitives"
 
 export default function LoginPage() {
   const searchParams = useSearchParams()
@@ -97,7 +98,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
         <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
@@ -243,6 +244,6 @@ export default function LoginPage() {
           Sign up
         </Link>
       </p>
-    </div>
+    </PageTransition>
   )
 }

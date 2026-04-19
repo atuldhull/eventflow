@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useDebounce } from "@/hooks/useDebounce"
 import { SaveEventButton } from "@/components/events/SaveEventButton"
+import { PageTransition, Stagger, StaggerItem, FadeInScale } from "@/components/motion/primitives"
 import { cn } from "@/lib/utils"
 
 const CATEGORIES = ["All", "TECH", "CULTURAL", "SPORTS", "WORKSHOP", "HACKATHON", "CONFERENCE", "SEMINAR", "WEBINAR", "FEST", "COMPETITION", "MEETUP", "OTHER"]
@@ -84,14 +85,14 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <PageTransition className="container mx-auto px-4 py-8 space-y-8">
       {/* Header */}
-      <div className="text-center space-y-3">
+      <FadeInScale className="text-center space-y-3">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Discover Events</h1>
         <p className="text-muted-foreground max-w-md mx-auto">
           Find events happening near you. Workshops, hackathons, conferences, and more.
         </p>
-      </div>
+      </FadeInScale>
 
       {/* Search */}
       <div className="max-w-xl mx-auto relative">
@@ -152,7 +153,7 @@ export default function EventsPage() {
 
       {/* Events Grid */}
       {!isLoading && events.length > 0 && (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <Stagger key={`${debouncedSearch}-${category}-${pricing}-${page}`} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => {
             const date = formatDate(event.startDate)
             const spotsLeft = event.maxCapacity ? event.maxCapacity - event.currentRegistrations : null
@@ -160,8 +161,9 @@ export default function EventsPage() {
             const isFull = spotsLeft !== null && spotsLeft <= 0
 
             return (
-              <Link key={event.id} href={`/events/${event.slug}`}>
-                <Card className="group overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
+              <StaggerItem key={event.id}>
+                <Link href={`/events/${event.slug}`}>
+                <Card className="group overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 h-full flex flex-col">
                   {/* Image / Date Banner */}
                   <div className="relative h-40 bg-linear-to-br from-primary/10 to-primary/5 flex items-center justify-center overflow-hidden">
                     {event.coverImage ? (
@@ -232,15 +234,16 @@ export default function EventsPage() {
                     </div>
                   </div>
                 </Card>
-              </Link>
+                </Link>
+              </StaggerItem>
             )
           })}
-        </div>
+        </Stagger>
       )}
 
       {/* Empty state */}
       {!isLoading && events.length === 0 && (
-        <div className="text-center py-16">
+        <FadeInScale className="text-center py-16">
           <Calendar className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
           <h3 className="text-lg font-semibold">No events found</h3>
           <p className="text-sm text-muted-foreground mt-1">
@@ -258,7 +261,7 @@ export default function EventsPage() {
               Clear filters
             </Button>
           )}
-        </div>
+        </FadeInScale>
       )}
 
       {/* Pagination */}
@@ -269,6 +272,6 @@ export default function EventsPage() {
           <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
         </div>
       )}
-    </div>
+    </PageTransition>
   )
 }

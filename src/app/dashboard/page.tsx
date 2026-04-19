@@ -7,6 +7,7 @@ import { Calendar, Ticket, Award, CreditCard, MapPin, Monitor, Loader2 } from "l
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/shared/PageHeader"
+import { PageTransition, Stagger, StaggerItem, AnimatedNumber } from "@/components/motion/primitives"
 
 interface DashboardData {
   stats: { registrations: number; activeTickets: number; certificates: number; totalSpent: number }
@@ -32,34 +33,38 @@ export default function DashboardPage() {
   const stats = data?.stats || { registrations: 0, activeTickets: 0, certificates: 0, totalSpent: 0 }
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       <PageHeader
         title={`Welcome back, ${session?.user?.name?.split(" ")[0] || "User"}!`}
         description="Here's an overview of your activity"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { href: "/dashboard/events", icon: Calendar, color: "bg-blue-100 dark:bg-blue-900/30", iconColor: "text-blue-600 dark:text-blue-400", value: stats.registrations, label: "Events Registered" },
-          { href: "/dashboard/tickets", icon: Ticket, color: "bg-green-100 dark:bg-green-900/30", iconColor: "text-green-600 dark:text-green-400", value: stats.activeTickets, label: "Active Tickets" },
-          { href: "/dashboard/certificates", icon: Award, color: "bg-purple-100 dark:bg-purple-900/30", iconColor: "text-purple-600 dark:text-purple-400", value: stats.certificates, label: "Certificates" },
-          { href: "/dashboard/payments", icon: CreditCard, color: "bg-orange-100 dark:bg-orange-900/30", iconColor: "text-orange-600 dark:text-orange-400", value: `₹${stats.totalSpent.toLocaleString("en-IN")}`, label: "Total Spent" },
-        ].map(({ href, icon: Icon, color, iconColor, value, label }) => (
-          <Link key={href} href={href}>
-            <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
-                  <Icon className={`h-5 w-5 ${iconColor}`} />
+          { href: "/dashboard/events", icon: Calendar, color: "bg-blue-100 dark:bg-blue-900/30", iconColor: "text-blue-600 dark:text-blue-400", numeric: stats.registrations, label: "Events Registered" },
+          { href: "/dashboard/tickets", icon: Ticket, color: "bg-green-100 dark:bg-green-900/30", iconColor: "text-green-600 dark:text-green-400", numeric: stats.activeTickets, label: "Active Tickets" },
+          { href: "/dashboard/certificates", icon: Award, color: "bg-purple-100 dark:bg-purple-900/30", iconColor: "text-purple-600 dark:text-purple-400", numeric: stats.certificates, label: "Certificates" },
+          { href: "/dashboard/payments", icon: CreditCard, color: "bg-orange-100 dark:bg-orange-900/30", iconColor: "text-orange-600 dark:text-orange-400", numeric: stats.totalSpent, prefix: "\u20B9", label: "Total Spent" },
+        ].map(({ href, icon: Icon, color, iconColor, numeric, prefix, label }) => (
+          <StaggerItem key={href}>
+            <Link href={href} className="block">
+              <Card className="p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
+                    <Icon className={`h-5 w-5 ${iconColor}`} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {isLoading ? "—" : <AnimatedNumber value={numeric} prefix={prefix} />}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{isLoading ? "—" : value}</p>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                </div>
-              </div>
-            </Card>
-          </Link>
+              </Card>
+            </Link>
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-6">
@@ -139,6 +144,6 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
-    </div>
+    </PageTransition>
   )
 }

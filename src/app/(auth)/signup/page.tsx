@@ -19,6 +19,7 @@ import { PasswordStrength } from "@/components/forms/PasswordStrength"
 import { SocialLoginButtons } from "@/components/forms/SocialLoginButtons"
 import { useAuth } from "@/hooks/useAuth"
 import { signupSchema, type SignupInput } from "@/lib/validations/auth"
+import { PageTransition } from "@/components/motion/primitives"
 
 type Step = 1 | 2 | 3
 
@@ -109,7 +110,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Create an account</h2>
         <p className="text-sm text-muted-foreground mt-1">Get started with EventFlow</p>
@@ -329,6 +330,6 @@ export default function SignupPage() {
           Log in
         </Link>
       </p>
-    </div>
+    </PageTransition>
   )
 }

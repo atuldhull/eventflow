@@ -14,6 +14,7 @@ import { EventSchedule } from "@/components/events/detail/EventSchedule"
 import { EventSponsors } from "@/components/events/detail/EventSponsors"
 import { EventFAQs } from "@/components/events/detail/EventFAQs"
 import { EventSidebar } from "@/components/events/detail/EventSidebar"
+import { PageTransition, Reveal } from "@/components/motion/primitives"
 import type { EventData } from "@/components/events/detail/types"
 import { cn } from "@/lib/utils"
 
@@ -97,28 +98,28 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
       <EventStickyBar event={event} eventUrl={eventUrl} canRegister={canRegister} lowestPrice={lowestPrice} />
 
       {/* Content */}
-      <div className="container mx-auto px-4 py-8">
+      <PageTransition className="container mx-auto px-4 py-8">
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Description */}
-            <section>
+            <Reveal>
               <h2 className="text-lg font-semibold mb-3">About This Event</h2>
               <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{event.description}</div>
-            </section>
+            </Reveal>
 
             {/* Tags */}
             {event.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <Reveal delay={0.05} className="flex flex-wrap gap-2">
                 {event.tags.map((tag) => (
                   <Badge key={tag} variant="outline" className="gap-1"><Tag className="h-3 w-3" />{tag}</Badge>
                 ))}
-              </div>
+              </Reveal>
             )}
 
-            {event.sessions.length > 0 && (<><Separator /><EventSchedule sessions={event.sessions} /></>)}
-            {event.sponsors.length > 0 && (<><Separator /><EventSponsors sponsors={event.sponsors} /></>)}
-            {event.faqs.length > 0 && (<><Separator /><EventFAQs faqs={event.faqs} /></>)}
+            {event.sessions.length > 0 && (<Reveal><Separator className="mb-8" /><EventSchedule sessions={event.sessions} /></Reveal>)}
+            {event.sponsors.length > 0 && (<Reveal><Separator className="mb-8" /><EventSponsors sponsors={event.sponsors} /></Reveal>)}
+            {event.faqs.length > 0 && (<Reveal><Separator className="mb-8" /><EventFAQs faqs={event.faqs} /></Reveal>)}
 
             <Separator />
             <EventDiscussion slug={slug} />
@@ -162,7 +163,7 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
             lowestPrice={lowestPrice}
           />
         </div>
-      </div>
+      </PageTransition>
     </div>
   )
 }

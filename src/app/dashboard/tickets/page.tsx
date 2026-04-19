@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/shared/PageHeader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TicketCard } from "@/components/tickets/TicketCard"
 import { FullScreenQR } from "@/components/tickets/FullScreenQR"
+import { PageTransition, Stagger, StaggerItem, FadeInScale } from "@/components/motion/primitives"
 import {
   Dialog,
   DialogContent,
@@ -90,7 +91,7 @@ export default function TicketsPage() {
   const cancelledTickets = tickets.filter((t) => t.status === "CANCELLED")
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       <PageHeader
         title="My Tickets"
         description={`${upcomingTickets.length} upcoming ticket${upcomingTickets.length !== 1 ? "s" : ""}`}
@@ -117,63 +118,66 @@ export default function TicketsPage() {
           {isLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
           ) : upcomingTickets.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <Stagger className="grid gap-4 sm:grid-cols-2">
               {upcomingTickets.map((ticket) => (
-                <TicketCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  onViewTicket={() => setSelectedTicket(ticket)}
-                  onDownload={() => handleDownload(ticket.id)}
-                />
+                <StaggerItem key={ticket.id}>
+                  <TicketCard
+                    ticket={ticket}
+                    onViewTicket={() => setSelectedTicket(ticket)}
+                    onDownload={() => handleDownload(ticket.id)}
+                  />
+                </StaggerItem>
               ))}
-            </div>
+            </Stagger>
           ) : (
-            <div className="text-center py-16">
+            <FadeInScale className="text-center py-16">
               <Ticket className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
               <p className="font-medium">No upcoming tickets</p>
               <p className="text-sm text-muted-foreground mt-1">Browse events to find something interesting!</p>
-            </div>
+            </FadeInScale>
           )}
         </TabsContent>
 
         <TabsContent value="past" className="mt-4">
           {pastTickets.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <Stagger className="grid gap-4 sm:grid-cols-2">
               {pastTickets.map((ticket) => (
-                <TicketCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  onViewTicket={() => setSelectedTicket(ticket)}
-                  onDownload={() => handleDownload(ticket.id)}
-                />
+                <StaggerItem key={ticket.id}>
+                  <TicketCard
+                    ticket={ticket}
+                    onViewTicket={() => setSelectedTicket(ticket)}
+                    onDownload={() => handleDownload(ticket.id)}
+                  />
+                </StaggerItem>
               ))}
-            </div>
+            </Stagger>
           ) : (
-            <div className="text-center py-16">
+            <FadeInScale className="text-center py-16">
               <Calendar className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
               <p className="font-medium">No past tickets</p>
               <p className="text-sm text-muted-foreground mt-1">Your attended events will appear here.</p>
-            </div>
+            </FadeInScale>
           )}
         </TabsContent>
 
         <TabsContent value="all" className="mt-4">
           {tickets.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <Stagger className="grid gap-4 sm:grid-cols-2">
               {tickets.map((ticket) => (
-                <TicketCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  onViewTicket={() => setSelectedTicket(ticket)}
-                  onDownload={() => handleDownload(ticket.id)}
-                />
+                <StaggerItem key={ticket.id}>
+                  <TicketCard
+                    ticket={ticket}
+                    onViewTicket={() => setSelectedTicket(ticket)}
+                    onDownload={() => handleDownload(ticket.id)}
+                  />
+                </StaggerItem>
               ))}
-            </div>
+            </Stagger>
           ) : (
-            <div className="text-center py-16">
+            <FadeInScale className="text-center py-16">
               <Ticket className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
               <p className="font-medium">No tickets yet</p>
-            </div>
+            </FadeInScale>
           )}
         </TabsContent>
       </Tabs>
@@ -231,6 +235,6 @@ export default function TicketsPage() {
           onClose={() => setShowFullScreenQR(false)}
         />
       )}
-    </div>
+    </PageTransition>
   )
 }

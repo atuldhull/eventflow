@@ -12,6 +12,8 @@ import {
   Copy, CheckCircle, Ticket, Share2,
 } from "lucide-react"
 
+import { motion } from "framer-motion"
+
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,6 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RegistrationForm } from "@/components/registration/RegistrationForm"
+import { Stagger, StaggerItem } from "@/components/motion/primitives"
 import { cn } from "@/lib/utils"
 
 type RegStep = "ticket" | "details" | "review" | "success"
@@ -230,11 +233,22 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
     }
 
     return (
-      <div className="container mx-auto px-4 py-10 max-w-xl space-y-6">
-        <div className="text-center space-y-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mx-auto">
-            <CheckCircle className="h-8 w-8 text-green-600" />
-          </div>
+      <Stagger className="container mx-auto px-4 py-10 max-w-xl space-y-6">
+        <StaggerItem className="text-center space-y-3">
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mx-auto"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.35, type: "spring", stiffness: 300, damping: 15 }}
+            >
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </motion.div>
+          </motion.div>
           <h1 className="text-2xl font-bold">
             {formConfig.approvalRequired
               ? "Registration Submitted"
@@ -245,10 +259,10 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
           <p className="text-sm text-muted-foreground">
             A confirmation has been sent to your email.
           </p>
-        </div>
+        </StaggerItem>
 
         {/* What you registered for */}
-        <Card className="p-5 space-y-4">
+        <StaggerItem><Card className="p-5 space-y-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">You're going to</p>
             <p className="font-semibold text-lg mt-0.5">{formConfig.title}</p>
@@ -273,11 +287,11 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
             <span className="text-muted-foreground">Registration #</span>
             <span className="font-mono font-medium">{registrationResult.registrationNumber}</span>
           </div>
-        </Card>
+        </Card></StaggerItem>
 
         {/* QR code (when the ticket is already active — free events) */}
         {hasQR && !isPaidPending && (
-          <Card className="p-5 space-y-3 text-center">
+          <StaggerItem><Card className="p-5 space-y-3 text-center">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Your ticket</p>
             <div className="flex justify-center py-2">
               <QRCodeSVG value={registrationResult.ticket.qrCode} size={180} />
@@ -285,11 +299,11 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
             <p className="text-xs text-muted-foreground">
               Show this QR at the venue for check-in.
             </p>
-          </Card>
+          </Card></StaggerItem>
         )}
 
         {/* What happens next */}
-        <Card className="p-5 space-y-2">
+        <StaggerItem><Card className="p-5 space-y-2">
           <p className="text-sm font-medium">What happens next</p>
           <ul className="space-y-1.5 text-sm text-muted-foreground">
             <li className="flex gap-2"><Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" /> Confirmation email sent{session?.user?.email ? ` to ${session.user.email}` : ""}.</li>
@@ -306,10 +320,10 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
               <li className="flex gap-2"><Check className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" /> Questions? Contact the organizer at <a href={`mailto:${formConfig.contactEmail}`} className="text-primary hover:underline">{formConfig.contactEmail}</a>.</li>
             )}
           </ul>
-        </Card>
+        </Card></StaggerItem>
 
         {/* Primary actions */}
-        <div className="grid gap-2 sm:grid-cols-2">
+        <StaggerItem className="grid gap-2 sm:grid-cols-2">
           <a href={buildIcs()} download={`${formConfig.slug}.ics`} className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
             <Calendar className="h-4 w-4" /> Add to Calendar
           </a>
@@ -322,10 +336,10 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
               <Ticket className="h-4 w-4" /> View My Tickets
             </Link>
           )}
-        </div>
+        </StaggerItem>
 
         {/* Share / secondary */}
-        <div className="flex flex-col sm:flex-row gap-2 justify-center">
+        <StaggerItem className="flex flex-col sm:flex-row gap-2 justify-center">
           <Button
             variant="ghost"
             size="sm"
@@ -346,8 +360,8 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
           <Link href="/events" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-2")}>
             Browse more events
           </Link>
-        </div>
-      </div>
+        </StaggerItem>
+      </Stagger>
     )
   }
 

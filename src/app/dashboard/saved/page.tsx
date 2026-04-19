@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { SaveEventButton } from "@/components/events/SaveEventButton"
+import { PageTransition, Stagger, StaggerItem, FadeInScale } from "@/components/motion/primitives"
 import { cn } from "@/lib/utils"
 
 interface SavedEvent {
@@ -48,7 +49,7 @@ export default function SavedEventsPage() {
   }, [])
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       <PageHeader
         title="Saved Events"
         description="Events you've saved to come back to later"
@@ -59,7 +60,7 @@ export default function SavedEventsPage() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : events.length === 0 ? (
-        <Card className="p-12 text-center space-y-3">
+        <FadeInScale><Card className="p-12 text-center space-y-3">
           <Heart className="mx-auto h-12 w-12 text-muted-foreground/30" />
           <div>
             <p className="font-medium">No saved events yet</p>
@@ -70,13 +71,14 @@ export default function SavedEventsPage() {
           <Link href="/events" className={cn(buttonVariants({ variant: "outline" }), "mt-2")}>
             Browse events
           </Link>
-        </Card>
+        </Card></FadeInScale>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => {
             const start = new Date(event.startDate)
             return (
-              <Card key={event.id} className="overflow-hidden flex flex-col">
+              <StaggerItem key={event.id}>
+              <Card className="overflow-hidden flex flex-col hover:-translate-y-0.5 transition-transform duration-200">
                 <Link href={`/events/${event.slug}`} className="block">
                   <div className="relative h-32 bg-linear-to-br from-primary/10 to-primary/5">
                     {event.coverImage ? (
@@ -128,10 +130,11 @@ export default function SavedEventsPage() {
                   </Link>
                 </div>
               </Card>
+              </StaggerItem>
             )
           })}
-        </div>
+        </Stagger>
       )}
-    </div>
+    </PageTransition>
   )
 }

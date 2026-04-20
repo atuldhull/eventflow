@@ -20,6 +20,8 @@ import {
   type ForgotPasswordInput,
   type ResetPasswordInput,
 } from "@/lib/validations/auth"
+import { PageTransition } from "@/components/motion/primitives"
+import { SplitTextReveal } from "@/components/motion/SplitTextReveal"
 
 type Step = "email" | "reset"
 
@@ -107,9 +109,9 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Reset your password</h2>
+        <SplitTextReveal as="h2" className="text-2xl font-semibold tracking-tight">Reset your password</SplitTextReveal>
         <p className="text-sm text-muted-foreground mt-1">
           {step === "email"
             ? "Enter your email and we'll send you a reset code"
@@ -217,6 +219,6 @@ export default function ForgotPasswordPage() {
           Back to login
         </Link>
       </div>
-    </div>
+    </PageTransition>
   )
 }

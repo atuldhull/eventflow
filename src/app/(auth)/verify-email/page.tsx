@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { OTPInput } from "@/components/forms/OTPInput"
 import { useAuth } from "@/hooks/useAuth"
+import { PageTransition, FadeInScale } from "@/components/motion/primitives"
+import { SplitTextReveal } from "@/components/motion/SplitTextReveal"
 
 export default function VerifyEmailPage() {
   const router = useRouter()
@@ -71,12 +73,12 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       <div className="text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mb-4">
+        <FadeInScale className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mb-4">
           <Mail className="h-6 w-6 text-primary" />
-        </div>
-        <h2 className="text-2xl font-semibold tracking-tight">Verify your email</h2>
+        </FadeInScale>
+        <SplitTextReveal as="h2" className="text-2xl font-semibold tracking-tight">Verify your email</SplitTextReveal>
         <p className="text-sm text-muted-foreground mt-1">
           {otpSent
             ? `Enter the 6-digit code sent to ${email}`
@@ -136,6 +138,6 @@ export default function VerifyEmailPage() {
           Back to login
         </Link>
       </div>
-    </div>
+    </PageTransition>
   )
 }

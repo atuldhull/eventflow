@@ -12,7 +12,7 @@ import {
   Copy, Ticket, Share2,
 } from "lucide-react"
 
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -388,8 +388,12 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
         ))}
       </div>
 
-      {/* STEP: Ticket Selection */}
+      {/* Step content — wrapped in AnimatePresence so each step slides in from
+          the right and the previous one slides out to the left, matching the
+          forward-progress feel of the top indicator. */}
+      <AnimatePresence mode="wait" initial={false}>
       {step === "ticket" && (
+        <motion.div key="step-ticket" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
         <Card className="p-6 space-y-4">
           <h2 className="text-lg font-semibold">Choose Your Ticket</h2>
           <div className="space-y-3">
@@ -459,10 +463,12 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
             Continue <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         </Card>
+        </motion.div>
       )}
 
       {/* STEP: Details */}
       {step === "details" && (
+        <motion.div key="step-details" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
         <Card className="p-6 space-y-4">
           <h2 className="text-lg font-semibold">Your Details</h2>
           {isGuest && (
@@ -517,10 +523,12 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
             </Button>
           </div>
         </Card>
+        </motion.div>
       )}
 
       {/* STEP: Review */}
       {step === "review" && (
+        <motion.div key="step-review" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
         <div className="space-y-4">
           <Card className="p-6 space-y-3">
             <h2 className="text-lg font-semibold">Review Your Registration</h2>
@@ -553,7 +561,9 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
             </Button>
           </div>
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   )
 }

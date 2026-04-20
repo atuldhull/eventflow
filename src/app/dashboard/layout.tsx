@@ -3,7 +3,9 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { motion } from "framer-motion"
 import { Calendar, Ticket, Award, CreditCard, User, Bell, Settings, LayoutDashboard, Heart } from "lucide-react"
+import { RouteTransition } from "@/components/motion/RouteTransition"
 import { cn } from "@/lib/utils"
 
 const navItems = [
@@ -43,7 +45,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        {/* Nav */}
+        {/* Nav — "layoutId" on the active pill slides it between items via
+            framer's shared-layout animation. No ugly snap/jump between routes. */}
         <nav className="space-y-1 p-3">
           {navItems.map((item) => {
             const isActive = pathname === item.href
@@ -52,14 +55,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    ? "text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
                 )}
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
+                {isActive && (
+                  <motion.span
+                    layoutId="dashboard-active-pill"
+                    className="absolute inset-0 rounded-md bg-sidebar-accent"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <item.icon className="relative h-4 w-4" />
+                <span className="relative">{item.label}</span>
               </Link>
             )
           })}
@@ -71,7 +81,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <header className="sticky top-0 z-40 flex h-14 items-center border-b bg-background px-6">
           <h2 className="text-sm font-semibold">My Dashboard</h2>
         </header>
-        <main className="p-6">{children}</main>
+        <main className="p-6">
+          <RouteTransition>{children}</RouteTransition>
+        </main>
       </div>
     </div>
   )

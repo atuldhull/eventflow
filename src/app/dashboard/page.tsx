@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { PageTransition, Stagger, StaggerItem, AnimatedNumber } from "@/components/motion/primitives"
+import { TiltCard } from "@/components/motion/TiltCard"
 
 interface DashboardData {
   stats: { registrations: number; activeTickets: number; certificates: number; totalSpent: number }
@@ -47,21 +48,23 @@ export default function DashboardPage() {
           { href: "/dashboard/payments", icon: CreditCard, color: "bg-orange-100 dark:bg-orange-900/30", iconColor: "text-orange-600 dark:text-orange-400", numeric: stats.totalSpent, prefix: "\u20B9", label: "Total Spent" },
         ].map(({ href, icon: Icon, color, iconColor, numeric, prefix, label }) => (
           <StaggerItem key={href}>
-            <Link href={href} className="block">
-              <Card className="p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
-                    <Icon className={`h-5 w-5 ${iconColor}`} />
+            <TiltCard maxTilt={5}>
+              <Link href={href} className="block">
+                <Card className="p-6 hover:shadow-lg transition-shadow duration-300 cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
+                      <Icon className={`h-5 w-5 ${iconColor}`} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">
+                        {isLoading ? "\u2014" : <AnimatedNumber value={numeric} prefix={prefix} />}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold">
-                      {isLoading ? "—" : <AnimatedNumber value={numeric} prefix={prefix} />}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                  </div>
-                </div>
-              </Card>
-            </Link>
+                </Card>
+              </Link>
+            </TiltCard>
           </StaggerItem>
         ))}
       </Stagger>

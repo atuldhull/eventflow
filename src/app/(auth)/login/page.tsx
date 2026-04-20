@@ -17,6 +17,7 @@ import { SocialLoginButtons } from "@/components/forms/SocialLoginButtons"
 import { useAuth } from "@/hooks/useAuth"
 import { loginSchema, type LoginInput } from "@/lib/validations/auth"
 import { PageTransition } from "@/components/motion/primitives"
+import { MagneticButton } from "@/components/motion/MagneticButton"
 
 export default function LoginPage() {
   const searchParams = useSearchParams()
@@ -168,10 +169,12 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign in
-            </Button>
+            <MagneticButton className="w-full">
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Sign in
+              </Button>
+            </MagneticButton>
           </form>
         </TabsContent>
 

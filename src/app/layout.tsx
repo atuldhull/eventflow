@@ -4,6 +4,8 @@ import { ThemeProvider } from "next-themes"
 import { Toaster } from "@/components/ui/sonner"
 import { Providers } from "./providers"
 import { PWARegister } from "@/components/PWARegister"
+import { SmoothScrollProvider } from "@/components/motion/SmoothScrollProvider"
+import { AnimatedBackground } from "@/components/motion/AnimatedBackground"
 import "./globals.css"
 
 const inter = Inter({
@@ -37,11 +39,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <Providers>
-            {children}
-            <Toaster />
-            <PWARegister />
-          </Providers>
+          <SmoothScrollProvider>
+            <AnimatedBackground intensity="ambient" theme="indigo" />
+            <Providers>
+              {children}
+              <Toaster />
+              <PWARegister />
+            </Providers>
+          </SmoothScrollProvider>
         </ThemeProvider>
       </body>
     </html>

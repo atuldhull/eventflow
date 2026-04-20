@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button"
 import { useDebounce } from "@/hooks/useDebounce"
 import { SaveEventButton } from "@/components/events/SaveEventButton"
 import { PageTransition, Stagger, StaggerItem, FadeInScale } from "@/components/motion/primitives"
+import { TiltCard } from "@/components/motion/TiltCard"
+import { MagneticButton } from "@/components/motion/MagneticButton"
 import { cn } from "@/lib/utils"
 
 const CATEGORIES = ["All", "TECH", "CULTURAL", "SPORTS", "WORKSHOP", "HACKATHON", "CONFERENCE", "SEMINAR", "WEBINAR", "FEST", "COMPETITION", "MEETUP", "OTHER"]
@@ -162,8 +164,9 @@ export default function EventsPage() {
 
             return (
               <StaggerItem key={event.id}>
-                <Link href={`/events/${event.slug}`}>
-                <Card className="group overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 h-full flex flex-col">
+                <TiltCard maxTilt={6} className="h-full">
+                <Link href={`/events/${event.slug}`} className="block h-full">
+                <Card className="group overflow-hidden hover:shadow-xl transition-shadow duration-300 h-full flex flex-col">
                   {/* Image / Date Banner */}
                   <div className="relative h-40 bg-linear-to-br from-primary/10 to-primary/5 flex items-center justify-center overflow-hidden">
                     {event.coverImage ? (
@@ -235,6 +238,7 @@ export default function EventsPage() {
                   </div>
                 </Card>
                 </Link>
+                </TiltCard>
               </StaggerItem>
             )
           })}
@@ -266,10 +270,14 @@ export default function EventsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+        <div className="flex justify-center items-center gap-2">
+          <MagneticButton>
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+          </MagneticButton>
           <span className="flex items-center text-sm text-muted-foreground px-3">Page {page} of {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+          <MagneticButton>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+          </MagneticButton>
         </div>
       )}
     </PageTransition>

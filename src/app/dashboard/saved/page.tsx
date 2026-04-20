@@ -9,6 +9,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { SaveEventButton } from "@/components/events/SaveEventButton"
 import { PageTransition, Stagger, StaggerItem, FadeInScale } from "@/components/motion/primitives"
+import { TiltCard } from "@/components/motion/TiltCard"
 import { cn } from "@/lib/utils"
 
 interface SavedEvent {
@@ -78,7 +79,8 @@ export default function SavedEventsPage() {
             const start = new Date(event.startDate)
             return (
               <StaggerItem key={event.id}>
-              <Card className="overflow-hidden flex flex-col hover:-translate-y-0.5 transition-transform duration-200">
+              <TiltCard maxTilt={6}>
+              <Card className="overflow-hidden flex flex-col">
                 <Link href={`/events/${event.slug}`} className="block">
                   <div className="relative h-32 bg-linear-to-br from-primary/10 to-primary/5">
                     {event.coverImage ? (
@@ -130,6 +132,7 @@ export default function SavedEventsPage() {
                   </Link>
                 </div>
               </Card>
+              </TiltCard>
               </StaggerItem>
             )
           })}

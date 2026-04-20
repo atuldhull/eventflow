@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { FeaturedEvents } from "@/components/events/FeaturedEvents"
+import { MeshGradient } from "@/components/motion/MeshGradient"
 
 // Reusable animated section wrapper
 function AnimatedSection({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
@@ -55,12 +56,8 @@ export default function LandingPage() {
     <div className="-mt-16">
       {/* ========== HERO ========== */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-zinc-950">
-        {/* Animated gradient orbs */}
-        <div className="absolute inset-0 overflow-hidden">
-          <motion.div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-purple-600/20 blur-[120px]" animate={{ x: [0, 60, 0], y: [0, 40, 0] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }} />
-          <motion.div className="absolute top-1/3 -right-20 w-80 h-80 rounded-full bg-blue-500/20 blur-[100px]" animate={{ x: [0, -50, 0], y: [0, 60, 0] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }} />
-          <motion.div className="absolute -bottom-20 left-1/3 w-72 h-72 rounded-full bg-emerald-500/15 blur-[100px]" animate={{ x: [0, 40, 0], y: [0, -30, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} />
-        </div>
+        {/* WebGL mesh-gradient background — replaces the framer-motion orbs for lower CPU + richer colour transitions. */}
+        <MeshGradient palette="night" opacity={0.85} className="mix-blend-screen" />
 
         {/* Grid pattern overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />

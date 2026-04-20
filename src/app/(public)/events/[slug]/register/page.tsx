@@ -9,7 +9,7 @@ import { toast } from "sonner"
 import { QRCodeSVG } from "qrcode.react"
 import {
   ArrowLeft, ChevronRight, Check, Loader2, Calendar, MapPin,
-  Copy, CheckCircle, Ticket, Share2,
+  Copy, Ticket, Share2,
 } from "lucide-react"
 
 import { motion } from "framer-motion"
@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RegistrationForm } from "@/components/registration/RegistrationForm"
 import { Stagger, StaggerItem } from "@/components/motion/primitives"
+import { DrawSVGReveal } from "@/components/motion/DrawSVGReveal"
 import { cn } from "@/lib/utils"
 
 type RegStep = "ticket" | "details" | "review" | "success"
@@ -241,13 +242,12 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
             transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
             className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mx-auto"
           >
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.35, type: "spring", stiffness: 300, damping: 15 }}
-            >
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </motion.div>
+            <DrawSVGReveal delay={0.4} duration={0.7} stagger={0}>
+              <svg viewBox="0 0 24 24" className="h-8 w-8 text-green-600" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" />
+                <path d="M8 12.5l2.5 2.5L16 9" stroke="currentColor" />
+              </svg>
+            </DrawSVGReveal>
           </motion.div>
           <h1 className="text-2xl font-bold">
             {formConfig.approvalRequired

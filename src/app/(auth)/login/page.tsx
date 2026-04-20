@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { loginSchema, type LoginInput } from "@/lib/validations/auth"
 import { PageTransition } from "@/components/motion/primitives"
 import { MagneticButton } from "@/components/motion/MagneticButton"
+import { SplitTextReveal } from "@/components/motion/SplitTextReveal"
 
 export default function LoginPage() {
   const searchParams = useSearchParams()
@@ -101,7 +102,7 @@ export default function LoginPage() {
   return (
     <PageTransition className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
+        <SplitTextReveal as="h2" className="text-2xl font-semibold tracking-tight">Welcome back</SplitTextReveal>
         <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
       </div>
 

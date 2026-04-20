@@ -20,6 +20,7 @@ import { SocialLoginButtons } from "@/components/forms/SocialLoginButtons"
 import { useAuth } from "@/hooks/useAuth"
 import { signupSchema, type SignupInput } from "@/lib/validations/auth"
 import { PageTransition } from "@/components/motion/primitives"
+import { SplitTextReveal } from "@/components/motion/SplitTextReveal"
 
 type Step = 1 | 2 | 3
 
@@ -112,7 +113,7 @@ export default function SignupPage() {
   return (
     <PageTransition className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Create an account</h2>
+        <SplitTextReveal as="h2" className="text-2xl font-semibold tracking-tight">Create an account</SplitTextReveal>
         <p className="text-sm text-muted-foreground mt-1">Get started with EventFlow</p>
       </div>
 

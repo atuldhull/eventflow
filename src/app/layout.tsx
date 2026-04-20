@@ -6,6 +6,7 @@ import { Providers } from "./providers"
 import { PWARegister } from "@/components/PWARegister"
 import { SmoothScrollProvider } from "@/components/motion/SmoothScrollProvider"
 import { AnimatedBackground } from "@/components/motion/AnimatedBackground"
+import { CustomCursor } from "@/components/motion/CustomCursor"
 import "./globals.css"
 
 const inter = Inter({
@@ -41,6 +42,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <SmoothScrollProvider>
             <AnimatedBackground intensity="ambient" theme="indigo" />
+            <CustomCursor />
             <Providers>
               {children}
               <Toaster />

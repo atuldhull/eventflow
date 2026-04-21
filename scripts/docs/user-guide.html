@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>EventFlow — User Guide</title>
+  <link rel="stylesheet" href="./shared.css" />
+</head>
+<body>
+
+<!-- ═══ COVER ═══ -->
+<section class="cover">
+  <div class="cover-grid"></div>
+  <div class="cover-content">
+    <header>
+      <span class="eyebrow">Revision 1.0 · Platform Guide</span>
+      <div style="height: 22pt"></div>
+      <div class="brand"><span class="dot"></span><span class="wordmark">EventFlow</span></div>
+    </header>
+
+    <div>
+      <h1>The playbook for<br/>events that matter.</h1>
+      <p class="subtitle">A complete walkthrough of the platform — how to sign up, discover events, register, show your ticket at the door, and organize events of your own.</p>
+      <div class="accent-mark"></div>
+      <div class="meta-row">
+        <span class="meta-pill">For attendees</span>
+        <span class="meta-pill">For organizers</span>
+        <span class="meta-pill">For first-time users</span>
+      </div>
+    </div>
+
+    <footer class="foot">
+      <span>Published internally · DOCUMENT_DATE</span>
+      <span>eventflow.app</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══ TOC ═══ -->
+<section class="page">
+  <span class="eyebrow">Contents</span>
+  <h2 style="margin-top:12pt;">Inside this guide</h2>
+  <div class="gap-md"></div>
+  <table class="kv" style="font-size:11pt;">
+    <tr><td><strong>01</strong> &nbsp; Welcome to EventFlow</td><td>What the platform does, and who it's built for.</td></tr>
+    <tr><td><strong>02</strong> &nbsp; Getting started</td><td>Signing up, verifying email, your first login.</td></tr>
+    <tr><td><strong>03</strong> &nbsp; Finding and registering for events</td><td>Free events, paid events with coupons, team events.</td></tr>
+    <tr><td><strong>04</strong> &nbsp; Your dashboard</td><td>Tickets, saved events, certificates, payments.</td></tr>
+    <tr><td><strong>05</strong> &nbsp; Running your own event</td><td>The 6-step wizard from draft to live.</td></tr>
+    <tr><td><strong>06</strong> &nbsp; At the venue &amp; beyond</td><td>QR check-in, offline mode, feedback, certificates.</td></tr>
+    <tr><td><strong>07</strong> &nbsp; Troubleshooting</td><td>Common issues and where to get help.</td></tr>
+  </table>
+
+  <div class="gap-lg"></div>
+  <div class="stat-row">
+    <div class="stat"><div class="n">6</div><div class="l">Step wizard</div></div>
+    <div class="stat"><div class="n">9</div><div class="l">User roles</div></div>
+    <div class="stat"><div class="n">12</div><div class="l">Feature modules</div></div>
+  </div>
+  <p class="text-muted" style="font-size:9.5pt;">This guide is written for the end user. The companion <strong>Admin Reference</strong> covers the who-does-what of the administrative side.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>User Guide · Table of Contents</span></footer>
+</section>
+
+<!-- ═══ SECTION 01 OPENER ═══ -->
+<section class="opener">
+  <span class="num">01</span>
+  <span class="eyebrow">Introduction</span>
+  <h2>Welcome to EventFlow.</h2>
+  <p class="lede">A multi-tenant platform for universities, companies, and communities that want to publish events, collect registrations, take payments, and run check-in — without five different SaaS tools duct-taped together.</p>
+
+  <div class="gap-lg"></div>
+  <div class="grid-3">
+    <div class="card">
+      <span class="pill">Attendees</span>
+      <h3 style="margin-top:10pt;">Discover &amp; go</h3>
+      <p>Browse events, register in under a minute, carry tickets in your pocket, show a QR at the door.</p>
+    </div>
+    <div class="card">
+      <span class="pill ok">Organizers</span>
+      <h3 style="margin-top:10pt;">Publish &amp; run</h3>
+      <p>Build an event with a 6-step wizard, share it with a link, check people in with a phone camera, issue certificates after.</p>
+    </div>
+    <div class="card">
+      <span class="pill warn">Admins</span>
+      <h3 style="margin-top:10pt;">Oversee everything</h3>
+      <p>Manage members, billing, payments, refunds, the public website, feature modules — all from one dashboard.</p>
+    </div>
+  </div>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>01 · Welcome</span></footer>
+</section>
+
+<!-- ═══ WELCOME CONTENT ═══ -->
+<section class="page">
+  <h3>What you'll do on this platform</h3>
+  <div class="gap-sm"></div>
+  <p class="dropcap">EventFlow centralizes the full lifecycle of an event: from the first announcement, through the moment someone buys a ticket, to when they walk through the door and later download a certificate. The same app adapts to who's logged in — a student sees the browsing and ticket side; an organizer sees the admin dashboard; a super admin sees every tenant on the platform.</p>
+
+  <div class="gap-md"></div>
+
+  <div class="quote">If you've ever used Eventbrite for listings, Stripe for payments, a custom QR scanner for check-in, and a separate mailer for certificates — this is all four, stitched together properly.</div>
+
+  <div class="gap-md"></div>
+
+  <h3>What makes this different</h3>
+  <ul class="dots">
+    <li><strong>Multi-tenant</strong> — one EventFlow deployment can host a whole university, with clubs, departments, and student organizations all running their events under separate subdomains.</li>
+    <li><strong>Built-in website builder</strong> — each organization gets a customizable public site with drag-and-drop sections, not just a profile page inside a directory.</li>
+    <li><strong>Feature modules</strong> — 12 plug-in features (live quiz, live poll, leaderboard, photo gallery, blog, countdown timer, weather widget, team profiles, sponsor showcase, volunteer sign-up, merchandise store, event calendar) that clip into any event.</li>
+    <li><strong>Role-based access</strong> — nine granular roles so a Finance Manager can refund but not publish, a Coordinator can check in but not cancel, a Viewer can audit without changing anything.</li>
+  </ul>
+
+  <div class="gap-md"></div>
+
+  <div class="callout tip">
+    <h4>Three words that mean different things here</h4>
+    <p><strong>Enterprise</strong> — the top container, like a whole university or company. <strong>Organization</strong> — a sub-group within an enterprise: a club, a department, a team. <strong>Event</strong> — an individual happening with a date, venue, and registration.</p>
+  </div>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>01 · Welcome</span></footer>
+</section>
+
+<!-- ═══ SECTION 02 OPENER ═══ -->
+<section class="opener">
+  <span class="num">02</span>
+  <span class="eyebrow">Getting started</span>
+  <h2>Your first five minutes.</h2>
+  <p class="lede">Create an account, verify your email, sign in. From cold-open to a live dashboard in under 90 seconds.</p>
+
+  <div class="gap-lg"></div>
+  <div class="grid-3">
+    <div class="card">
+      <h4>Signup</h4>
+      <h3>Email &amp; password</h3>
+      <p>Name, email, strong password, phone. Tick the Terms of Service checkbox — it links to the actual T&amp;Cs page, not a broken <code>#</code>.</p>
+    </div>
+    <div class="card">
+      <h4>Verify</h4>
+      <h3>6-digit OTP</h3>
+      <p>A code arrives by email. Enter it on the next screen. Resend is throttled to 30 seconds to stop spam-click rage.</p>
+    </div>
+    <div class="card">
+      <h4>Land</h4>
+      <h3>Your dashboard</h3>
+      <p>Animated counters for events registered, tickets, certificates, spend. Upcoming events list with live countdowns.</p>
+    </div>
+  </div>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>02 · Getting started</span></footer>
+</section>
+
+<!-- ═══ GETTING STARTED CONTENT ═══ -->
+<section class="page">
+  <h3>Create your account</h3>
+  <ol class="steps">
+    <li>Open <code>/signup</code>. Fill your full name, email, a password that satisfies the live strength indicator, and your phone number.</li>
+    <li>Tick the Terms of Service and Privacy Policy checkbox. Both open in a new tab — you can read them without losing your form state.</li>
+    <li>Optionally fill in college or company. These are editable later from your profile.</li>
+    <li>You'll receive a 6-digit code by email. Enter it on the verification screen. Code is valid for 10 minutes; five wrong attempts invalidates it and you'll need a fresh one.</li>
+    <li>Verified account lands you at <code>/dashboard</code>.</li>
+  </ol>
+
+  <div class="gap-md"></div>
+  <h3>Signing in</h3>
+  <p>The login screen has two tabs — pick whichever you prefer.</p>
+  <div class="grid-2" style="margin-top:10pt;">
+    <div class="card">
+      <h4>Email + Password</h4>
+      <p>The classic path. If you forgot your password, the <em>Forgot your password?</em> link sits directly under the password field — not hidden in a footer.</p>
+    </div>
+    <div class="card accent">
+      <h4>Login with OTP</h4>
+      <p>Enter email, receive a code, enter the code. Useful when you don't remember your password or you're on a borrowed device and don't want to type it.</p>
+    </div>
+  </div>
+
+  <div class="gap-md"></div>
+  <div class="callout tip">
+    <h4>Tip</h4>
+    <p>The <strong>Sign in with Google</strong> and <strong>Sign in with Microsoft</strong> buttons below the tabs work if your administrator has enabled SSO. No separate password to remember.</p>
+  </div>
+
+  <div class="gap-md"></div>
+  <div class="callout warn">
+    <h4>Didn't receive the OTP?</h4>
+    <p>Check your spam folder first. Then hit <em>Resend OTP</em> (available again after 30 seconds). If you're in a local development environment where email isn't configured, the code can be read directly from the OTP row in your database.</p>
+  </div>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>02 · Getting started</span></footer>
+</section>
+
+<!-- ═══ SECTION 03 OPENER ═══ -->
+<section class="opener">
+  <span class="num">03</span>
+  <span class="eyebrow">Register for events</span>
+  <h2>Three paths, one polished flow.</h2>
+  <p class="lede">Free events end in a QR. Paid events route through Razorpay. Team events build and join on invite codes. The wizard in the middle is the same.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>03 · Registering</span></footer>
+</section>
+
+<!-- ═══ REGISTRATION FLOWS ═══ -->
+<section class="page">
+  <h3>The registration wizard, at a glance</h3>
+  <p>Every event uses the same three-step form, regardless of price or format. The steps slide in with a light horizontal animation so forward progress feels tangible.</p>
+
+  <div class="gap-md"></div>
+
+  <!-- Wizard timeline -->
+  <svg viewBox="0 0 520 40" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:32pt;">
+    <line x1="30" y1="20" x2="490" y2="20" stroke="#C7D2FE" stroke-width="3" stroke-dasharray="4 4"/>
+    <g>
+      <circle cx="30"  cy="20" r="14" fill="url(#g1)"/>
+      <text x="30" y="25" text-anchor="middle" font-family="Inter" font-size="11" font-weight="800" fill="#fff">1</text>
+      <circle cx="185" cy="20" r="14" fill="url(#g1)"/>
+      <text x="185" y="25" text-anchor="middle" font-family="Inter" font-size="11" font-weight="800" fill="#fff">2</text>
+      <circle cx="340" cy="20" r="14" fill="url(#g1)"/>
+      <text x="340" y="25" text-anchor="middle" font-family="Inter" font-size="11" font-weight="800" fill="#fff">3</text>
+      <circle cx="490" cy="20" r="14" fill="#10B981"/>
+      <text x="490" y="25" text-anchor="middle" font-family="Inter" font-size="11" font-weight="800" fill="#fff">✓</text>
+    </g>
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#6366F1"/>
+        <stop offset="100%" stop-color="#EC4899"/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6pt; margin-top:6pt;">
+    <div class="text-center"><div style="font-size:9pt;font-weight:700;color:var(--ink);">Ticket</div><div style="font-size:8pt;color:var(--muted);">Pick a type, apply coupon</div></div>
+    <div class="text-center"><div style="font-size:9pt;font-weight:700;color:var(--ink);">Details</div><div style="font-size:8pt;color:var(--muted);">Your info + custom fields</div></div>
+    <div class="text-center"><div style="font-size:9pt;font-weight:700;color:var(--ink);">Review</div><div style="font-size:8pt;color:var(--muted);">Confirm &amp; pay</div></div>
+    <div class="text-center"><div style="font-size:9pt;font-weight:700;color:var(--success);">Success</div><div style="font-size:8pt;color:var(--muted);">QR + ticket + calendar</div></div>
+  </div>
+
+  <div class="gap-md"></div>
+
+  <h3>Free event — the short path</h3>
+  <ol class="steps">
+    <li>On the event page, the sidebar says <em>Register for Free</em>. Click it.</li>
+    <li>Step 1 — pick a ticket type (most free events have only one).</li>
+    <li>Step 2 — your name and email are pre-filled if you're logged in. Fill any custom form fields the organizer added (year of study, dietary preference, etc.).</li>
+    <li>Step 3 — review, agree to the event's T&amp;C, click <em>Confirm Registration</em>.</li>
+    <li>Success screen shows the event title, full date, venue, a QR code, <em>Add to Calendar</em>, <em>Download Ticket</em>, and a "what happens next" checklist.</li>
+  </ol>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>03 · Registering</span></footer>
+</section>
+
+<section class="page">
+  <h3>Paid event — with a coupon</h3>
+  <ol class="steps">
+    <li>On Step 1, after picking your ticket type, a <em>Coupon Code</em> field appears below.</li>
+    <li>Enter the code and click <em>Apply</em>. The line-item total updates with the discount shown.</li>
+    <li>Steps 2 and 3 are identical to the free flow. On the Review step, the button reads <strong>Pay ₹ NNN</strong> with your post-discount total.</li>
+    <li>Razorpay's payment sheet opens in an overlay. Use your card, UPI, net banking, or wallet.</li>
+    <li>On a successful payment, the success screen renders and your ticket is live in <code>/dashboard/tickets</code>. The same ticket carries the QR you'll show at the door.</li>
+  </ol>
+
+  <div class="callout warn">
+    <h4>Payment didn't complete?</h4>
+    <p>If the Razorpay sheet closes without success, your registration sits in <strong>Pending</strong>. Go to <code>/dashboard/payments</code> and click <em>Retry Payment</em>. The same gateway order is re-used, so you won't be double-charged.</p>
+  </div>
+
+  <div class="gap-md"></div>
+  <h3>Team event</h3>
+  <p>Some events allow (or require) team registration. You'll see <em>Team registration · 2–4 members</em> on the event page. The flow branches:</p>
+  <div class="grid-2" style="margin-top:10pt;">
+    <div class="card">
+      <h4>Team leader</h4>
+      <p><strong>Create team</strong> — you name it, you're given an invite code like <code>AB7C-3XZP</code>. Share the code with your teammates. The code expires at the event's end date.</p>
+    </div>
+    <div class="card">
+      <h4>Teammate</h4>
+      <p><strong>Join team</strong> — enter the code. If the team isn't full and the code hasn't expired, you're added. You'll appear in the leader's roster in the admin dashboard.</p>
+    </div>
+  </div>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>03 · Registering</span></footer>
+</section>
+
+<!-- ═══ SECTION 04 OPENER ═══ -->
+<section class="opener">
+  <span class="num">04</span>
+  <span class="eyebrow">Your dashboard</span>
+  <h2>Everything you've<br/>ever done, in one place.</h2>
+  <p class="lede">Once you're logged in, <code>/dashboard</code> is your home base. Tickets, saved events, certificates, payments — and animated counters that tell you, at a glance, how you've used the platform.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>04 · Dashboard</span></footer>
+</section>
+
+<section class="page">
+  <h3>What's where</h3>
+  <table class="kv mono">
+    <tr><td><code>/dashboard</code></td><td>Home. Live counters, upcoming-events list with "in 3 days" countdowns, quick actions.</td></tr>
+    <tr><td><code>/dashboard/events</code></td><td>Every event you've registered for — upcoming, past, cancelled. You can cancel here if the event hasn't started.</td></tr>
+    <tr><td><code>/dashboard/tickets</code></td><td>Active tickets. Click one to open the full-screen QR you'll show at the venue.</td></tr>
+    <tr><td><code>/dashboard/saved</code></td><td>Events you've hearted but haven't registered for yet.</td></tr>
+    <tr><td><code>/dashboard/certificates</code></td><td>Certificates issued after you attended an event — downloadable.</td></tr>
+    <tr><td><code>/dashboard/payments</code></td><td>Every payment made through EventFlow with status and receipt.</td></tr>
+    <tr><td><code>/dashboard/profile</code></td><td>Your personal details, avatar, linked social accounts.</td></tr>
+    <tr><td><code>/dashboard/settings</code></td><td>Notification preferences, password change, two-factor auth.</td></tr>
+    <tr><td><code>/dashboard/notifications</code></td><td>Inbox for platform-generated notifications (approval granted, payment received, etc.).</td></tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <div class="callout tip">
+    <h4>Tickets work offline</h4>
+    <p>Your tickets are cached by a service worker. Even with no signal at the venue, <code>/dashboard/tickets</code> opens, the QR renders, and the gate scanner validates the signature when the network returns. An amber banner explains you're offline — the QR still works.</p>
+  </div>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>04 · Dashboard</span></footer>
+</section>
+
+<!-- ═══ SECTION 05 OPENER ═══ -->
+<section class="opener">
+  <span class="num">05</span>
+  <span class="eyebrow">Running your own</span>
+  <h2>From draft to live,<br/>in six steps.</h2>
+  <p class="lede">Own an event? The creation wizard is six guided steps. You can save a draft at any point, preview it as an attendee would see it, and only publish when you're ready.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>05 · Organize</span></footer>
+</section>
+
+<section class="page">
+  <h3>First, make sure you have an org</h3>
+  <p>Everything you publish lives under an <strong>organization</strong>. If you don't have one yet, open <code>/admin/create-org</code>, fill in the name, URL slug, category, and contact email. You become that org's admin automatically.</p>
+
+  <div class="callout">
+    <h4>Email verification required</h4>
+    <p>Creating an organization requires a verified email. It's a deliberate gate against spam orgs that rent storage and never publish an event.</p>
+  </div>
+
+  <div class="gap-md"></div>
+  <h3>The six steps of event creation</h3>
+
+  <table class="kv" style="margin-top:8pt;">
+    <tr>
+      <td><span class="pill">Step 1</span> &nbsp; <strong>Basic</strong></td>
+      <td>Title, event URL (slug), visibility (public / unlisted / invite-only), category, tags, short and long descriptions.</td>
+    </tr>
+    <tr>
+      <td><span class="pill">Step 2</span> &nbsp; <strong>Date &amp; Venue</strong></td>
+      <td>Start and end datetimes, timezone, either an in-person venue (address) or an online platform (Zoom, Teams, or custom URL).</td>
+    </tr>
+    <tr>
+      <td><span class="pill">Step 3</span> &nbsp; <strong>Tickets</strong></td>
+      <td>One or more ticket types with price, total tickets available, max tickets per person, optional sale window. Early-bird and regular are common.</td>
+    </tr>
+    <tr>
+      <td><span class="pill">Step 4</span> &nbsp; <strong>Form</strong></td>
+      <td>Custom form fields asked during registration — text, select, checkbox, file upload. Mark fields required as needed.</td>
+    </tr>
+    <tr>
+      <td><span class="pill">Step 5</span> &nbsp; <strong>Media</strong></td>
+      <td>Cover image, gallery, FAQs, sponsor logos, rules and terms, refund policy.</td>
+    </tr>
+    <tr>
+      <td><span class="pill">Step 6</span> &nbsp; <strong>Review</strong></td>
+      <td>Everything on one page. Preview opens the public event page with a yellow <em>Preview mode</em> banner so you can check the attendee view without publishing.</td>
+    </tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <div class="callout tip">
+    <h4>Saving drafts</h4>
+    <p>Every step has a <em>Save as Draft</em> button. Drafts don't appear in the public catalogue — only people with <code>?preview=1</code> and edit rights can see them.</p>
+  </div>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>05 · Organize</span></footer>
+</section>
+
+<!-- ═══ SECTION 06 OPENER ═══ -->
+<section class="opener">
+  <span class="num">06</span>
+  <span class="eyebrow">At the venue</span>
+  <h2>Show up. Scan in. Get on with it.</h2>
+  <p class="lede">Check-in takes about two seconds per attendee. Works offline if the venue Wi-Fi doesn't.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>06 · The venue</span></footer>
+</section>
+
+<section class="page">
+  <h3>As an attendee</h3>
+  <ol class="steps">
+    <li>Pull up <code>/dashboard/tickets</code>. Tap the ticket for the event you're at.</li>
+    <li>Tap <em>Full-screen QR</em>. The screen goes dark, the code fills the display.</li>
+    <li>The gate team scans it. You're in. The ticket now says <strong>Checked In</strong> with a timestamp.</li>
+  </ol>
+
+  <div class="gap-md"></div>
+  <h3>As an organizer / coordinator</h3>
+  <ol class="steps">
+    <li>Open <code>/admin/org/events/[id]/check-in</code> on a phone or tablet. Allow camera access the first time.</li>
+    <li>Tap <em>QR Scan</em>. Point the back camera at each attendee's ticket. A green confirmation plays; the check-in count ticks up.</li>
+    <li>If someone's QR is broken, tap <em>Manual</em>. Search by name, email, or registration number. Click <em>Check In</em> on the row.</li>
+    <li>Live stats above the scanner — total expected, currently checked-in, percentage — update as people stream in.</li>
+  </ol>
+
+  <div class="gap-md"></div>
+  <h3>After the event</h3>
+  <ul class="dots">
+    <li>The organizer can bulk-issue certificates from <code>/admin/org/certificates</code>. They show up in each attendee's <code>/dashboard/certificates</code>.</li>
+    <li>The attendee gets an automatic email prompt to fill feedback at <code>/events/[slug]/feedback</code>. Organizers see aggregated results.</li>
+    <li>Every attendee and every organizer can verify the authenticity of a certificate or ticket at <code>/verify/[code]</code> — a public lookup by the short verification code printed on it.</li>
+  </ul>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>06 · The venue</span></footer>
+</section>
+
+<!-- ═══ SECTION 07 OPENER ═══ -->
+<section class="opener">
+  <span class="num">07</span>
+  <span class="eyebrow">Troubleshooting</span>
+  <h2>If something feels off.</h2>
+  <p class="lede">The short list of "why isn't this working" questions, and what to do about each.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>07 · Troubleshooting</span></footer>
+</section>
+
+<section class="page">
+  <table class="kv">
+    <tr><td>"Event is full"</td><td>All seats taken before you got there. If the event has a waitlist, your registration is queued and you'll be promoted automatically if someone cancels.</td></tr>
+    <tr><td>"You are already registered for this event"</td><td>Your account has an existing registration. Open <code>/dashboard/events</code> — it's probably sitting in Pending or Confirmed.</td></tr>
+    <tr><td>QR won't scan at the venue</td><td>Ask the check-in person to switch to <em>Manual</em> and look up your registration number. Same result, slower.</td></tr>
+    <tr><td>Forgot password</td><td><code>/forgot-password</code> → enter email → receive a 6-digit code → set a new password.</td></tr>
+    <tr><td>Can't see an event you registered for</td><td>It may have been cancelled. Cancelled events are hidden from the public catalogue but still appear in <code>/dashboard/events</code> under the Cancelled tab.</td></tr>
+    <tr><td>Payment charged but no ticket</td><td>Check <code>/dashboard/payments</code>. If the payment status says COMPLETED but the ticket isn't there, click the row and use <em>Regenerate Ticket</em>. If still stuck, contact the organizer (their email is on the event page).</td></tr>
+    <tr><td>Coupon rejected</td><td>Reasons in order of likelihood: wrong code, expired, usage limit reached, doesn't apply to the ticket type you picked. The error message will say which.</td></tr>
+    <tr><td>"Too many attempts" on OTP</td><td>Five wrong tries invalidates the code. Request a new one from the same screen.</td></tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Where to get help</h3>
+  <p>Event-specific questions — payment didn't reach the organizer, a certificate is missing, the venue moved — use the contact email on the event page. The organizer is usually faster than platform support.</p>
+  <p>Platform-level issues — your account is locked, a payment got lost in the gateway, a certificate verification returns 404 — go to <code>/contact</code> and submit a ticket with the details.</p>
+
+  <div class="gap-lg"></div>
+  <hr style="border: none; border-top: 1px solid var(--rule);" />
+  <div class="gap-sm"></div>
+  <p class="text-muted" style="font-size:9.5pt;">This ends the User Guide. For the admin side — roles, permissions, routes, walkthroughs — see the companion <strong>EventFlow Admin Reference</strong>.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>07 · Troubleshooting</span></footer>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,257 @@
+/* ============================================================================
+   EventFlow documentation — shared print stylesheet
+   Targets A4 at 100% scale. All fonts are system-loaded (no network fetch
+   during PDF render so we stay offline-safe).
+   ============================================================================ */
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+* { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+:root {
+  --ink:         #08080C;
+  --ink-soft:    #1C1C26;
+  --muted:       #55555F;
+  --subtle:      #8A8A95;
+  --rule:        #EAEAF0;
+  --surface:     #FFFFFF;
+  --surface-alt: #FAFAFB;
+  --accent:      #4F46E5;
+  --accent-2:    #818CF8;
+  --accent-3:    #A5B4FC;
+  --accent-bg:   #EEF2FF;
+  --accent-bg-2: #E0E7FF;
+  --success:     #047857;
+  --success-bg:  #ECFDF5;
+  --warn:        #92400E;
+  --warn-bg:     #FFFBEB;
+  --danger:      #B91C1C;
+  --danger-bg:   #FEF2F2;
+  --gradient-hero: linear-gradient(135deg, #0B0B16 0%, #1E1B4B 45%, #4F46E5 100%);
+  --gradient-accent: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%);
+}
+
+html, body {
+  font-family: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--surface);
+  font-size: 11pt;
+  line-height: 1.55;
+  font-feature-settings: "ss01", "cv11", "tnum";
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+  padding: 0;
+}
+
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 18mm 16mm;
+  page-break-after: always;
+  position: relative;
+  overflow: hidden;
+}
+.page:last-child { page-break-after: auto; }
+
+/* ───── TYPOGRAPHY ───── */
+h1, h2, h3, h4, p, ul, ol { margin: 0; padding: 0; }
+h1 { font-size: 42pt; font-weight: 800; line-height: 1.02; letter-spacing: -0.02em; color: var(--ink); }
+h2 { font-size: 22pt; font-weight: 800; line-height: 1.15; letter-spacing: -0.015em; color: var(--ink); }
+h3 { font-size: 14pt; font-weight: 700; line-height: 1.25; letter-spacing: -0.005em; color: var(--ink); }
+h4 { font-size: 11pt; font-weight: 700; letter-spacing: 0.02em; color: var(--accent); text-transform: uppercase; }
+p  { font-size: 11pt; line-height: 1.65; color: var(--ink-soft); }
+p + p { margin-top: 8pt; }
+small { font-size: 9pt; color: var(--muted); }
+.lede { font-size: 13pt; line-height: 1.6; color: var(--muted); font-weight: 400; }
+.eyebrow { font-size: 8.5pt; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); }
+.dropcap::first-letter { float: left; font-size: 46pt; line-height: 0.9; font-weight: 800; color: var(--accent); padding: 6pt 10pt 0 0; }
+
+/* ───── COVER PAGE ───── */
+.cover {
+  background: var(--gradient-hero);
+  color: #FFF;
+  padding: 22mm 18mm;
+  position: relative;
+  page-break-after: always;
+  min-height: 297mm;
+  overflow: hidden;
+}
+.cover::before, .cover::after { content: ""; position: absolute; border-radius: 50%; filter: blur(60px); }
+.cover::before { width: 420px; height: 420px; background: #7C3AED; opacity: .32; top: -160px; right: -120px; }
+.cover::after  { width: 340px; height: 340px; background: #3B82F6; opacity: .28; bottom: -140px; left: -100px; }
+.cover-grid { position: absolute; inset: 0; background-image:
+  linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 48px 48px; opacity: 0.85; }
+.cover-content { position: relative; z-index: 2; height: calc(297mm - 44mm); display: flex; flex-direction: column; justify-content: space-between; }
+.cover .brand { display: inline-flex; align-items: baseline; gap: 6px; }
+.cover .brand .wordmark { font-size: 18pt; font-weight: 800; letter-spacing: -0.01em; }
+.cover .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); display: inline-block; margin-right: 6px; }
+.cover h1 { color: #FFF; font-size: 68pt; letter-spacing: -0.035em; margin-top: 8mm; }
+.cover .subtitle { color: rgba(255,255,255,0.82); font-size: 15pt; line-height: 1.5; max-width: 88%; margin-top: 6mm; font-weight: 300; }
+.cover .eyebrow { color: var(--accent-3); }
+.cover .meta-row { display: flex; gap: 16pt; align-items: center; margin-top: 14mm; }
+.cover .meta-pill { display: inline-flex; align-items: center; gap: 8pt; padding: 6pt 14pt; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; font-size: 9.5pt; color: rgba(255,255,255,0.88); backdrop-filter: blur(8px); }
+.cover .foot { display: flex; justify-content: space-between; align-items: flex-end; color: rgba(255,255,255,0.55); font-size: 9pt; }
+.cover .accent-mark { width: 64px; height: 3px; background: var(--accent-2); margin-top: 14mm; }
+
+/* ───── SECTION OPENER (magazine-style) ───── */
+.opener { background: var(--surface); padding: 28mm 16mm; position: relative; page-break-after: always; min-height: 297mm; }
+.opener .num { font-size: 200pt; font-weight: 900; line-height: 0.85; background: var(--gradient-accent); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: -0.06em; position: absolute; top: 28mm; right: 14mm; opacity: 0.14; }
+.opener .eyebrow { display: block; margin-bottom: 12pt; }
+.opener h2 { font-size: 52pt; line-height: 0.98; max-width: 70%; }
+.opener .lede { max-width: 64%; margin-top: 8mm; font-size: 14pt; }
+
+/* ───── LAYOUT HELPERS ───── */
+.section { margin-bottom: 14pt; }
+.section + .section { margin-top: 14pt; }
+.gap-sm { height: 10pt; }
+.gap-md { height: 18pt; }
+.gap-lg { height: 30pt; }
+
+/* Two-column grid */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18pt; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14pt; }
+
+/* ───── CARDS ───── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 10pt;
+  padding: 14pt 16pt;
+  box-shadow: 0 1px 2px rgba(8,8,12,0.04);
+}
+.card.accent { border-color: var(--accent-3); background: linear-gradient(180deg, var(--accent-bg) 0%, var(--surface) 60%); }
+.card h3 { margin-bottom: 6pt; }
+.card p { font-size: 10.5pt; }
+
+/* ───── STAT CALLOUT ───── */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14pt; margin: 14pt 0; }
+.stat {
+  background: var(--surface);
+  border-left: 4pt solid var(--accent);
+  padding: 10pt 14pt 12pt;
+  border-radius: 4pt;
+  box-shadow: 0 1px 2px rgba(8,8,12,0.04);
+}
+.stat .n { font-size: 30pt; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--ink); background: var(--gradient-accent); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stat .l { font-size: 9pt; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 6pt; font-weight: 600; }
+
+/* ───── STEP LIST ───── */
+.steps { list-style: none; counter-reset: step; padding: 0; margin: 10pt 0; }
+.steps li {
+  counter-increment: step;
+  position: relative;
+  padding: 8pt 0 8pt 40pt;
+  border-bottom: 1px solid var(--rule);
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.steps li:last-child { border-bottom: none; }
+.steps li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute; left: 0; top: 9pt;
+  font-variant-numeric: tabular-nums;
+  font-size: 10pt; font-weight: 700;
+  color: var(--accent);
+  width: 28pt; letter-spacing: -0.02em;
+}
+.steps li::after {
+  content: ""; position: absolute; left: 0; top: 13pt;
+  width: 22pt; height: 2px; background: var(--accent-3);
+}
+
+/* ───── BULLETS ───── */
+ul.dots { list-style: none; padding: 0; margin: 8pt 0; }
+ul.dots li { position: relative; padding-left: 16pt; margin-bottom: 6pt; font-size: 10.5pt; color: var(--ink-soft); line-height: 1.55; }
+ul.dots li::before { content: ""; position: absolute; left: 0; top: 8pt; width: 6pt; height: 6pt; border-radius: 50%; background: var(--accent); }
+
+/* ───── PILLS / BADGES ───── */
+.pill { display: inline-flex; align-items: center; gap: 4pt; padding: 2pt 10pt; background: var(--accent-bg); color: var(--accent); border-radius: 999px; font-size: 8.5pt; font-weight: 700; letter-spacing: 0.02em; border: 1px solid var(--accent-3); }
+.pill.ok { background: var(--success-bg); color: var(--success); border-color: #A7F3D0; }
+.pill.warn { background: var(--warn-bg); color: var(--warn); border-color: #FDE68A; }
+.pill.danger { background: var(--danger-bg); color: var(--danger); border-color: #FCA5A5; }
+.pill.ghost { background: transparent; color: var(--muted); border-color: var(--rule); }
+
+/* ───── CALLOUTS ───── */
+.callout { border-left: 3pt solid var(--accent); background: var(--accent-bg); padding: 12pt 16pt; border-radius: 0 6pt 6pt 0; margin: 14pt 0; }
+.callout.tip { border-color: var(--success); background: var(--success-bg); }
+.callout.warn { border-color: #F59E0B; background: var(--warn-bg); }
+.callout h4 { color: inherit; margin-bottom: 4pt; font-size: 9.5pt; }
+.callout.tip h4 { color: var(--success); }
+.callout.warn h4 { color: var(--warn); }
+.callout p { font-size: 10pt; color: var(--ink-soft); margin: 0; }
+
+/* ───── PULL QUOTE ───── */
+.quote { border-left: 4pt solid var(--accent); padding: 6pt 0 6pt 20pt; margin: 18pt 0; font-size: 15pt; line-height: 1.4; font-weight: 500; color: var(--ink); letter-spacing: -0.01em; }
+.quote::before { content: "\201C"; color: var(--accent); font-size: 36pt; line-height: 0; margin-left: -2pt; padding-right: 4pt; vertical-align: -0.3em; }
+
+/* ───── CODE / PATH ───── */
+code, .path { font-family: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", monospace; font-size: 9.5pt; background: #F4F4F8; padding: 1pt 6pt; border-radius: 3pt; border: 1px solid var(--rule); color: var(--accent); letter-spacing: -0.01em; }
+
+/* ───── ROUTE / KV TABLE ───── */
+table.kv { width: 100%; border-collapse: collapse; margin: 10pt 0; }
+table.kv tr { border-bottom: 1px solid var(--rule); }
+table.kv tr:last-child { border-bottom: none; }
+table.kv td { padding: 9pt 10pt; vertical-align: top; font-size: 10pt; color: var(--ink-soft); line-height: 1.5; }
+table.kv td:first-child { color: var(--ink); font-weight: 600; width: 32%; padding-left: 0; }
+table.kv td:last-child { padding-right: 0; }
+table.kv.mono td:first-child code { background: transparent; border: none; padding: 0; color: var(--accent); font-size: 9.5pt; }
+
+/* ───── PERMISSION MATRIX ───── */
+table.perm { width: 100%; border-collapse: collapse; margin: 10pt 0; }
+table.perm th { font-size: 8.5pt; font-weight: 700; text-align: center; padding: 10pt 4pt; border-bottom: 2px solid var(--rule); color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+table.perm th:first-child { text-align: left; padding-left: 0; color: var(--ink); }
+table.perm td { padding: 8pt 4pt; text-align: center; font-size: 10pt; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+table.perm td:first-child { text-align: left; padding-left: 0; font-weight: 500; font-size: 10pt; color: var(--ink-soft); }
+.tick  { color: var(--success); font-weight: 700; }
+.cross { color: #D1D5DB; font-weight: 400; }
+
+/* ───── WIZARD TIMELINE (SVG-like flex cards) ───── */
+.timeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10pt; margin: 12pt 0; }
+.timeline .step { position: relative; text-align: center; padding: 28pt 6pt 10pt; }
+.timeline .step .num { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 28pt; height: 28pt; border-radius: 50%; background: var(--gradient-accent); color: #FFF; font-size: 10pt; font-weight: 800; line-height: 28pt; }
+.timeline .step .label { font-size: 8.5pt; font-weight: 700; color: var(--ink); margin-top: 2pt; letter-spacing: -0.01em; }
+.timeline .step .desc { font-size: 8pt; color: var(--muted); margin-top: 2pt; line-height: 1.35; }
+.timeline::before {
+  /* Drawn inline via SVG in the document instead, to keep line-perfect positioning. */
+}
+
+/* ───── ROLE PYRAMID ───── */
+.pyramid { margin: 16pt 0; }
+.pyramid .row { display: flex; justify-content: center; margin-bottom: 6pt; }
+.pyramid .role {
+  padding: 9pt 18pt; border-radius: 6pt; font-size: 10pt; font-weight: 600; margin: 0 4pt;
+  border: 1px solid var(--rule); background: var(--surface); color: var(--ink);
+  display: inline-flex; align-items: center; gap: 6pt;
+  box-shadow: 0 1px 2px rgba(8,8,12,0.04);
+}
+.role-super     { background: linear-gradient(135deg, #FCA5A5, #FEE2E2); border-color: #F87171; }
+.role-ent-adm   { background: linear-gradient(135deg, #D8B4FE, #EDE9FE); border-color: #C084FC; }
+.role-ent-mgr   { background: linear-gradient(135deg, #A5B4FC, #E0E7FF); border-color: #818CF8; }
+.role-org-adm   { background: linear-gradient(135deg, #93C5FD, #DBEAFE); border-color: #60A5FA; }
+.role-event-mgr { background: linear-gradient(135deg, #86EFAC, #D1FAE5); border-color: #4ADE80; }
+.role-coord     { background: linear-gradient(135deg, #5EEAD4, #CCFBF1); border-color: #2DD4BF; }
+.role-finance   { background: linear-gradient(135deg, #FCD34D, #FEF3C7); border-color: #FBBF24; }
+.role-viewer    { background: linear-gradient(135deg, #D1D5DB, #F3F4F6); border-color: #9CA3AF; }
+.role-user      { background: linear-gradient(135deg, #E5E7EB, #F9FAFB); border-color: #D1D5DB; }
+
+/* ───── FLOW DIAGRAM ───── */
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(120pt, 1fr)); gap: 8pt; margin: 12pt 0; }
+.flow .node { background: var(--surface); border: 1px solid var(--rule); border-radius: 8pt; padding: 10pt; position: relative; font-size: 10pt; }
+.flow .node .tag { font-size: 7.5pt; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 3pt; display: block; }
+.flow .node .body { color: var(--ink-soft); font-size: 9.5pt; line-height: 1.45; }
+
+/* ───── FOOTER ───── */
+.page-footer { position: absolute; bottom: 8mm; left: 16mm; right: 16mm; display: flex; justify-content: space-between; align-items: center; font-size: 8pt; color: var(--subtle); border-top: 1px solid var(--rule); padding-top: 6pt; }
+.page-footer .brand-small { font-weight: 700; color: var(--ink); }
+
+/* ───── UTILITIES ───── */
+.nowrap { white-space: nowrap; }
+.text-muted { color: var(--muted); }
+.text-right { text-align: right; }
+.text-center { text-align: center; }

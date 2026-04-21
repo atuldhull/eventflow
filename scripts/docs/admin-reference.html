@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>EventFlow — Admin &amp; Role Reference</title>
+  <link rel="stylesheet" href="./shared.css" />
+</head>
+<body>
+
+<!-- ═══ COVER ═══ -->
+<section class="cover" style="background: linear-gradient(135deg, #000 0%, #1E1B4B 40%, #7C3AED 100%);">
+  <div class="cover-grid"></div>
+  <div class="cover-content">
+    <header>
+      <span class="eyebrow">Revision 1.0 · Admin Reference</span>
+      <div style="height: 22pt"></div>
+      <div class="brand"><span class="dot"></span><span class="wordmark">EventFlow</span></div>
+    </header>
+
+    <div>
+      <h1>Who does what,<br/>where.</h1>
+      <p class="subtitle">Every administrative feature of EventFlow, mapped to the role that owns it and the URL you reach it from. A reference book, not a tutorial.</p>
+      <div class="accent-mark"></div>
+      <div class="meta-row">
+        <span class="meta-pill">9 roles</span>
+        <span class="meta-pill">60+ permissions</span>
+        <span class="meta-pill">5 surface areas</span>
+      </div>
+    </div>
+
+    <footer class="foot">
+      <span>Internal reference · DOCUMENT_DATE</span>
+      <span>eventflow.app</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ═══ TOC ═══ -->
+<section class="page">
+  <span class="eyebrow">Contents</span>
+  <h2 style="margin-top:12pt;">What's in this reference</h2>
+
+  <div class="gap-md"></div>
+  <table class="kv" style="font-size:11pt;">
+    <tr><td><strong>01</strong> &nbsp; The nine roles</td><td>A visual pyramid of the RBAC model.</td></tr>
+    <tr><td><strong>02</strong> &nbsp; Route atlas</td><td>Every URL that matters, grouped by audience.</td></tr>
+    <tr><td><strong>03</strong> &nbsp; Permission matrix</td><td>Who can create, edit, delete, refund, check in, audit.</td></tr>
+    <tr><td><strong>04</strong> &nbsp; Day-in-the-life</td><td>Four realistic walkthroughs across four roles.</td></tr>
+    <tr><td><strong>A1</strong> &nbsp; Permission constants</td><td>Every constant in <code>permissions.ts</code> with default holders.</td></tr>
+    <tr><td><strong>A2</strong> &nbsp; Environment variables</td><td>The env keys a production deployment expects.</td></tr>
+  </table>
+
+  <div class="gap-lg"></div>
+  <div class="stat-row">
+    <div class="stat"><div class="n">9</div><div class="l">Roles</div></div>
+    <div class="stat"><div class="n">60+</div><div class="l">Permissions</div></div>
+    <div class="stat"><div class="n">40+</div><div class="l">Admin routes</div></div>
+  </div>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>Admin Reference · Table of Contents</span></footer>
+</section>
+
+<!-- ═══ SECTION 01 OPENER ═══ -->
+<section class="opener">
+  <span class="num">01</span>
+  <span class="eyebrow">The nine roles</span>
+  <h2>The RBAC pyramid.</h2>
+  <p class="lede">Each user has one global role — their default power level outside any specific organization. Inside an org or event, the role is re-derived from their membership there. Same user can be Event Manager in one org and Viewer in another.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>01 · The roles</span></footer>
+</section>
+
+<section class="page">
+  <h3>The hierarchy at a glance</h3>
+
+  <div class="pyramid">
+    <div class="row"><span class="role role-super">Super Admin · platform operator</span></div>
+    <div class="row"><span class="role role-ent-adm">Enterprise Admin</span><span class="role role-ent-mgr">Enterprise Manager</span></div>
+    <div class="row"><span class="role role-org-adm">Org Admin</span><span class="role role-event-mgr">Event Manager</span></div>
+    <div class="row"><span class="role role-coord">Coordinator</span><span class="role role-finance">Finance Manager</span><span class="role role-viewer">Viewer</span></div>
+    <div class="row"><span class="role role-user">User · default attendee</span></div>
+  </div>
+
+  <div class="gap-md"></div>
+
+  <table class="kv">
+    <tr><td><span class="role role-super" style="font-size:9pt;padding:3pt 10pt;">Super Admin</span></td><td>Platform operator. Sees every enterprise, org, user, payment, audit log across every tenant. Only role with <code>/super-admin</code> access. Can impersonate other users.</td></tr>
+    <tr><td><span class="role role-ent-adm" style="font-size:9pt;padding:3pt 10pt;">Enterprise Admin</span></td><td>Owns an enterprise (e.g. a whole university). Creates and deletes orgs inside it, manages billing, sees cross-org analytics.</td></tr>
+    <tr><td><span class="role role-ent-mgr" style="font-size:9pt;padding:3pt 10pt;">Enterprise Manager</span></td><td>Enterprise Admin minus billing and delete. Reads everything, writes most things inside the enterprise.</td></tr>
+    <tr><td><span class="role role-org-adm" style="font-size:9pt;padding:3pt 10pt;">Org Admin</span></td><td>Full read/write inside a single organization. Creates events, invites members, sets up payments and coupons, manages the org's public website.</td></tr>
+    <tr><td><span class="role role-event-mgr" style="font-size:9pt;padding:3pt 10pt;">Event Manager</span></td><td>Creates and runs events, edits registration forms, sends communications. No billing access, no member management.</td></tr>
+    <tr><td><span class="role role-coord" style="font-size:9pt;padding:3pt 10pt;">Coordinator</span></td><td>Day-of-event operations: checks people in, sees the live attendee list. Read-only everywhere else.</td></tr>
+    <tr><td><span class="role role-finance" style="font-size:9pt;padding:3pt 10pt;">Finance Manager</span></td><td>Payments-focused. Refunds, financial reports, coupons, payment analytics. Reads events and registrations but can't edit them.</td></tr>
+    <tr><td><span class="role role-viewer" style="font-size:9pt;padding:3pt 10pt;">Viewer</span></td><td>Read-only across events, registrations, payments, check-ins, and basic analytics. Cannot change anything. Good for auditors and observers.</td></tr>
+    <tr><td><span class="role role-user" style="font-size:9pt;padding:3pt 10pt;">User</span></td><td>Default attendee role. No admin access. Gets <code>/dashboard</code> and the public-facing app.</td></tr>
+  </table>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>01 · The roles</span></footer>
+</section>
+
+<!-- ═══ SECTION 02 OPENER ═══ -->
+<section class="opener">
+  <span class="num">02</span>
+  <span class="eyebrow">Route atlas</span>
+  <h2>Every URL that matters.</h2>
+  <p class="lede">Five surface areas. Each route in the right column, each "what you do there" in the left.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>02 · Route atlas</span></footer>
+</section>
+
+<section class="page">
+  <h3>Public <small class="text-muted">· unauthenticated or logged-in</small></h3>
+  <table class="kv mono">
+    <tr><td><code>/</code></td><td>Marketing landing page with the WebGL mesh-gradient hero.</td></tr>
+    <tr><td><code>/events</code></td><td>Public events catalogue with search and filters.</td></tr>
+    <tr><td><code>/events/[slug]</code></td><td>Individual event page. Sidebar shows registration CTA; returning users see a "You're registered" badge.</td></tr>
+    <tr><td><code>/events/[slug]/register</code></td><td>Three-step registration wizard ending in the success screen.</td></tr>
+    <tr><td><code>/events/[slug]/feedback</code></td><td>Post-event feedback form, accessible once the event has started.</td></tr>
+    <tr><td><code>/verify/[code]</code></td><td>Public certificate / ticket verification — anyone can check authenticity.</td></tr>
+    <tr><td><code>/pricing</code>, <code>/for-organizers</code>, <code>/about</code>, <code>/contact</code></td><td>Marketing pages.</td></tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Attendee dashboard <small class="text-muted">· any logged-in user</small></h3>
+  <table class="kv mono">
+    <tr><td><code>/dashboard</code></td><td>Home. Counters, upcoming events, quick actions.</td></tr>
+    <tr><td><code>/dashboard/events</code></td><td>My registrations. Cancel from here before the event starts.</td></tr>
+    <tr><td><code>/dashboard/tickets</code></td><td>Active tickets with full-screen QR. Cached offline.</td></tr>
+    <tr><td><code>/dashboard/saved</code></td><td>Wishlisted events.</td></tr>
+    <tr><td><code>/dashboard/certificates</code></td><td>Issued certificates, downloadable as PDF.</td></tr>
+    <tr><td><code>/dashboard/payments</code></td><td>Payment history and receipts.</td></tr>
+    <tr><td><code>/dashboard/profile</code></td><td>Personal details.</td></tr>
+    <tr><td><code>/dashboard/settings</code></td><td>Notifications, password, two-factor auth.</td></tr>
+    <tr><td><code>/dashboard/notifications</code></td><td>Platform notification inbox.</td></tr>
+  </table>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>02 · Route atlas</span></footer>
+</section>
+
+<section class="page">
+  <h3>Organization admin <small class="text-muted">· Org Admin, Event Manager, Coordinator, Finance Manager, Viewer</small></h3>
+  <table class="kv mono">
+    <tr><td><code>/admin/org</code></td><td>Org dashboard — counters, recent activity, upcoming events.</td></tr>
+    <tr><td><code>/admin/org/events</code></td><td>Events list. Three-dot menu: View, Edit, Registrations, Check-in, Duplicate, Cancel.</td></tr>
+    <tr><td><code>/admin/org/events/create</code></td><td>Six-step event creation wizard.</td></tr>
+    <tr><td><code>/admin/org/events/[id]/edit</code></td><td>Same wizard against an existing event.</td></tr>
+    <tr><td><code>/admin/org/events/[id]/registrations</code></td><td>Registrations table — search, filter, approve/reject, CSV export.</td></tr>
+    <tr><td><code>/admin/org/events/[id]/check-in</code></td><td>QR scanner + manual lookup + live stats dashboard.</td></tr>
+    <tr><td><code>/admin/org/events/[id]/analytics</code></td><td>Funnel, conversion, geography, ticket-type breakdown.</td></tr>
+    <tr><td><code>/admin/org/registrations</code></td><td>All registrations across every event in the org.</td></tr>
+    <tr><td><code>/admin/org/payments</code></td><td>Payments across all events. Click a row to refund.</td></tr>
+    <tr><td><code>/admin/org/members</code></td><td>Team members. Invite, change role, remove.</td></tr>
+    <tr><td><code>/admin/org/communications</code></td><td>Email campaigns, announcements, message templates.</td></tr>
+    <tr><td><code>/admin/org/certificates</code></td><td>Certificate templates + bulk issuance for past events.</td></tr>
+    <tr><td><code>/admin/org/coupons</code></td><td>Discount codes — percentage or fixed, usage limits, validity window, event scope.</td></tr>
+    <tr><td><code>/admin/org/analytics</code></td><td>Org-wide reporting.</td></tr>
+    <tr><td><code>/admin/org/audit-logs</code></td><td>Every write action with actor, target, timestamp, IP.</td></tr>
+    <tr><td><code>/admin/org/website</code></td><td>Website builder home — pick a template or open the editor.</td></tr>
+    <tr><td><code>/admin/org/website/editor</code></td><td>Drag-and-drop visual editor with live preview.</td></tr>
+    <tr><td><code>/admin/org/website/modules</code></td><td>Feature modules — quiz, poll, blog, leaderboard, gallery, etc.</td></tr>
+    <tr><td><code>/admin/org/website/media</code></td><td>Media library for images used across the website.</td></tr>
+    <tr><td><code>/admin/org/settings</code></td><td>Org name, branding, payment settings.</td></tr>
+  </table>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>02 · Route atlas</span></footer>
+</section>
+
+<section class="page">
+  <h3>Enterprise admin <small class="text-muted">· Enterprise Admin, Enterprise Manager</small></h3>
+  <table class="kv mono">
+    <tr><td><code>/admin/enterprise</code></td><td>Cross-org dashboard.</td></tr>
+    <tr><td><code>/admin/enterprise/organizations</code></td><td>All orgs inside the enterprise. Create and deactivate.</td></tr>
+    <tr><td><code>/admin/enterprise/members</code></td><td>Enterprise-level team (admins and managers).</td></tr>
+    <tr><td><code>/admin/enterprise/payments</code></td><td>Cross-org payment and revenue view.</td></tr>
+    <tr><td><code>/admin/enterprise/billing</code></td><td>Subscription plan, invoices, payment method. <em>Enterprise Admin only.</em></td></tr>
+    <tr><td><code>/admin/enterprise/settings</code></td><td>Enterprise branding, domain, defaults.</td></tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Super admin <small class="text-muted">· Super Admin only</small></h3>
+  <table class="kv mono">
+    <tr><td><code>/super-admin</code></td><td>Platform KPIs.</td></tr>
+    <tr><td><code>/super-admin/enterprises</code></td><td>All enterprises. Verify, suspend, impersonate.</td></tr>
+    <tr><td><code>/super-admin/organizations</code></td><td>All orgs across every enterprise.</td></tr>
+    <tr><td><code>/super-admin/events</code></td><td>Every event on the platform.</td></tr>
+    <tr><td><code>/super-admin/users</code></td><td>All users. Ban, change role, impersonate.</td></tr>
+    <tr><td><code>/super-admin/subscriptions</code></td><td>Subscription plans and assignments.</td></tr>
+    <tr><td><code>/super-admin/analytics</code></td><td>Platform-wide analytics.</td></tr>
+    <tr><td><code>/super-admin/audit</code></td><td>Platform-wide audit log.</td></tr>
+    <tr><td><code>/super-admin/messages</code></td><td>Contact-form inbox.</td></tr>
+    <tr><td><code>/super-admin/settings</code></td><td>Global platform settings and feature flags.</td></tr>
+  </table>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>02 · Route atlas</span></footer>
+</section>
+
+<!-- ═══ SECTION 03 OPENER ═══ -->
+<section class="opener">
+  <span class="num">03</span>
+  <span class="eyebrow">Permission matrix</span>
+  <h2>Who can do what.</h2>
+  <p class="lede">The system has around sixty granular permissions. These are the ones you'll care about day-to-day, arranged by resource and role.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>03 · Permissions</span></footer>
+</section>
+
+<section class="page">
+  <h3>Events</h3>
+  <table class="perm">
+    <thead>
+      <tr><th>Action</th><th>Super</th><th>Ent Adm</th><th>Ent Mgr</th><th>Org Adm</th><th>Event Mgr</th><th>Coord</th><th>Finance</th><th>Viewer</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Create event</td>            <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Edit event</td>              <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Publish event</td>           <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Cancel event</td>            <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Delete event</td>            <td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Duplicate event</td>         <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>View analytics</td>          <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="tick">●</td></tr>
+    </tbody>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Registrations</h3>
+  <table class="perm">
+    <thead>
+      <tr><th>Action</th><th>Super</th><th>Ent Adm</th><th>Ent Mgr</th><th>Org Adm</th><th>Event Mgr</th><th>Coord</th><th>Finance</th><th>Viewer</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>View registrations</td>      <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td></tr>
+      <tr><td>Approve / reject</td>        <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Add registration manually</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Export CSV</td>              <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td></tr>
+    </tbody>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Payments</h3>
+  <table class="perm">
+    <thead>
+      <tr><th>Action</th><th>Super</th><th>Ent Adm</th><th>Ent Mgr</th><th>Org Adm</th><th>Event Mgr</th><th>Coord</th><th>Finance</th><th>Viewer</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>View payments</td>           <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td><td class="tick">●</td></tr>
+      <tr><td>Process refund</td>          <td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td></tr>
+      <tr><td>View financial reports</td>  <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td></tr>
+      <tr><td>Export payment data</td>     <td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td></tr>
+    </tbody>
+  </table>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>03 · Permissions</span></footer>
+</section>
+
+<section class="page">
+  <h3>Check-in</h3>
+  <table class="perm">
+    <thead>
+      <tr><th>Action</th><th>Super</th><th>Ent Adm</th><th>Ent Mgr</th><th>Org Adm</th><th>Event Mgr</th><th>Coord</th><th>Finance</th><th>Viewer</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Scan QR / check in</td>      <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>View check-in stats</td>     <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td></tr>
+      <tr><td>Undo a check-in</td>         <td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td></tr>
+    </tbody>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Members</h3>
+  <table class="perm">
+    <thead>
+      <tr><th>Action</th><th>Super</th><th>Ent Adm</th><th>Ent Mgr</th><th>Org Adm</th><th>Event Mgr</th><th>Coord</th><th>Finance</th><th>Viewer</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Invite org member</td>       <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Change member role</td>      <td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Remove member</td>           <td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+    </tbody>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Website builder</h3>
+  <table class="perm">
+    <thead>
+      <tr><th>Action</th><th>Super</th><th>Ent Adm</th><th>Ent Mgr</th><th>Org Adm</th><th>Event Mgr</th><th>Coord</th><th>Finance</th><th>Viewer</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Edit sections / styles</td>  <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Enable / configure modules</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+      <tr><td>Publish website</td>         <td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="tick">●</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td><td class="cross">○</td></tr>
+    </tbody>
+  </table>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>03 · Permissions</span></footer>
+</section>
+
+<!-- ═══ SECTION 04 OPENER ═══ -->
+<section class="opener">
+  <span class="num">04</span>
+  <span class="eyebrow">Day in the life</span>
+  <h2>Four real walkthroughs.</h2>
+  <p class="lede">Concrete step-by-steps for the four roles that actually spend their day inside the admin. The remaining five either rarely log in or act through one of these.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>04 · Walkthroughs</span></footer>
+</section>
+
+<section class="page">
+  <h3><span class="pill">Org Admin</span> Running a new event end-to-end</h3>
+  <ol class="steps">
+    <li><code>/admin/org/events</code> → <em>Create Event</em>. Fill the six-step wizard.</li>
+    <li>On Step 6, click <em>Preview</em> — the event opens in a new tab with a yellow <em>Preview mode</em> banner. Confirm the public view looks right.</li>
+    <li>Back in the wizard, click <em>Publish Event</em>. Confirm the dialog.</li>
+    <li><code>/admin/org/coupons</code> → create an early-bird discount scoped to this event.</li>
+    <li><code>/admin/org/communications</code> → compose an announcement email with the event link; send to your members or a custom list.</li>
+    <li>As registrations land, <code>/admin/org/events/[id]/registrations</code> shows them live. Bulk-approve if your event requires approval.</li>
+    <li>On event day, load <code>/admin/org/events/[id]/check-in</code> on a tablet and scan QRs. Live stats update alongside.</li>
+    <li>After the event, <code>/admin/org/certificates</code> → bulk-issue certificates. They appear in each attendee's <code>/dashboard/certificates</code>.</li>
+    <li>Review the debrief on <code>/admin/org/events/[id]/analytics</code>.</li>
+  </ol>
+
+  <div class="gap-md"></div>
+  <h3><span class="pill" style="background:#FEF3C7;color:#92400E;border-color:#FDE68A;">Finance Manager</span> Issuing a refund</h3>
+  <ol class="steps">
+    <li><code>/admin/org/payments</code> → search by registration number or email.</li>
+    <li>Click the payment row. A detail drawer opens with amount, method, gateway transaction ID.</li>
+    <li>Click <em>Process Refund</em>. Enter amount (defaults to full), reason, confirm.</li>
+    <li>The refund is marked COMPLETED, the registration is cancelled, any coupon use is decremented, the user is notified, and the audit log captures who did what.</li>
+  </ol>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>04 · Walkthroughs</span></footer>
+</section>
+
+<section class="page">
+  <h3><span class="pill" style="background:#CCFBF1;color:#115E59;border-color:#5EEAD4;">Coordinator</span> Covering the door on event day</h3>
+  <ol class="steps">
+    <li><code>/admin/org/events/[id]/check-in</code> on a phone or tablet.</li>
+    <li>Tap <em>QR Scan</em>. Allow camera access the first time.</li>
+    <li>Point at each attendee's QR. A green banner confirms a successful check-in.</li>
+    <li>If a QR won't scan, tap <em>Manual</em>. Search by name, email, or registration number. Click <em>Check In</em> on the matching row.</li>
+    <li>Live stats at the top — total expected, checked-in, percentage — update as the queue moves.</li>
+  </ol>
+
+  <div class="gap-md"></div>
+  <h3><span class="pill" style="background:#FEE2E2;color:#991B1B;border-color:#FCA5A5;">Super Admin</span> Investigating a reported user</h3>
+  <ol class="steps">
+    <li><code>/super-admin/users</code> → search by email.</li>
+    <li>Click the user row. Review their role, orgs, registrations, payments, login history.</li>
+    <li>If action is needed: <em>Suspend</em> (reversible, user can't sign in), <em>Ban</em> (permanent without manual unban), or <em>Change Role</em>.</li>
+    <li><code>/super-admin/audit</code> → filter to that user's ID to see every action they've taken.</li>
+  </ol>
+
+  <div class="gap-md"></div>
+  <div class="callout">
+    <h4>One pattern runs through all four</h4>
+    <p>Every destructive action (cancel, refund, ban, delete) triggers a confirmation dialog <em>and</em> an audit log row. If you can't find the dialog, check the role — you may not have permission.</p>
+  </div>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>04 · Walkthroughs</span></footer>
+</section>
+
+<!-- ═══ APPENDIX A1 — PERMISSION CONSTANTS ═══ -->
+<section class="opener">
+  <span class="num">A1</span>
+  <span class="eyebrow">Appendix</span>
+  <h2>Permission constants.</h2>
+  <p class="lede">Every constant in <code>src/lib/permissions.ts</code>, grouped by resource, with the roles that hold them out of the box.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>A1 · Constants</span></footer>
+</section>
+
+<section class="page">
+  <h3>Enterprise</h3>
+  <table class="kv mono">
+    <tr><td><code>enterprise:view</code></td><td>Super, Ent-Adm, Ent-Mgr</td></tr>
+    <tr><td><code>enterprise:edit</code></td><td>Super, Ent-Adm, Ent-Mgr</td></tr>
+    <tr><td><code>enterprise:delete</code></td><td>Super, Ent-Adm</td></tr>
+    <tr><td><code>enterprise:manage_billing</code></td><td>Super, Ent-Adm</td></tr>
+    <tr><td><code>enterprise:view_analytics</code></td><td>Super, Ent-Adm, Ent-Mgr</td></tr>
+    <tr><td><code>enterprise:export_data</code></td><td>Super, Ent-Adm, Ent-Mgr</td></tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Organization</h3>
+  <table class="kv mono">
+    <tr><td><code>org:create</code></td><td>Super, Ent-Adm, Ent-Mgr</td></tr>
+    <tr><td><code>org:view</code></td><td>All admin roles</td></tr>
+    <tr><td><code>org:edit</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm</td></tr>
+    <tr><td><code>org:delete</code></td><td>Super, Ent-Adm, Ent-Mgr</td></tr>
+    <tr><td><code>org:manage_settings</code></td><td>Super, Ent-Adm, Org-Adm</td></tr>
+    <tr><td><code>org:view_analytics</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm</td></tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Events</h3>
+  <table class="kv mono">
+    <tr><td><code>event:create</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Event-Mgr</td></tr>
+    <tr><td><code>event:edit</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Event-Mgr</td></tr>
+    <tr><td><code>event:publish</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Event-Mgr</td></tr>
+    <tr><td><code>event:cancel</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Event-Mgr</td></tr>
+    <tr><td><code>event:delete</code></td><td>Super, Ent-Adm</td></tr>
+    <tr><td><code>event:duplicate</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Event-Mgr</td></tr>
+  </table>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>A1 · Constants</span></footer>
+</section>
+
+<section class="page">
+  <h3>Registrations</h3>
+  <table class="kv mono">
+    <tr><td><code>registration:view</code></td><td>All admin roles</td></tr>
+    <tr><td><code>registration:manage</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Event-Mgr</td></tr>
+    <tr><td><code>registration:approve</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Event-Mgr</td></tr>
+    <tr><td><code>registration:export</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Event-Mgr, Finance</td></tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Payments</h3>
+  <table class="kv mono">
+    <tr><td><code>payment:view</code></td><td>All admin roles</td></tr>
+    <tr><td><code>payment:manage</code></td><td>Super, Ent-Adm, Org-Adm, Finance</td></tr>
+    <tr><td><code>payment:refund</code></td><td>Super, Ent-Adm, Org-Adm, Finance</td></tr>
+    <tr><td><code>payment:view_reports</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Finance</td></tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Check-in</h3>
+  <table class="kv mono">
+    <tr><td><code>checkin:perform</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm, Coord, event team</td></tr>
+    <tr><td><code>checkin:view</code></td><td>All admin roles</td></tr>
+    <tr><td><code>checkin:manage</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm</td></tr>
+    <tr><td><code>checkin:undo</code></td><td>Super, Ent-Adm, Org-Adm, Coord</td></tr>
+  </table>
+
+  <div class="gap-md"></div>
+  <h3>Audit</h3>
+  <table class="kv mono">
+    <tr><td><code>audit:view</code></td><td>Super, Ent-Adm, Ent-Mgr, Org-Adm</td></tr>
+    <tr><td><code>audit:export</code></td><td>Super, Ent-Adm</td></tr>
+  </table>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>A1 · Constants</span></footer>
+</section>
+
+<!-- ═══ APPENDIX A2 — ENV VARS ═══ -->
+<section class="opener">
+  <span class="num">A2</span>
+  <span class="eyebrow">Appendix</span>
+  <h2>Environment variables.</h2>
+  <p class="lede">A production deployment expects the following to be populated. Grouped by concern so you know which system each connects to.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>A2 · Env vars</span></footer>
+</section>
+
+<section class="page">
+  <h3>Core</h3>
+  <table class="kv mono">
+    <tr><td><code>DATABASE_URL</code></td><td>Postgres connection string (Supabase or self-hosted).</td></tr>
+    <tr><td><code>NEXTAUTH_SECRET</code></td><td>32+ character random string used to sign session JWTs.</td></tr>
+    <tr><td><code>NEXTAUTH_URL</code></td><td>Public URL your app is served at.</td></tr>
+    <tr><td><code>REDIS_URL</code></td><td>Optional. Unlocks proper rate-limiting and the background email queue.</td></tr>
+  </table>
+
+  <h3>Email</h3>
+  <table class="kv mono">
+    <tr><td><code>RESEND_API_KEY</code></td><td>Transactional email provider API key.</td></tr>
+    <tr><td><code>EMAIL_FROM</code></td><td>From-address. In production the app refuses to send without it, to avoid SPF/DKIM failures.</td></tr>
+  </table>
+
+  <h3>Security</h3>
+  <table class="kv mono">
+    <tr><td><code>TICKET_SECRET</code></td><td>32+ character HMAC secret used to sign QR payloads. Required — no fallback.</td></tr>
+    <tr><td><code>API_KEY_SALT</code></td><td>Salt for hashing user-generated API keys.</td></tr>
+  </table>
+
+  <h3>Payments</h3>
+  <table class="kv mono">
+    <tr><td><code>RAZORPAY_KEY_ID</code> / <code>RAZORPAY_KEY_SECRET</code></td><td>Gateway credentials (India). Test keys work in dev.</td></tr>
+    <tr><td><code>RAZORPAY_WEBHOOK_SECRET</code></td><td>Used to verify incoming webhook calls.</td></tr>
+    <tr><td><code>STRIPE_SECRET_KEY</code> / <code>STRIPE_WEBHOOK_SECRET</code></td><td>Optional, for Stripe-backed deployments.</td></tr>
+  </table>
+
+  <h3>OAuth</h3>
+  <table class="kv mono">
+    <tr><td><code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code></td><td>Sign in with Google.</td></tr>
+    <tr><td><code>MICROSOFT_CLIENT_ID</code> / <code>MICROSOFT_CLIENT_SECRET</code></td><td>Sign in with Microsoft.</td></tr>
+  </table>
+
+  <div class="gap-lg"></div>
+  <hr style="border: none; border-top: 1px solid var(--rule);" />
+  <div class="gap-sm"></div>
+  <p class="text-muted" style="font-size:9.5pt;">End of Admin Reference. For the attendee-facing walkthrough, see the companion <strong>EventFlow User Guide</strong>.</p>
+
+  <footer class="page-footer"><span class="brand-small">EventFlow</span><span>A2 · Env vars</span></footer>
+</section>
+
+</body>
+</html>

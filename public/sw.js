@@ -1,8 +1,14 @@
 // EventFlow service worker
 // Primary goal: make /dashboard/tickets usable offline so attendees can show
 // their QR at a venue with no signal.
-const CACHE_NAME = "eventflow-v2"
+//
+// DEV SAFETY: on localhost/127.0.0.1, the SW unregisters itself and clears
+// its caches on activate. This prevents a previously-registered prod SW from
+// intercepting requests during `next dev` and serving the offline fallback
+// instead of the live page.
+const CACHE_NAME = "eventflow-v3"
 const OFFLINE_URL = "/offline"
+const IS_DEV_HOST = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1"
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
@@ -32,18 +38,29 @@ self.addEventListener("install", (event) => {
   self.skipWaiting()
 })
 
-// Activate: clean up old caches
+// Activate: clean up old caches. On dev hosts, go further — blow away every
+// cache and unregister ourselves so the tab reloads into the normal flow.
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  )
+  event.waitUntil((async () => {
+    if (IS_DEV_HOST) {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => caches.delete(k)))
+      await self.registration.unregister()
+      const clients = await self.clients.matchAll({ type: "window" })
+      clients.forEach((c) => { try { (c).navigate(c.url) } catch {} })
+      return
+    }
+    const keys = await caches.keys()
+    await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+  })())
   self.clients.claim()
 })
 
 // Fetch handler
 self.addEventListener("fetch", (event) => {
+  // Dev: never intercept. The browser goes direct to the server.
+  if (IS_DEV_HOST) return
+
   const url = new URL(event.request.url)
 
   // Only handle same-origin GETs

@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
+import { authorize } from "@/lib/authorization"
+import { PERMISSIONS } from "@/lib/permissions"
 import { z } from "zod/v4"
 
 const cancelSchema = z.object({
@@ -24,6 +26,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { entityType, entityId } = parsed.data
+
+    const { authorized, message } = await authorize(
+      session.user.id,
+      entityType === "org" ? PERMISSIONS.ORG_MANAGE_SETTINGS : PERMISSIONS.ENTERPRISE_MANAGE_BILLING,
+      entityType === "org" ? { organizationId: entityId } : { enterpriseId: entityId }
+    )
+    if (!authorized) {
+      return NextResponse.json({ success: false, message }, { status: 403 })
+    }
 
     const subscription = entityType === "org"
       ? await prisma.subscription.findFirst({ where: { organizationId: entityId } })

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
+import { sanitizeHtml } from "@/lib/security"
 import type { ModuleProps } from "@/lib/site-builder/module-renderer"
 
 interface BlogPost {
@@ -114,7 +115,7 @@ export function BlogPostsModule({ config, orgSlug, isPreview }: ModuleProps) {
         </div>
 
         {d.content ? (
-          <article className="prose prose-sm sm:prose max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: d.content }} />
+          <article className="prose prose-sm sm:prose max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: sanitizeHtml(d.content) }} />
         ) : (
           <p className="text-muted-foreground">{d.excerpt || "No content available."}</p>
         )}

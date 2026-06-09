@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { getUsage, getUsageAlerts } from "@/lib/usage"
+import { authorize } from "@/lib/authorization"
+import { PERMISSIONS } from "@/lib/permissions"
 import { PLANS, type PlanId } from "@/config/plans"
 
 export async function GET(request: NextRequest) {
@@ -14,6 +16,15 @@ export async function GET(request: NextRequest) {
   const entityType = request.nextUrl.searchParams.get("entityType") as "enterprise" | "org" || "org"
   const entityId = request.nextUrl.searchParams.get("entityId")
   if (!entityId) return NextResponse.json({ success: false, message: "Entity ID required" }, { status: 400 })
+
+  const access = await authorize(
+    session.user.id,
+    entityType === "enterprise" ? PERMISSIONS.ENTERPRISE_VIEW : PERMISSIONS.ORG_VIEW,
+    entityType === "enterprise" ? { enterpriseId: entityId } : { organizationId: entityId }
+  )
+  if (!access.authorized) {
+    return NextResponse.json({ success: false, message: access.message }, { status: 403 })
+  }
 
   const subscription = entityType === "enterprise"
     ? await prisma.subscription.findFirst({ where: { enterprise: { id: entityId } } })

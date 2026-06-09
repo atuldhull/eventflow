@@ -1,7 +1,17 @@
 {
-  "name": "new_web",
+  "name": "eventflow",
   "version": "0.1.0",
   "private": true,
+  "description": "Multi-tenant event management SaaS platform with an integrated website builder, built with Next.js 16, Prisma, and PostgreSQL.",
+  "license": "UNLICENSED",
+  "keywords": [
+    "events",
+    "saas",
+    "multi-tenant",
+    "nextjs",
+    "prisma",
+    "website-builder"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",

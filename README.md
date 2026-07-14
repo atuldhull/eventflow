@@ -1,5 +1,8 @@
 # EventFlow
 
+[![CI](https://github.com/atuldhull/eventflow/actions/workflows/ci.yml/badge.svg)](https://github.com/atuldhull/eventflow/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-31-success?style=flat-square)
+
 A multi-tenant event management platform with a drag-and-drop website builder. An enterprise
 owns organizations, an organization runs events, and each one gets a subdomain site it can edit
 visually. Next.js 16, TypeScript, Prisma 6, PostgreSQL, NextAuth v5.

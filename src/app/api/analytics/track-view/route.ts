@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
 
-export async function POST(request: NextRequest) {
-  try {
-    const { eventId } = await request.json()
-    if (!eventId) return new NextResponse(null, { status: 204 })
-
-    // In production: increment view count in EventAnalytics table
-    // For now: no-op to avoid blocking page loads
-    // TODO: Implement actual view tracking with session deduplication
-
-    return new NextResponse(null, { status: 204 })
-  } catch {
-    return new NextResponse(null, { status: 204 })
-  }
+// View tracking is not implemented. There is no model in the Prisma schema to
+// record a view against (no EventAnalytics / EventView table, no view counter on
+// Event), so this endpoint cannot store anything. It returns 501 rather than a
+// success status so callers are not misled into thinking views are being counted.
+// To implement: add a view model with a (eventId, sessionId, day) unique constraint
+// for deduplication, then record here.
+export async function POST() {
+  return NextResponse.json(
+    { success: false, message: "View tracking is not implemented" },
+    { status: 501 }
+  )
 }

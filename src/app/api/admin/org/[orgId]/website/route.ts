@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { getEntityPlan, isPlanSufficient } from "@/lib/subscription"
 
 // GET — Get org's current website configuration
 export async function GET(req: NextRequest, { params }: { params: Promise<{ orgId: string }> }) {
@@ -48,6 +49,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ org
   const template = await prisma.siteTemplate.findUnique({ where: { slug: templateSlug } })
   if (!template || !template.isActive) {
     return NextResponse.json({ success: false, message: "Template not found" }, { status: 404 })
+  }
+
+  const plan = await getEntityPlan("org", orgId)
+  if (!isPlanSufficient(plan, template.requiredPlan)) {
+    return NextResponse.json(
+      { success: false, message: `The ${template.name} template requires the ${template.requiredPlan} plan. Upgrade to use it.` },
+      { status: 402 }
+    )
   }
 
   const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true, slug: true, description: true } })
@@ -108,6 +117,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ or
     const newTemplate = await prisma.siteTemplate.findUnique({ where: { slug: body.templateSlug } })
     if (!newTemplate || !newTemplate.isActive) {
       return NextResponse.json({ success: false, message: "Template not found" }, { status: 404 })
+    }
+
+    const plan = await getEntityPlan("org", orgId)
+    if (!isPlanSufficient(plan, newTemplate.requiredPlan)) {
+      return NextResponse.json(
+        { success: false, message: `The ${newTemplate.name} template requires the ${newTemplate.requiredPlan} plan. Upgrade to use it.` },
+        { status: 402 }
+      )
     }
 
     const oldSections = (existing.sections as any[]) || []

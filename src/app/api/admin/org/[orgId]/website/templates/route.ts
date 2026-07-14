@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { getEntityPlan, isPlanSufficient } from "@/lib/subscription"
 
 // GET — List available templates for the marketplace
 export async function GET(req: NextRequest, { params }: { params: Promise<{ orgId: string }> }) {
@@ -46,10 +47,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ orgI
     select: { templateId: true },
   })
 
+  const currentPlan = await getEntityPlan("org", orgId)
+
   const data = templates.map((t) => ({
     ...t,
     isCurrentTemplate: siteConfig?.templateId === t.id,
+    canApply: isPlanSufficient(currentPlan, t.requiredPlan),
   }))
 
-  return NextResponse.json({ success: true, data })
+  return NextResponse.json({ success: true, data, currentPlan })
 }

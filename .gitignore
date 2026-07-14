@@ -54,3 +54,8 @@ prisma/*.db
 # IDE
 .vscode/
 .idea/
+
+# local tooling scratch
+CLAUDE.md
+AGENTS.md
+.claude/

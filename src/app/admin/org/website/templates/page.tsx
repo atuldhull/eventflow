@@ -28,6 +28,7 @@ interface Template {
   defaultSections: any
   defaultStyles: any
   isCurrentTemplate: boolean
+  canApply: boolean
 }
 
 const CATEGORIES = [
@@ -176,8 +177,15 @@ export default function TemplateMarketplacePage() {
                 template={template}
                 isCurrentTemplate={template.isCurrentTemplate}
                 onPreview={() => router.push(`/admin/org/website/templates/${template.slug}`)}
-                onApply={() => router.push(`/admin/org/website/templates/${template.slug}`)}
-                canApply={template.requiredPlan === "FREE" || true} // TODO: check org plan
+                onApply={() =>
+                  router.push(
+                    template.canApply
+                      ? `/admin/org/website/templates/${template.slug}`
+                      : "/admin/org/billing"
+                  )
+                }
+                canApply={template.canApply}
+                requiredPlanName={template.requiredPlan}
               />
             ))}
           </motion.div>

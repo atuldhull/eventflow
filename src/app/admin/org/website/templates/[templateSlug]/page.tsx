@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { ArrowLeft, Monitor, Tablet, Smartphone, Check, Loader2, AlertTriangle, Star, Puzzle } from "lucide-react"
+import { ArrowLeft, Monitor, Tablet, Smartphone, Check, Loader2, AlertTriangle, Star, Puzzle, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +32,7 @@ interface Template {
   version: string
   author: string | null
   isCurrentTemplate: boolean
+  canApply: boolean
 }
 
 export default function TemplatePreviewPage({ params }: { params: Promise<{ templateSlug: string }> }) {
@@ -153,10 +154,17 @@ export default function TemplatePreviewPage({ params }: { params: Promise<{ temp
             {showSidebar ? "Hide Info" : "Show Info"}
           </Button>
 
-          <Button onClick={() => setShowConfirm(true)} disabled={template.isCurrentTemplate || isApplying} className="gap-1">
-            {isApplying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {template.isCurrentTemplate ? "Current Template" : "Use This Template"}
-          </Button>
+          {template.canApply ? (
+            <Button onClick={() => setShowConfirm(true)} disabled={template.isCurrentTemplate || isApplying} className="gap-1">
+              {isApplying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {template.isCurrentTemplate ? "Current Template" : "Use This Template"}
+            </Button>
+          ) : (
+            <Button variant="secondary" onClick={() => router.push("/admin/org/billing")} className="gap-1">
+              <Lock className="h-4 w-4" />
+              Upgrade to {template.requiredPlan}
+            </Button>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,7 @@
   "name": "eventflow",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.9.0",
   "description": "Multi-tenant event management SaaS platform with an integrated website builder, built with Next.js 16, Prisma, and PostgreSQL.",
   "license": "UNLICENSED",
   "keywords": [
@@ -17,6 +18,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "seed": "npx tsx prisma/seed.ts"
   },
   "prisma": {
@@ -78,6 +82,7 @@
     "eslint-config-next": "16.2.2",
     "puppeteer-core": "24.42.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

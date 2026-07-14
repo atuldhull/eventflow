@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The build and the Prisma client generator only need a syntactically valid
+  # connection string. Nothing in CI connects to a database.
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eventflow?schema=public
+  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/eventflow?schema=public
+  NEXTAUTH_URL: http://localhost:3000
+  NEXTAUTH_SECRET: ci-placeholder-secret
+  AUTH_SECRET: ci-placeholder-secret
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
+      - name: Lint
+        run: pnpm run lint
+
+  verify:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build

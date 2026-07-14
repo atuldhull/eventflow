@@ -25,6 +25,43 @@ export const PLAN_CONFIG = {
 
 export type PlanName = keyof typeof PLAN_CONFIG
 
+// Tier ordering for entitlement checks. Mirrors the SubscriptionPlan enum in schema.prisma.
+const PLAN_RANK: Record<PlanName, number> = {
+  FREE: 0,
+  STARTER: 1,
+  PRO: 2,
+  ENTERPRISE: 3,
+}
+
+// Only these statuses entitle an entity to its paid tier. Anything else (PAST_DUE,
+// CANCELLED, EXPIRED) falls back to FREE.
+const ENTITLED_STATUSES = ["ACTIVE", "TRIAL"] as const
+
+export function isValidPlan(plan: string | null | undefined): plan is PlanName {
+  return !!plan && plan in PLAN_RANK
+}
+
+// True when currentPlan is at or above requiredPlan. Unknown plan names fail closed.
+export function isPlanSufficient(
+  currentPlan: string | null | undefined,
+  requiredPlan: string | null | undefined
+): boolean {
+  if (!isValidPlan(requiredPlan)) return false
+  const current = isValidPlan(currentPlan) ? currentPlan : "FREE"
+  return PLAN_RANK[current] >= PLAN_RANK[requiredPlan]
+}
+
+// Resolves the plan an org is actually entitled to right now.
+export async function getEntityPlan(entityType: "enterprise" | "org", entityId: string): Promise<PlanName> {
+  const subscription = entityType === "enterprise"
+    ? await prisma.subscription.findFirst({ where: { enterprise: { id: entityId } } })
+    : await prisma.subscription.findFirst({ where: { organizationId: entityId } })
+
+  if (!subscription) return "FREE"
+  if (!ENTITLED_STATUSES.includes(subscription.status as (typeof ENTITLED_STATUSES)[number])) return "FREE"
+  return isValidPlan(subscription.plan) ? subscription.plan : "FREE"
+}
+
 export async function checkUsageLimits(entityType: "enterprise" | "org", entityId: string) {
   const subscription = entityType === "enterprise"
     ? await prisma.subscription.findFirst({ where: { enterprise: { id: entityId } } })

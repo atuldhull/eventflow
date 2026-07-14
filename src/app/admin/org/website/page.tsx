@@ -100,7 +100,7 @@ export default function MyWebsitePage() {
           </div>
           <h1 className="text-3xl font-bold">Create Your Website</h1>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Choose a template and build your organization's website in minutes. It will be live at <strong>{siteUrl}</strong>
+            Choose a template and build your organization&apos;s website in minutes. It will be live at <strong>{siteUrl}</strong>
           </p>
           <Link href="/admin/org/website/templates">
             <Button size="lg" className="gap-2 mt-2"><Sparkles className="h-4 w-4" />Browse Templates</Button>

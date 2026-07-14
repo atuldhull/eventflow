@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { generateId } from "@/lib/utils"
 import type { SectionConfig, SiteStyles, NavItem, FooterConfig } from "@/types/site-builder"
 
 export interface SiteConfigState {
@@ -179,7 +180,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const section = siteConfig.sections.find((s) => s.id === sectionId)
     if (!section) return
     get().pushUndo()
-    const newId = `sec_${Math.random().toString(36).slice(2, 10)}`
+    const newId = generateId("sec")
     const idx = siteConfig.sections.findIndex((s) => s.id === sectionId)
     const newSection = { ...JSON.parse(JSON.stringify(section)), id: newId }
     const sections = [...siteConfig.sections]

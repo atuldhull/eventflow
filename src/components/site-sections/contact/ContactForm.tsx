@@ -32,7 +32,7 @@ export function ContactForm({ config, content, siteStyles, isPreview }: SectionP
   const formBlock = (
     <motion.div className={layout === "form-only" ? "max-w-xl mx-auto" : "flex-[3]"} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
       {sent ? (
-        <div className="text-center py-12"><CheckCircle className="mx-auto h-12 w-12 mb-4" style={{ color: siteStyles.primaryColor }} /><h3 className="text-xl font-bold" style={{ color: siteStyles.textColor }}>Message Sent!</h3><p className="text-sm opacity-60 mt-1" style={{ color: siteStyles.textColor }}>We'll get back to you soon.</p></div>
+        <div className="text-center py-12"><CheckCircle className="mx-auto h-12 w-12 mb-4" style={{ color: siteStyles.primaryColor }} /><h3 className="text-xl font-bold" style={{ color: siteStyles.textColor }}>Message Sent!</h3><p className="text-sm opacity-60 mt-1" style={{ color: siteStyles.textColor }}>We&apos;ll get back to you soon.</p></div>
       ) : (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">

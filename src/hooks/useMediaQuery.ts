@@ -1,23 +1,21 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useSyncExternalStore } from "react"
 
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false)
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const media = window.matchMedia(query)
+      media.addEventListener("change", onChange)
+      return () => media.removeEventListener("change", onChange)
+    },
+    [query]
+  )
 
-  useEffect(() => {
-    const media = window.matchMedia(query)
-    if (media.matches !== matches) {
-      setMatches(media.matches)
-    }
+  const getSnapshot = useCallback(() => window.matchMedia(query).matches, [query])
 
-    const listener = (event: MediaQueryListEvent) => {
-      setMatches(event.matches)
-    }
+  // No matchMedia on the server; assume no match and let hydration correct it.
+  const getServerSnapshot = useCallback(() => false, [])
 
-    media.addEventListener("change", listener)
-    return () => media.removeEventListener("change", listener)
-  }, [matches, query])
-
-  return matches
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }

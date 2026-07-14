@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useEditorStore } from "@/stores/useEditorStore"
 import { SECTION_REGISTRY, getAllSectionCategories } from "@/lib/site-builder/sections"
+import { generateId } from "@/lib/utils"
 import type { SectionConfig } from "@/types/site-builder"
 
 // ── Sortable Section Item ──
@@ -127,7 +128,7 @@ function SectionPicker({ onClose }: { onClose: () => void }) {
     const def = SECTION_REGISTRY[sectionType]
     if (!def) return
     const newSection: SectionConfig = {
-      id: `sec_${Math.random().toString(36).slice(2, 10)}`,
+      id: generateId("sec"),
       type: sectionType,
       enabled: true,
       order: 0,

@@ -264,7 +264,7 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
         {/* What you registered for */}
         <StaggerItem><Card className="p-5 space-y-4">
           <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">You're going to</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">You&apos;re going to</p>
             <p className="font-semibold text-lg mt-0.5">{formConfig.title}</p>
           </div>
           <div className="grid gap-2 text-sm">
@@ -314,7 +314,7 @@ export default function RegisterPage({ params }: { params: Promise<{ slug: strin
               <li className="flex gap-2"><Check className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" /> The organizer will review your registration and email you once approved.</li>
             )}
             {!isPaidPending && !formConfig.approvalRequired && (
-              <li className="flex gap-2"><Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" /> Your ticket is in <Link href="/dashboard/tickets" className="text-primary hover:underline">My Tickets</Link> — save it to your calendar so you don't miss it.</li>
+              <li className="flex gap-2"><Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" /> Your ticket is in <Link href="/dashboard/tickets" className="text-primary hover:underline">My Tickets</Link> — save it to your calendar so you don&apos;t miss it.</li>
             )}
             {formConfig.contactEmail && (
               <li className="flex gap-2"><Check className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" /> Questions? Contact the organizer at <a href={`mailto:${formConfig.contactEmail}`} className="text-primary hover:underline">{formConfig.contactEmail}</a>.</li>

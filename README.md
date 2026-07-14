@@ -1,8 +1,37 @@
 # EventFlow
 
-**EventFlow** is a production-grade, multi-tenant **Event Management SaaS** with an integrated drag-and-drop website builder. It targets universities, colleges, companies, and organizations of every size — from a single community meetup to an enterprise running events across many sub-organizations.
+A multi-tenant event management platform with a drag-and-drop website builder. An enterprise
+owns organizations, an organization runs events, and each one gets a subdomain site it can edit
+visually. Next.js 16, TypeScript, Prisma 6, PostgreSQL, NextAuth v5.
 
-> Built with Next.js 16 (App Router + Turbopack), TypeScript (strict), Prisma 6, PostgreSQL, and NextAuth v5.
+**Status:** not deployed. It runs locally (`docker compose up`, then `pnpm dev`); I haven't
+stood it up on a host. 162 API routes, 44 Prisma models.
+
+## The interesting part: authorization
+
+The hard problem in a system shaped like this isn't CRUD, it's making sure an admin of one
+organization can never touch another's data. Getting that wrong is the whole ballgame.
+
+`authorize()` (`src/lib/authorization.ts`) resolves a user's effective permissions *per entity*
+— your role in enterprise X says nothing about your rights in organization Y — against ~70
+permissions defined in `src/lib/permissions.ts`. Every admin route calls it.
+
+I learned the hard way that "every route calls it" is a promise a human keeps badly. Three of
+65 admin routes had no check at all: `events/check-slug` let any logged-in user probe another
+org's event-slug namespace, and `billing/invoices` verified you were logged in but never that
+the invoice was yours. Both are fixed, and the boundary is now pinned by tests
+(`src/lib/__tests__/authorization.test.ts`) rather than by my memory — an org-A admin being
+denied in org B is an assertion, not a convention.
+
+Same lesson on billing: the premium-template gate was disabled in the UI with a literal
+`|| true`, and the API behind it had no plan check either, so a free org could apply any paid
+template by POSTing straight to the endpoint. The check now lives on the server and fails
+closed.
+
+**Known gaps, so you don't have to find them:** there's no Postgres row-level security — tenant
+scoping is enforced in application code, which is why the tests above matter. `src/lib/tenant.ts`
+and `tenant-scope.ts` were written to centralize that and are currently only used by the site
+renderer, not the admin panel.
 
 ---
 
@@ -107,7 +136,8 @@ scripts/                # docs generation
 docs/                   # user-guide.pdf, admin-reference.pdf
 ```
 
-A deeper architecture guide lives in [`CLAUDE.md`](./CLAUDE.md) / [`AGENTS.md`](./AGENTS.md).
+Permissions live in `src/lib/permissions.ts`; the authorization check every route calls is
+`authorize()` in `src/lib/authorization.ts`.
 
 ---
 

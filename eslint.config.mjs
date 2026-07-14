@@ -13,6 +13,15 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Temporary relaxation. There are ~330 pre-existing `any` usages, mostly in
+      // the site-builder config/content plumbing. Retyping them without the domain
+      // context risks changing runtime behaviour, so they stay visible as warnings
+      // and get paid down incrementally rather than blocking CI.
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

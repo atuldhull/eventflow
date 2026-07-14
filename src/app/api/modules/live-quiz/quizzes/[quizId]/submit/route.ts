@@ -41,7 +41,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ qui
 
   // Score the answers
   let score = 0
-  let totalTime = 0
   const scoredAnswers = answers.map((answer) => {
     const question = questions.find((q: any) => q.id === answer.questionId)
     if (!question) return { ...answer, correct: false, timeSpent: 0 }

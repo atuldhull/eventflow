@@ -18,6 +18,7 @@ export function SiteNavbar({ siteName, logo, navigation, styles }: SiteNavbarPro
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [lastPathname, setLastPathname] = useState(pathname)
   const isTransparent = styles.navStyle === "transparent"
   const isGlass = styles.navStyle === "glass"
   const isDark = isDarkColor(styles.backgroundColor)
@@ -28,7 +29,11 @@ export function SiteNavbar({ siteName, logo, navigation, styles }: SiteNavbarPro
     return () => window.removeEventListener("scroll", handler)
   }, [])
 
-  useEffect(() => { setMenuOpen(false) }, [pathname])
+  // Close the mobile menu on navigation, including back/forward.
+  if (lastPathname !== pathname) {
+    setLastPathname(pathname)
+    setMenuOpen(false)
+  }
 
   const showSolid = !isTransparent || scrolled
   const textColor = isTransparent && !scrolled ? (isDark ? "#F5F5F5" : "#1E293B") : styles.textColor

@@ -52,12 +52,12 @@ interface ModuleRendererProps { moduleId: string; config: Record<string, any>; o
 
 export function ModuleRenderer({ moduleId, config, orgSlug, eventId, placement, isPreview }: ModuleRendererProps) {
   const Comp = MODULE_MAP[moduleId]
-  if (!Comp) return isPreview ? <div className="p-4 text-center text-sm text-muted-foreground">Module "{moduleId}" not found</div> : null
+  if (!Comp) return isPreview ? <div className="p-4 text-center text-sm text-muted-foreground">Module &quot;{moduleId}&quot; not found</div> : null
   return <ModuleErrorBoundary moduleId={moduleId}><Comp config={config} orgSlug={orgSlug} eventId={eventId} placement={placement} isPreview={isPreview} /></ModuleErrorBoundary>
 }
 
 export function ModuleAdminRenderer({ moduleId, config, orgSlug, eventId, placement, isPreview }: ModuleRendererProps) {
   const Comp = ADMIN_MAP[moduleId]
-  if (!Comp) return <div className="p-4 text-center text-sm text-muted-foreground">No admin panel for "{moduleId}"</div>
+  if (!Comp) return <div className="p-4 text-center text-sm text-muted-foreground">No admin panel for &quot;{moduleId}&quot;</div>
   return <ModuleErrorBoundary moduleId={moduleId}><Comp config={config} orgSlug={orgSlug} eventId={eventId} placement={placement} isPreview={isPreview} /></ModuleErrorBoundary>
 }

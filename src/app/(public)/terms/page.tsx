@@ -24,7 +24,7 @@ export default function TermsPage() {
         <h2>6. Intellectual Property</h2>
         <p>All content and materials on EventFlow are owned by or licensed to us. You may not reproduce or distribute our content without permission.</p>
         <h2>7. Limitation of Liability</h2>
-        <p>EventFlow is provided "as is." We are not liable for any damages arising from the use of our platform.</p>
+        <p>EventFlow is provided &quot;as is.&quot; We are not liable for any damages arising from the use of our platform.</p>
         <h2>8. Termination</h2>
         <p>We reserve the right to suspend or terminate accounts that violate these terms.</p>
         <h2>9. Contact</h2>

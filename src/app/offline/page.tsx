@@ -8,7 +8,7 @@ export default function OfflinePage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="text-center space-y-4 max-w-sm">
         <WifiOff className="mx-auto h-16 w-16 text-muted-foreground/30" />
-        <h1 className="text-2xl font-bold">You're Offline</h1>
+        <h1 className="text-2xl font-bold">You&apos;re Offline</h1>
         <p className="text-muted-foreground">
           No internet connection. Your tickets are cached and available — go to My Tickets to view them.
         </p>

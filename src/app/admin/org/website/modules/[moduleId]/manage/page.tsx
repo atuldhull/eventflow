@@ -42,7 +42,7 @@ export default function ModuleManagePage({ params }: { params: Promise<{ moduleI
       <div className="max-w-lg mx-auto text-center py-16 space-y-4">
         <Settings className="h-12 w-12 mx-auto text-muted-foreground" />
         <h2 className="text-lg font-bold">No Content Management Needed</h2>
-        <p className="text-sm text-muted-foreground">This module is configured in the Configuration page. It doesn't require content management.</p>
+        <p className="text-sm text-muted-foreground">This module is configured in the Configuration page. It doesn&apos;t require content management.</p>
         <Link href={`/admin/org/website/modules/${moduleId}/config`}>
           <Button>Go to Configuration</Button>
         </Link>

@@ -45,7 +45,7 @@ export default function ContactPage() {
     <div className="container mx-auto px-4 py-16">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-center">Get in Touch</h1>
-        <p className="text-muted-foreground text-center mt-2">Have a question or need help? We'd love to hear from you.</p>
+        <p className="text-muted-foreground text-center mt-2">Have a question or need help? We&apos;d love to hear from you.</p>
 
         <div className="grid gap-8 lg:grid-cols-5 mt-12">
           <div className="lg:col-span-2 space-y-6">
@@ -72,7 +72,7 @@ export default function ContactPage() {
               <div className="text-center py-12">
                 <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
                 <h3 className="text-lg font-semibold">Message Sent!</h3>
-                <p className="text-sm text-muted-foreground mt-1">We'll get back to you within 24 hours.</p>
+                <p className="text-sm text-muted-foreground mt-1">We&apos;ll get back to you within 24 hours.</p>
                 <Button variant="outline" className="mt-4" onClick={() => { setSent(false); setForm({ name: "", email: "", subject: "", message: "" }) }}>
                   Send Another Message
                 </Button>

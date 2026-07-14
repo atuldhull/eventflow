@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
@@ -14,27 +14,35 @@ interface AutocompleteInputProps {
 }
 
 export function AutocompleteInput({ value, onChange, searchFn, placeholder, className, id }: AutocompleteInputProps) {
-  const [suggestions, setSuggestions] = useState<string[]>([])
-  const [showDropdown, setShowDropdown] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const results = searchFn(value)
-    setSuggestions(results)
-    setShowDropdown(results.length > 0 && value.length >= 2)
-    setActiveIdx(-1)
-  }, [value, searchFn])
+  // Suggestions are a pure derivation of the current value, not state.
+  const suggestions = useMemo(() => searchFn(value), [searchFn, value])
+  const showDropdown = isOpen && suggestions.length > 0 && value.length >= 2
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setShowDropdown(false)
+        setIsOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
+
+  const handleChange = (next: string) => {
+    onChange(next)
+    setIsOpen(true)
+    setActiveIdx(-1)
+  }
+
+  const commit = (item: string) => {
+    onChange(item)
+    setIsOpen(false)
+    setActiveIdx(-1)
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!showDropdown) return
@@ -46,10 +54,9 @@ export function AutocompleteInput({ value, onChange, searchFn, placeholder, clas
       setActiveIdx((i) => Math.max(i - 1, 0))
     } else if (e.key === "Enter" && activeIdx >= 0) {
       e.preventDefault()
-      onChange(suggestions[activeIdx])
-      setShowDropdown(false)
+      commit(suggestions[activeIdx])
     } else if (e.key === "Escape") {
-      setShowDropdown(false)
+      setIsOpen(false)
     }
   }
 
@@ -58,8 +65,8 @@ export function AutocompleteInput({ value, onChange, searchFn, placeholder, clas
       <Input
         id={id}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => { if (suggestions.length > 0 && value.length >= 2) setShowDropdown(true) }}
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={() => setIsOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className={className}
@@ -68,7 +75,7 @@ export function AutocompleteInput({ value, onChange, searchFn, placeholder, clas
         aria-expanded={showDropdown}
         aria-autocomplete="list"
       />
-      {showDropdown && suggestions.length > 0 && (
+      {showDropdown && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-48 overflow-y-auto" role="listbox">
           {suggestions.map((item, idx) => (
             <button
@@ -81,7 +88,7 @@ export function AutocompleteInput({ value, onChange, searchFn, placeholder, clas
                 idx === activeIdx ? "bg-accent text-accent-foreground" : "hover:bg-muted"
               )}
               onMouseEnter={() => setActiveIdx(idx)}
-              onClick={() => { onChange(item); setShowDropdown(false) }}
+              onClick={() => commit(item)}
             >
               {item}
             </button>

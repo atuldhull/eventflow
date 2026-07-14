@@ -23,6 +23,11 @@ export function formatDateTime(date: Date | string): string {
   }).format(new Date(date))
 }
 
+/** Namespaced random id, e.g. generateId("sec") -> "sec_k3n1x8qz" */
+export function generateId(prefix: string): string {
+  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

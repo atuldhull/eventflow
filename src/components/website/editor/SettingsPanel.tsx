@@ -120,7 +120,7 @@ export function SettingsPanel() {
 
           {/* Powered by */}
           <div className="flex items-center justify-between">
-            <Label className="text-xs">Show "Powered by EventFlow"</Label>
+            <Label className="text-xs">Show &quot;Powered by EventFlow&quot;</Label>
             <button onClick={() => updateFooterField("showPoweredBy", !footer.showPoweredBy)}
               className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${footer.showPoweredBy ? "bg-primary" : "bg-muted"}`}>
               <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform mt-0.5 ${footer.showPoweredBy ? "translate-x-4 ml-0.5" : "translate-x-0.5"}`} />

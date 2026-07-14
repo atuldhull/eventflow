@@ -110,7 +110,7 @@ export function Stagger({ children, trigger = "mount", className, ...rest }: Sta
   )
 }
 
-interface StaggerItemProps extends React.ComponentProps<"div"> {}
+type StaggerItemProps = React.ComponentProps<"div">
 
 export function StaggerItem({ children, className, ...rest }: StaggerItemProps) {
   const reduced = useReducedMotion()

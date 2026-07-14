@@ -1,19 +1,16 @@
 "use client"
 
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Play, Pause } from "lucide-react"
+import { useMediaQuery } from "@/hooks/useMediaQuery"
 import type { SectionProps } from "@/lib/site-builder/section-renderer"
 
 export function HeroVideo({ config, content, siteStyles }: SectionProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(config.autoplay !== false)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    setIsMobile(window.innerWidth < 768)
-  }, [])
+  const isMobile = useMediaQuery("(max-width: 767.98px)")
 
   const togglePlay = () => {
     if (!videoRef.current) return

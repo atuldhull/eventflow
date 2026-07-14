@@ -15,72 +15,85 @@ import type { Role } from "@/lib/constants"
 
 export function useRBAC() {
   const { data: session, status } = useSession()
-  const store = useAuthStore()
+
+  // Select individual fields rather than the whole store object: the store
+  // snapshot changes identity on every write, which defeats the memoization
+  // below and re-renders every consumer on unrelated state changes.
+  const permissions = useAuthStore((s) => s.permissions)
+  const currentEnterpriseId = useAuthStore((s) => s.currentEnterpriseId)
+  const currentOrganizationId = useAuthStore((s) => s.currentOrganizationId)
+  const accessibleEnterprises = useAuthStore((s) => s.accessibleEnterprises)
+  const accessibleOrganizations = useAuthStore((s) => s.accessibleOrganizations)
+  const isInitialized = useAuthStore((s) => s.isInitialized)
+  const initialize = useAuthStore((s) => s.initialize)
+  const setCurrentEnterprise = useAuthStore((s) => s.setCurrentEnterprise)
+  const setCurrentOrganization = useAuthStore((s) => s.setCurrentOrganization)
 
   const role = (session?.user?.role || "USER") as Role
+  const userId = session?.user?.id
 
   const fetchPermissions = useCallback(async () => {
-    if (status !== "authenticated" || !session?.user?.id) return
+    if (status !== "authenticated" || !userId) return
 
     try {
       const params = new URLSearchParams()
-      if (store.currentEnterpriseId) params.set("enterpriseId", store.currentEnterpriseId)
-      if (store.currentOrganizationId) params.set("organizationId", store.currentOrganizationId)
+      if (currentEnterpriseId) params.set("enterpriseId", currentEnterpriseId)
+      if (currentOrganizationId) params.set("organizationId", currentOrganizationId)
 
       const res = await fetch(`/api/auth/permissions?${params.toString()}`)
       if (!res.ok) return
 
       const data = await res.json()
 
-      store.initialize({
+      initialize({
         permissions: data.permissions || [],
         enterprises: data.accessibleEnterprises || [],
         organizations: data.accessibleOrganizations || [],
-        currentEnterpriseId: store.currentEnterpriseId,
-        currentOrganizationId: store.currentOrganizationId,
+        currentEnterpriseId,
+        currentOrganizationId,
       })
     } catch (error) {
       console.error("Failed to fetch permissions:", error)
     }
-  }, [session?.user?.id, status, store.currentEnterpriseId, store.currentOrganizationId])
+  }, [status, userId, currentEnterpriseId, currentOrganizationId, initialize])
 
   useEffect(() => {
-    if (status === "authenticated" && !store.isInitialized) {
+    if (status === "authenticated" && !isInitialized) {
       fetchPermissions()
     }
-  }, [status, store.isInitialized, fetchPermissions])
+  }, [status, isInitialized, fetchPermissions])
 
   const setEnterpriseContext = useCallback(
     (enterpriseId: string | null) => {
-      store.setCurrentEnterprise(enterpriseId)
+      setCurrentEnterprise(enterpriseId)
       // Re-initialize to trigger permission refresh
       useAuthStore.setState({ isInitialized: false })
     },
-    [store]
+    [setCurrentEnterprise]
   )
 
   const setOrganizationContext = useCallback(
     (orgId: string | null) => {
-      store.setCurrentOrganization(orgId)
+      setCurrentOrganization(orgId)
       useAuthStore.setState({ isInitialized: false })
     },
-    [store]
+    [setCurrentOrganization]
   )
 
   return {
     user: session?.user || null,
     role,
-    permissions: store.permissions,
-    currentEnterpriseId: store.currentEnterpriseId,
-    currentOrganizationId: store.currentOrganizationId,
-    accessibleEnterprises: store.accessibleEnterprises,
-    accessibleOrganizations: store.accessibleOrganizations,
+    permissions,
+    currentEnterpriseId,
+    currentOrganizationId,
+    accessibleEnterprises,
+    accessibleOrganizations,
     isAdmin: isAdminRole(role),
     isSuperAdmin: role === "SUPER_ADMIN",
-    isLoading: status === "loading" || !store.isInitialized,
-    can: (permission: Permission) => hasPermission(store.permissions, permission),
-    canAny: (perms: Permission[]) => hasAnyPermission(store.permissions, perms),
-    canAll: (perms: Permission[]) => hasAllPermissions(store.permissions, perms),
+    isLoading: status === "loading" || !isInitialized,
+    can: (permission: Permission) => hasPermission(permissions, permission),
+    canAny: (perms: Permission[]) => hasAnyPermission(permissions, perms),
+    canAll: (perms: Permission[]) => hasAllPermissions(permissions, perms),
     canManageRole: (targetRole: Role) => canManageRole(role, targetRole),
     setEnterpriseContext,
     setOrganizationContext,

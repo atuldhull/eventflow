@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { motion } from "framer-motion"
 import { PartyPopper } from "lucide-react"
 import type { ModuleProps } from "@/lib/site-builder/module-renderer"
@@ -60,29 +60,48 @@ function CircularUnit({ value, max, label, color }: { value: number; max: number
 
 export function CountdownTimerModule({ config, orgSlug, isPreview }: ModuleProps) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 })
-  const [targetDate, setTargetDate] = useState<Date | null>(null)
-  const [eventTitle, setEventTitle] = useState("")
   const [isComplete, setIsComplete] = useState(false)
+  const [nextEvent, setNextEvent] = useState<{ time: number; title: string } | null>(null)
 
+  // A configured custom date is a pure derivation of props, so it is not state.
+  const customTime = useMemo(() => {
+    if (config.targetType !== "custom-date" || !config.customDate) return null
+    const time = new Date(config.customDate).getTime()
+    return Number.isNaN(time) ? null : time
+  }, [config.targetType, config.customDate])
+
+  // Only look up the next event when no custom date is configured.
   useEffect(() => {
-    if (config.targetType === "custom-date" && config.customDate) {
-      setTargetDate(new Date(config.customDate))
-    } else {
-      // Fetch next event
-      if (isPreview) { setTargetDate(new Date(Date.now() + 7 * 86400000)); setEventTitle("Next Event"); return }
-      async function fetch_() {
-        try { const res = await fetch(`/api/events?limit=1&sort=start_date&order=asc`); const json = await res.json(); if (json.success && json.data[0]) { setTargetDate(new Date(json.data[0].startDate)); setEventTitle(json.data[0].title) } }
-        catch {}
-      }
-      fetch_()
+    if (customTime !== null || isPreview) return
+    let cancelled = false
+    async function loadNextEvent() {
+      try {
+        const res = await fetch(`/api/events?limit=1&sort=start_date&order=asc`)
+        const json = await res.json()
+        if (cancelled || !json.success || !json.data[0]) return
+        setNextEvent({ time: new Date(json.data[0].startDate).getTime(), title: json.data[0].title })
+      } catch {}
     }
-  }, [config.targetType, config.customDate, isPreview])
+    loadNextEvent()
+    return () => { cancelled = true }
+  }, [customTime, isPreview])
+
+  const targetTime = customTime ?? nextEvent?.time ?? null
+  const eventTitle = nextEvent?.title ?? ""
 
   useEffect(() => {
-    if (!targetDate) return
+    // Preview has no real event, so count down to a fixed offset from mount.
+    const target = targetTime ?? (isPreview ? Date.now() + 7 * 86400000 : null)
+    if (target === null) return
+
     const timer = setInterval(() => {
-      const diff = targetDate.getTime() - Date.now()
-      if (diff <= 0) { setIsComplete(true); clearInterval(timer); return }
+      const diff = target - Date.now()
+      if (diff <= 0) {
+        setIsComplete(true)
+        clearInterval(timer)
+        return
+      }
+      setIsComplete(false)
       setTimeLeft({
         days: Math.floor(diff / 86400000),
         hours: Math.floor((diff % 86400000) / 3600000),
@@ -91,7 +110,7 @@ export function CountdownTimerModule({ config, orgSlug, isPreview }: ModuleProps
       })
     }, 1000)
     return () => clearInterval(timer)
-  }, [targetDate])
+  }, [targetTime, isPreview])
 
   if (isComplete) {
     if (config.completionAction === "hide") return null
@@ -103,7 +122,7 @@ export function CountdownTimerModule({ config, orgSlug, isPreview }: ModuleProps
     )
   }
 
-  if (!targetDate) return null
+  if (targetTime === null && !isPreview) return null
 
   const style = config.style || "flip"
   const color = "#09090b" // Will be overridden by site styles in actual usage

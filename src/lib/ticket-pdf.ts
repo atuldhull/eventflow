@@ -128,7 +128,7 @@ const rgb = pdfRgb
 
 export function buildTicketPdf(data: TicketPdfData): Buffer {
   const ops: string[] = []
-  const text = (font: "F1" | "F2" | "F3", size: number, x: number, y: number, value: string, color = "#141b2d") =>
+  const text = (font: "F1" | "F2" | "F3", size: number, x: number, y: number, value: string, color = "#171717") =>
     ops.push(`BT ${rgb(color)} rg /${font} ${size} Tf ${n(x)} ${n(y)} Td ${pdfText(value)} Tj ET`)
   const rect = (x: number, y: number, w: number, h: number, fill: string) => ops.push(`${rgb(fill)} rg ${n(x)} ${n(y)} ${n(w)} ${n(h)} re f`)
 
@@ -138,7 +138,7 @@ export function buildTicketPdf(data: TicketPdfData): Buffer {
 
   // Card outline and header band
   ops.push(`${rgb("#d9dce3")} RG 1 w ${n(left)} ${n(top - 430)} ${n(width)} 430 re S`)
-  rect(left, top - 128, width, 128, "#141b2d")
+  rect(left, top - 128, width, 128, "#171717")
   const titleLines = wrapText(data.eventTitle, 20, width - 48, 2)
   let y = top - 44
   for (const line of titleLines) {

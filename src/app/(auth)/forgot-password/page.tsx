@@ -11,7 +11,9 @@ import { Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { OTPInput } from "@/components/forms/OTPInput"
+import { CodeBoxes } from "../_components/CodeBoxes"
+import { AuthHeading, FieldError, authAction, authField, revealButton } from "../_components/ui"
+import { cn } from "@/lib/utils"
 import { PasswordStrength } from "@/components/forms/PasswordStrength"
 import { useAuth } from "@/hooks/useAuth"
 import {
@@ -29,7 +31,7 @@ function RevealButton({ shown, onToggle }: { shown: boolean; onToggle: () => voi
     <button
       type="button"
       onClick={onToggle}
-      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground pointer-coarse:w-11"
+      className={revealButton}
       aria-label={shown ? "Hide password" : "Show password"}
     >
       {shown ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -121,19 +123,16 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="space-y-7">
-      <div>
-        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">Reset your password</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {step === "email" ? (
-            "Enter your email and we'll send you a reset code"
-          ) : (
-            <>
-              Enter the code sent to <span className="font-medium text-foreground">{emailValue}</span>
-            </>
-          )}
-        </p>
-      </div>
+    <div className="space-y-8">
+      <AuthHeading eyebrow="Forgot password" title="Reset your" mark="password" after=".">
+        {step === "email" ? (
+          "Enter your email and we'll send you a reset code"
+        ) : (
+          <>
+            Enter the code sent to <span className="font-medium break-all text-foreground">{emailValue}</span>
+          </>
+        )}
+      </AuthHeading>
 
       {step === "email" && (
         <form onSubmit={emailForm.handleSubmit(handleSendResetCode)} className="space-y-5">
@@ -144,15 +143,16 @@ export default function ForgotPasswordPage() {
               type="email"
               autoComplete="email"
               placeholder="you@example.com"
+              className={authField}
               aria-invalid={emailForm.formState.errors.email ? true : undefined}
               {...emailForm.register("email")}
             />
             {emailForm.formState.errors.email && (
-              <p className="text-xs text-destructive">{emailForm.formState.errors.email.message}</p>
+              <FieldError>{emailForm.formState.errors.email.message}</FieldError>
             )}
           </div>
 
-          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" size="lg" className={cn(authAction, "w-full")} disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
             Send reset code
           </Button>
@@ -162,8 +162,8 @@ export default function ForgotPasswordPage() {
       {step === "reset" && (
         <form onSubmit={resetForm.handleSubmit(handleResetPassword)} className="space-y-5">
           <div className="space-y-2" role="group" aria-labelledby="reset-code-label">
-            <p id="reset-code-label" className="text-sm leading-none font-medium">Verification code</p>
-            <OTPInput onComplete={handleOtpComplete} />
+            <p id="reset-code-label" className="pb-1 text-sm leading-none font-medium">Verification code</p>
+            <CodeBoxes onComplete={handleOtpComplete} />
             <Button type="button" variant="ghost" size="sm" className="-ml-3 tabular-nums" onClick={handleResend} disabled={resendTimer > 0}>
               {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
             </Button>
@@ -177,14 +177,14 @@ export default function ForgotPasswordPage() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 placeholder="Enter new password"
-                className="pr-11"
+                className={cn(authField, "pr-12")}
                 aria-invalid={resetForm.formState.errors.newPassword ? true : undefined}
                 {...resetForm.register("newPassword")}
               />
               <RevealButton shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
             </div>
             {resetForm.formState.errors.newPassword && (
-              <p className="text-xs text-destructive">{resetForm.formState.errors.newPassword.message}</p>
+              <FieldError>{resetForm.formState.errors.newPassword.message}</FieldError>
             )}
             <PasswordStrength password={newPassword} />
           </div>
@@ -197,26 +197,26 @@ export default function ForgotPasswordPage() {
                 type={showConfirmPassword ? "text" : "password"}
                 autoComplete="new-password"
                 placeholder="Confirm new password"
-                className="pr-11"
+                className={cn(authField, "pr-12")}
                 aria-invalid={resetForm.formState.errors.confirmPassword ? true : undefined}
                 {...resetForm.register("confirmPassword")}
               />
               <RevealButton shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />
             </div>
             {resetForm.formState.errors.confirmPassword && (
-              <p className="text-xs text-destructive">{resetForm.formState.errors.confirmPassword.message}</p>
+              <FieldError>{resetForm.formState.errors.confirmPassword.message}</FieldError>
             )}
           </div>
 
-          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" size="lg" className={cn(authAction, "w-full")} disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
             Reset password
           </Button>
         </form>
       )}
 
-      <Link href="/login" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-        <ArrowLeft className="size-3.5" aria-hidden />
+      <Link href="/login" className="group inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+        <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden />
         Back to login
       </Link>
     </div>

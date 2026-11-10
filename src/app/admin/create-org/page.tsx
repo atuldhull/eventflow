@@ -22,7 +22,7 @@ function Section({ title, description, children }: { title: string; description:
   return (
     <section className="grid gap-4 border-t border-rule pt-6 first:border-t-0 first:pt-0 md:grid-cols-[200px_minmax(0,1fr)] md:gap-10">
       <div>
-        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <h2 className="font-display text-[17px] font-semibold tracking-[-0.01em]">{title}</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
       </div>
       <div className="min-w-0 space-y-5">{children}</div>

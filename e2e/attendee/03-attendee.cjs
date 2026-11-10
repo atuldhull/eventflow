@@ -73,7 +73,7 @@ async function uiRegister(page, slug, ticketRe) {
       await L.go(a1, '/dashboard/tickets', { settle: 2500 });
       t = await L.bodyText(a1);
       S.check('/dashboard/tickets lists the new ticket with event, type and ticket number', /AI in Production/.test(t) && /In person/i.test(t) && t.includes(reg.ticket.ticketNumber), t.slice(0, 300).replace(/\n/g, ' '));
-      S.check('/dashboard/tickets shows date and venue', /Dec/.test(t), '');
+      S.check('/dashboard/tickets shows date and venue', /Dec/i.test(t), '');
       await L.shot(a1, 'att-tickets-1440');
       const dash1 = (await L.api(a1, 'GET', '/api/users/me/dashboard')).json?.data || {};
       S.check('Dashboard counts: registrations +1, active tickets +1', dash1.stats?.registrations === (dash0.registrations || 0) + 1 && dash1.stats?.activeTickets === (dash0.activeTickets || 0) + 1, `${JSON.stringify(dash0)} -> ${JSON.stringify(dash1.stats)}`);

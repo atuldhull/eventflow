@@ -35,7 +35,7 @@ export function StatCard({ title, value, change, icon: Icon, description, isLoad
         </>
       ) : (
         <>
-          <p className="mt-1.5 text-[28px] leading-8 font-normal tracking-[-0.02em] tabular-nums">{value}</p>
+          <p className="mt-1.5 font-display text-[28px] leading-8 font-semibold tracking-[-0.03em] tabular-nums">{value}</p>
           {(change || description) && (
             <p className="mt-1 text-xs text-muted-foreground">
               {change && (
@@ -85,7 +85,7 @@ export function KpiStrip({
               <dd><Skeleton className="mt-2 h-7 w-20" /></dd>
             ) : (
               <>
-                <dd className="mt-1.5 text-[26px] leading-8 tracking-[-0.02em] tabular-nums">{it.value}</dd>
+                <dd className="mt-1.5 font-display text-[26px] leading-8 font-semibold tracking-[-0.03em] tabular-nums">{it.value}</dd>
                 {it.caption && <dd className="mt-0.5 text-xs text-muted-foreground">{it.caption}</dd>}
               </>
             )}

@@ -14,7 +14,8 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { OTPInput } from "@/components/forms/OTPInput"
+import { CodeBoxes } from "../_components/CodeBoxes"
+import { AuthHeading, FieldError, authAction, authField, revealButton } from "../_components/ui"
 import { PasswordStrength } from "@/components/forms/PasswordStrength"
 import { SocialLoginButtons } from "@/components/forms/SocialLoginButtons"
 import { useAuth } from "@/hooks/useAuth"
@@ -50,7 +51,7 @@ function RevealButton({ shown, onToggle }: { shown: boolean; onToggle: () => voi
     <button
       type="button"
       onClick={onToggle}
-      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground pointer-coarse:w-11"
+      className={revealButton}
       aria-label={shown ? "Hide password" : "Show password"}
     >
       {shown ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -179,35 +180,33 @@ export default function SignupPage() {
   // Registration is switched off: say so before anyone fills in the form
   if (signupOpen === false && step === 1) {
     return (
-      <div className="space-y-7">
-        <div role="status">
-          <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">Sign-ups are currently closed</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            New accounts can&apos;t be created right now. If you already have an account, log in instead.
-          </p>
-        </div>
-        <Link href={loginHref} className={cn(buttonVariants({ size: "lg" }), "w-full")}>Log in</Link>
+      <div className="space-y-8">
+        <AuthHeading role="status" eyebrow="Sign up" title="Sign-ups are currently" mark="closed">
+          New accounts can&apos;t be created right now. If you already have an account, log in instead.
+        </AuthHeading>
+        <Link href={loginHref} className={cn(buttonVariants({ size: "lg" }), authAction, "w-full")}>Log in</Link>
       </div>
     )
   }
 
   return (
-    <div className="space-y-7">
-      <div>
-        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">Create an account</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">Get started with EventFlow</p>
-      </div>
+    <div className="space-y-8">
+      <AuthHeading eyebrow="Sign up" title="Create an" mark="account" after=".">
+        Get started with EventFlow
+      </AuthHeading>
 
-      {/* Progress: three hairline segments and the step's name */}
+      {/* Progress: three segments that fill in lavender, and the step's name */}
       <div>
         <p className="text-[13px] text-muted-foreground">
           <span className="tabular-nums">Step {step} of 3</span>
           <span aria-hidden> · </span>
-          <span className="font-medium text-foreground">{STEP_LABELS[step]}</span>
+          <span className="font-semibold text-foreground">{STEP_LABELS[step]}</span>
         </p>
-        <div className="mt-2 grid grid-cols-3 gap-1.5" aria-hidden>
+        <div className="mt-2.5 grid grid-cols-3 gap-1.5" aria-hidden>
           {([1, 2, 3] as Step[]).map((s) => (
-            <span key={s} className={cn("h-1 rounded-full transition-colors duration-300", s <= step ? "bg-foreground" : "bg-border")} />
+            <span key={s} className="h-1.5 overflow-hidden rounded-full bg-border">
+              <span className={cn("block h-full origin-left rounded-full bg-brand transition-transform duration-500 ease-out", s <= step ? "scale-x-100" : "scale-x-0")} />
+            </span>
           ))}
         </div>
       </div>
@@ -218,14 +217,14 @@ export default function SignupPage() {
           <div className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="name">Full name</Label>
-              <Input id="name" autoComplete="name" placeholder="John Doe" {...fieldA11y("name", !!errors.name)} {...register("name")} />
-              {errors.name && <p id="name-error" className="text-xs text-destructive">{errors.name.message}</p>}
+              <Input id="name" autoComplete="name" placeholder="John Doe" className={authField} {...fieldA11y("name", !!errors.name)} {...register("name")} />
+              {errors.name && <FieldError id="name-error">{errors.name.message}</FieldError>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="signup-email">Email</Label>
-              <Input id="signup-email" type="email" autoComplete="email" placeholder="you@example.com" {...fieldA11y("email", !!errors.email)} {...register("email")} />
-              {errors.email && <p id="email-error" className="text-xs text-destructive">{errors.email.message}</p>}
+              <Input id="signup-email" type="email" autoComplete="email" placeholder="you@example.com" className={authField} {...fieldA11y("email", !!errors.email)} {...register("email")} />
+              {errors.email && <FieldError id="email-error">{errors.email.message}</FieldError>}
             </div>
 
             <div className="space-y-2">
@@ -236,13 +235,13 @@ export default function SignupPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   placeholder="Create a password"
-                  className="pr-11"
+                  className={cn(authField, "pr-12")}
                   {...fieldA11y("password", !!errors.password)}
                   {...register("password")}
                 />
                 <RevealButton shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
               </div>
-              {errors.password && <p id="password-error" className="text-xs text-destructive">{errors.password.message}</p>}
+              {errors.password && <FieldError id="password-error">{errors.password.message}</FieldError>}
               <PasswordStrength password={password} />
             </div>
 
@@ -254,13 +253,13 @@ export default function SignupPage() {
                   type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
                   placeholder="Confirm your password"
-                  className="pr-11"
+                  className={cn(authField, "pr-12")}
                   {...fieldA11y("confirmPassword", !!errors.confirmPassword)}
                   {...register("confirmPassword")}
                 />
                 <RevealButton shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />
               </div>
-              {errors.confirmPassword && <p id="confirmPassword-error" className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
+              {errors.confirmPassword && <FieldError id="confirmPassword-error">{errors.confirmPassword.message}</FieldError>}
             </div>
 
             <div className="space-y-2">
@@ -283,10 +282,10 @@ export default function SignupPage() {
                   </Link>
                 </label>
               </div>
-              {errors.agreeToTerms && <p id="agreeToTerms-error" className="text-xs text-destructive">{errors.agreeToTerms.message}</p>}
+              {errors.agreeToTerms && <FieldError id="agreeToTerms-error">{errors.agreeToTerms.message}</FieldError>}
             </div>
 
-            <Button type="button" size="lg" className="w-full" onClick={handleStep1Next}>
+            <Button type="button" size="lg" className={cn(authAction, "w-full")} onClick={handleStep1Next}>
               Next <ArrowRight aria-hidden />
             </Button>
           </div>
@@ -300,10 +299,10 @@ export default function SignupPage() {
             <div className="space-y-2">
               <Label htmlFor="phone">Phone number</Label>
               <div className="flex">
-                <span className="flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground tabular-nums">+91</span>
-                <Input id="phone" type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="9876543210" className="rounded-l-none" {...fieldA11y("phone", !!errors.phone)} {...register("phone")} />
+                <span className="flex items-center rounded-l-xl border border-r-0 border-input bg-muted px-4 text-[15px] text-muted-foreground tabular-nums">+91</span>
+                <Input id="phone" type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="9876543210" className={cn(authField, "rounded-l-none")} {...fieldA11y("phone", !!errors.phone)} {...register("phone")} />
               </div>
-              {errors.phone && <p id="phone-error" className="text-xs text-destructive">{errors.phone.message}</p>}
+              {errors.phone && <FieldError id="phone-error">{errors.phone.message}</FieldError>}
             </div>
 
             <div className="space-y-2">
@@ -313,6 +312,7 @@ export default function SignupPage() {
                 value={watch("collegeName") || ""}
                 onChange={(v) => setValue("collegeName", v)}
                 searchFn={searchColleges}
+                className={authField}
                 placeholder="Start typing... e.g. IIT, BITS, VIT"
               />
             </div>
@@ -324,19 +324,20 @@ export default function SignupPage() {
                 value={watch("companyName") || ""}
                 onChange={(v) => setValue("companyName", v)}
                 searchFn={searchCompanies}
+                className={authField}
                 placeholder="Start typing... e.g. Google, TCS"
               />
             </div>
 
             <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center">
-              <Button type="button" variant="ghost" size="lg" className="sm:-ml-3" onClick={() => setStep(1)}>
+              <Button type="button" variant="ghost" size="lg" className={cn(authAction, "sm:-ml-3")} onClick={() => setStep(1)}>
                 <ArrowLeft aria-hidden /> Back
               </Button>
               <div className="flex gap-2 sm:ml-auto">
-                <Button type="button" variant="outline" size="lg" className="flex-1 sm:flex-none" onClick={handleStep2Next} disabled={isSubmitting}>
+                <Button type="button" variant="outline" size="lg" className={cn(authAction, "flex-1 sm:flex-none sm:px-5")} onClick={handleStep2Next} disabled={isSubmitting}>
                   Skip
                 </Button>
-                <Button type="button" size="lg" className="flex-1 sm:flex-none sm:px-6" onClick={handleStep2Next} disabled={isSubmitting}>
+                <Button type="button" size="lg" className={cn(authAction, "flex-1 sm:flex-none sm:px-7")} onClick={handleStep2Next} disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
                   Next
                 </Button>
@@ -351,7 +352,7 @@ export default function SignupPage() {
             <p className="text-sm text-muted-foreground">
               We&apos;ve sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>
             </p>
-            <OTPInput onComplete={handleVerifyOtp} disabled={isSubmitting} />
+            <CodeBoxes onComplete={handleVerifyOtp} disabled={isSubmitting} />
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Button type="button" variant="ghost" size="sm" className="-ml-3 tabular-nums" onClick={handleResendOtp} disabled={resendTimer > 0}>
                 {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
@@ -364,7 +365,11 @@ export default function SignupPage() {
         )}
       </form>
 
-      {step === 1 && <SocialLoginButtons mode="signup" callbackUrl={callbackUrl} />}
+      {step === 1 && (
+        <div className="empty:hidden [&_button]:h-12">
+          <SocialLoginButtons mode="signup" callbackUrl={callbackUrl} />
+        </div>
+      )}
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}

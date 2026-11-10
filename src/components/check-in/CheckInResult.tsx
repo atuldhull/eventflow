@@ -24,8 +24,8 @@ interface CheckInResultProps {
 }
 
 /**
- * The last scan, as a banner under the camera: positive pill colours for a
- * check-in, warning for a repeat, negative for a bad ticket. A success
+ * The last scan, as a big banner above the camera: solid green for a
+ * check-in, amber for a repeat, red for a bad ticket. A success
  * resumes scanning on its own (as before); anything else waits for Dismiss.
  */
 export function CheckInResult({
@@ -49,11 +49,13 @@ export function CheckInResult({
     }
   }, [type, autoDismissMs, onDismiss])
 
+  // Solid fields of colour, readable from arm's length at the door: green for in,
+  // amber for a repeat, red for a bad ticket, ink for a network problem.
   const config = {
-    success: { tone: "bg-pill-positive text-pill-positive-foreground", icon: CheckCircle2, title: "Checked in" },
-    already: { tone: "bg-pill-warning text-pill-warning-foreground", icon: AlertTriangle, title: "Already checked in" },
-    invalid: { tone: "bg-pill-negative text-pill-negative-foreground", icon: XCircle, title: "Invalid ticket" },
-    error: { tone: "bg-pill-neutral text-pill-neutral-foreground", icon: WifiOff, title: "Error" },
+    success: { tone: "bg-positive text-white dark:text-charcoal", icon: CheckCircle2, title: "Checked in" },
+    already: { tone: "bg-warning text-white dark:text-charcoal", icon: AlertTriangle, title: "Already checked in" },
+    invalid: { tone: "bg-destructive text-white dark:text-charcoal", icon: XCircle, title: "Invalid ticket" },
+    error: { tone: "bg-foreground text-background", icon: WifiOff, title: "Error" },
   }[type]
 
   const Icon = config.icon
@@ -63,32 +65,37 @@ export function CheckInResult({
     checkedInAt ? `at ${formatInZone(checkedInAt, timeZone, { hour: "numeric", minute: "2-digit" })}` : null,
   ].filter(Boolean).join(" · ")
 
-  const quiet = "h-9 border-current/25 bg-transparent text-inherit hover:bg-current/10 dark:bg-transparent dark:hover:bg-current/10 pointer-coarse:h-11"
+  const quiet = "h-11 border-current/40 bg-transparent px-4 text-[15px] text-inherit hover:bg-current/10 dark:bg-transparent dark:hover:bg-current/10"
 
   return (
     <div
       role={type === "success" ? "status" : "alert"}
-      className={cn("flex items-center gap-3 rounded-lg px-4 py-3", config.tone)}
+      className={cn("rounded-2xl px-5 py-4 motion-safe:animate-[checkin-pop_220ms_ease-out]", config.tone)}
     >
-      <Icon className="size-5 shrink-0" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] leading-5 font-semibold">
-          {config.title}
-          {participantName && <span className="font-medium"> · {participantName}</span>}
-        </p>
-        {detail && <p className="mt-0.5 text-[13px] leading-5 opacity-80">{detail}</p>}
+      <div className="flex items-start gap-3.5">
+        <Icon className="mt-0.5 size-9 shrink-0" strokeWidth={2.25} aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-[26px] leading-8 font-bold tracking-[-0.03em]">{config.title}</p>
+          {participantName && <p className="mt-0.5 truncate text-[19px] leading-6 font-semibold">{participantName}</p>}
+          {detail && <p className="mt-1 text-sm leading-5 opacity-90">{detail}</p>}
+        </div>
       </div>
-      {onUndo && (
-        <Button variant="outline" size="sm" className={quiet} onClick={onUndo} disabled={isUndoing}>
-          {isUndoing ? <Loader2 className="animate-spin" /> : <Undo2 />}
-          Undo
-        </Button>
+      {(onUndo || (active && type !== "success")) && (
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          {onUndo && (
+            <Button variant="outline" className={quiet} onClick={onUndo} disabled={isUndoing}>
+              {isUndoing ? <Loader2 className="animate-spin" /> : <Undo2 />}
+              Undo
+            </Button>
+          )}
+          {active && type !== "success" && (
+            <Button variant="outline" className={quiet} onClick={onDismiss}>
+              Dismiss
+            </Button>
+          )}
+        </div>
       )}
-      {active && type !== "success" && (
-        <Button variant="outline" size="sm" className={quiet} onClick={onDismiss}>
-          Dismiss
-        </Button>
-      )}
+      <style>{"@keyframes checkin-pop{from{transform:scale(.97);opacity:.4}to{transform:none;opacity:1}}"}</style>
     </div>
   )
 }

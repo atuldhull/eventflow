@@ -2,11 +2,10 @@
 
 import { useEffect } from "react"
 import Link from "next/link"
-import { AlertTriangle, RefreshCw, Home } from "lucide-react"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+import { RefreshCw } from "lucide-react"
 import { reportClientError } from "@/lib/report-client-error"
+import { Mark, SYSTEM_CSS } from "./_system/TornTicket"
+import { ctaGhost, ctaLemon } from "./_system/NotFoundView"
 
 export default function Error({
   error,
@@ -21,31 +20,32 @@ export default function Error({
   }, [error])
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="max-w-md w-full p-8 text-center space-y-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mx-auto">
-          <AlertTriangle className="h-7 w-7 text-red-600 dark:text-red-400" />
-        </div>
-        <h1 className="text-2xl font-bold">Something went wrong</h1>
-        <p className="text-muted-foreground text-sm">
+    <div className="flex min-h-[70dvh] flex-1 items-center justify-center px-5 py-16">
+      <style>{SYSTEM_CSS}</style>
+      <div className="w-full max-w-[560px]">
+        <p className="text-[13px] font-semibold tracking-wide text-brand uppercase">Something broke</p>
+        <h1 className="font-display mt-4 text-[38px] leading-[1.04] font-extrabold tracking-[-0.045em] sm:text-[52px]">
+          Something went <Mark>wrong.</Mark>
+        </h1>
+        <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-muted-foreground">
           We&apos;re sorry, an unexpected error occurred. Our team has been notified.
         </p>
         {process.env.NODE_ENV === "development" && (
-          <details className="text-left text-xs bg-muted rounded-lg p-3">
+          <details className="mt-6 rounded-2xl border bg-muted/50 p-4 text-left text-xs">
             <summary className="cursor-pointer font-medium">Error Details</summary>
             <pre className="mt-2 overflow-auto whitespace-pre-wrap text-destructive">{error.message}</pre>
             {error.digest && <p className="mt-1 text-muted-foreground">Digest: {error.digest}</p>}
           </details>
         )}
-        <div className="flex gap-3 justify-center pt-2">
-          <Button onClick={reset} variant="outline" className="gap-2">
-            <RefreshCw className="h-4 w-4" /> Try Again
-          </Button>
-          <Link href="/" className={cn(buttonVariants(), "gap-2")}>
-            <Home className="h-4 w-4" /> Go Home
+        <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+          <button type="button" onClick={reset} className={ctaLemon}>
+            <RefreshCw className="size-4 transition-transform duration-500 group-hover:rotate-180" aria-hidden /> Try again
+          </button>
+          <Link href="/" className={ctaGhost}>
+            Go home
           </Link>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

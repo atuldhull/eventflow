@@ -41,7 +41,13 @@ L.run('03-checkin', async (T, browser) => {
   const statsOnScreen = async (page) => page.evaluate(() => {
     const dl = document.querySelector('dl[aria-label="Check-in stats"]')
     if (!dl) return null
-    return [...dl.querySelectorAll('dd')].map((d) => parseInt((d.innerText.match(/^\s*([\d,]+)/) || [])[1]?.replace(/,/g, ''), 10))
+    // read each figure by its label (Expected, Checked in, Not arrived), not by position
+    const num = (label) => {
+      const dt = [...dl.querySelectorAll('dt')].find((x) => x.textContent.trim() === label)
+      const dd = dt && dt.nextElementSibling
+      return dd ? parseInt((dd.innerText.match(/^\s*([\d,]+)/) || [])[1]?.replace(/,/g, ''), 10) : NaN
+    }
+    return [num('Expected'), num('Checked in'), num('Not arrived')]
   })
 
   // ---------- volunteer finds the event ----------

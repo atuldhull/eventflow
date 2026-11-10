@@ -51,7 +51,7 @@ export function EventStickyBar({ event, canRegister, lowestPrice, watchId }: Pro
       inert={!show}
       aria-hidden={!show}
       className={cn(
-        "pb-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background transition-transform duration-200 ease-out lg:hidden",
+        "pb-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur-md transition-transform duration-200 ease-out lg:hidden",
         show ? "translate-y-0" : "translate-y-full"
       )}
     >
@@ -63,15 +63,18 @@ export function EventStickyBar({ event, canRegister, lowestPrice, watchId }: Pro
           {isRegistered ? (
             <Pill tone="positive" dot className="mt-1">Registered</Pill>
           ) : (
-            <p className="text-[15px] font-semibold tabular-nums">{event.isPaid ? `From ${lowestPrice === 0 ? "Free" : inr(lowestPrice)}` : "Free"}</p>
+            <p className="font-display text-[19px] leading-tight font-extrabold tracking-[-0.03em] tabular-nums">{event.isPaid ? `From ${lowestPrice === 0 ? "Free" : inr(lowestPrice)}` : "Free"}</p>
           )}
         </div>
         {isRegistered ? (
-          <Link href="/dashboard/tickets" className={cn(buttonVariants({ variant: "outline" }), "h-11 shrink-0 px-5")}>
+          <Link href="/dashboard/tickets" className={cn(buttonVariants({ variant: "outline" }), "h-12 shrink-0 px-5")}>
             View my ticket
           </Link>
         ) : (
-          <Link href={`/events/${event.slug}/register`} className={cn(buttonVariants(), "h-11 shrink-0 px-6 text-[15px]")}>
+          <Link
+            href={`/events/${event.slug}/register`}
+            className="inline-flex h-12 shrink-0 items-center justify-center rounded-full bg-lemon px-7 text-[15px] font-semibold text-lemon-ink outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
+          >
             Register
           </Link>
         )}

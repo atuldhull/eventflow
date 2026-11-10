@@ -143,7 +143,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.015em]">{event.title}</h1>
+              <h1 className="font-display text-[28px] leading-8 font-bold tracking-[-0.03em]">{event.title}</h1>
               <div className="flex items-center gap-1.5">
                 <Pill tone={statusTone(event.status)}>{statusLabel(event.status)}</Pill>
                 <Pill tone="neutral">{enumLabel(event.visibility)}</Pill>
@@ -279,7 +279,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="min-w-0 space-y-8">
               <section aria-labelledby="desc-heading">
-                <h2 id="desc-heading" className="text-[15px] font-semibold">Description</h2>
+                <h2 id="desc-heading" className="font-display text-[17px] font-semibold tracking-[-0.01em]">Description</h2>
                 {event.description ? (
                   <p className="mt-2 max-w-[75ch] text-sm leading-6 whitespace-pre-wrap text-muted-foreground">{event.description}</p>
                 ) : (
@@ -289,7 +289,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
 
               {event.ticketTypes?.length > 0 && (
                 <section aria-labelledby="types-heading">
-                  <h2 id="types-heading" className="mb-3 text-[15px] font-semibold">Ticket types</h2>
+                  <h2 id="types-heading" className="mb-3 font-display text-[17px] font-semibold tracking-[-0.01em]">Ticket types</h2>
                   <TicketTable>
                     {event.ticketTypes.map((tt: any) => (
                       <TicketRow
@@ -348,7 +348,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
         {/* TAB: Registrations */}
         <TabsContent value="registrations" className="pt-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-[15px] font-semibold">
+            <h2 className="font-display text-[17px] font-semibold tracking-[-0.01em]">
               Registrations <span className="font-normal text-muted-foreground tabular-nums">{registrations}</span>
             </h2>
             <div className="flex gap-2">
@@ -381,7 +381,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
 
         {/* TAB: Tickets */}
         <TabsContent value="tickets" className="pt-6">
-          <h2 className="mb-3 text-[15px] font-semibold">Ticket types</h2>
+          <h2 className="mb-3 font-display text-[17px] font-semibold tracking-[-0.01em]">Ticket types</h2>
           {event.ticketTypes?.length > 0 ? (
             <TicketTable thirdLabel="Status">
               {event.ticketTypes.map((tt: any) => (
@@ -400,10 +400,15 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
 
         {/* TAB: Check-in */}
         <TabsContent value="checkin" className="pt-6">
-          <div className="flex flex-col gap-4 rounded-lg border px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[15px] font-medium">{checkIns > 0 ? `${checkIns} checked in` : "No check-ins yet"}</p>
-              <p className="mt-1 text-sm text-muted-foreground">Use the QR scanner for event check-in.</p>
+          <div className="flex flex-col gap-4 rounded-xl border px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+            <div className="min-w-0 flex-1">
+              <p className="flex items-baseline gap-2">
+                <span className="font-display text-[40px] leading-none font-bold tracking-[-0.04em] tabular-nums">{checkIns.toLocaleString("en-IN")}</span>
+                <span className="text-sm text-muted-foreground tabular-nums">/ {registrations.toLocaleString("en-IN")} registered</span>
+              </p>
+              <p className="mt-2 text-[15px] font-medium">{checkIns > 0 ? `${checkIns} checked in` : "No check-ins yet"}</p>
+              {registrations > 0 && <CapacityBar value={checkIns} max={registrations} className="mt-3 max-w-sm" />}
+              <p className="mt-2 text-sm text-muted-foreground">Use the QR scanner for event check-in.</p>
             </div>
             <Link href={`/admin/org/events/${eventId}/check-in`} className={cn(buttonVariants({ variant: "outline" }), "shrink-0")}>
               <QrCode /> Open scanner
@@ -500,7 +505,7 @@ function SettingsSection({ title, description, children }: { title: string; desc
   return (
     <section className="grid gap-4 border-t border-rule pt-6 first:border-t-0 first:pt-0 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
       <div>
-        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <h2 className="font-display text-[17px] font-semibold tracking-[-0.01em]">{title}</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
       </div>
       <dl className="min-w-0 divide-y divide-rule rounded-lg border px-4">{children}</dl>

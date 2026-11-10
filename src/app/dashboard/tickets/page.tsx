@@ -3,11 +3,11 @@
 import { useState, useEffect, useSyncExternalStore } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
-import { Ticket, Calendar, CalendarPlus, Download, Loader2, Maximize, Send, WifiOff, X, XCircle } from "lucide-react"
+import { CalendarPlus, Download, Loader2, Maximize, Send, ShieldCheck, WifiOff, X, XCircle } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
-import { EmptyState } from "@/components/shared/EmptyState"
+import { DashEmpty } from "../_components/bits"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -264,11 +264,27 @@ export default function TicketsPage() {
         description={`${liveTickets.length > 0 ? `${liveTickets.length} happening now · ` : ""}${laterTickets.length} upcoming · open a ticket to show its QR code at the entrance`}
       />
 
+      {/* the wallet's status line: what's ready, and whether this device keeps a copy */}
+      {!isLoading && !isOffline && !fromDevice && tickets.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border bg-card px-4 py-3 text-[13px] text-muted-foreground">
+          <span className="flex items-baseline gap-2">
+            <span className="font-display text-[22px] leading-none font-bold tracking-[-0.03em] text-foreground tabular-nums">{upcomingCount}</span>
+            ready to show at the door
+          </span>
+          {userId && updatedAt && (
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="size-4 text-brand" aria-hidden />
+              Saved on this device for offline use · updated {formatUpdatedAt(updatedAt)}
+            </span>
+          )}
+        </div>
+      )}
+
       {(isOffline || fromDevice) && (
-        <div role="status" className="flex items-start gap-2.5 rounded-lg bg-pill-warning p-3 text-sm text-pill-warning-foreground">
+        <div role="status" className="flex items-start gap-2.5 rounded-xl bg-pill-warning p-3.5 text-sm text-pill-warning-foreground">
           <WifiOff className="mt-0.5 size-4 shrink-0" />
           <div>
-            <p className="font-medium">You&apos;re offline — showing tickets saved on this device</p>
+            <p className="font-medium">You&apos;re offline. Showing tickets saved on this device.</p>
             {isLoading ? null : updatedAt ? (
               <p className="text-[13px]">
                 Last updated {formatUpdatedAt(updatedAt)}. Your QR codes still work at venue check-in.
@@ -292,12 +308,18 @@ export default function TicketsPage() {
           {!isLoading && liveTickets.length > 0 ? (
             <div className="space-y-6">
               <section aria-labelledby="tickets-live-heading" className="space-y-3">
-                <h2 id="tickets-live-heading" className="text-[15px] font-semibold">Happening now</h2>
+                <h2 id="tickets-live-heading" className="flex items-center gap-2 font-display text-[19px] font-bold tracking-[-0.02em]">
+                  <span aria-hidden className="relative flex size-2.5">
+                    <span className="fx-ping absolute inline-flex size-full rounded-full bg-brand" />
+                    <span className="relative inline-flex size-2.5 rounded-full bg-brand" />
+                  </span>
+                  Happening now
+                </h2>
                 {renderList(liveTickets, null)}
               </section>
               {laterTickets.length > 0 && (
                 <section aria-labelledby="tickets-later-heading" className="space-y-3">
-                  <h2 id="tickets-later-heading" className="text-[15px] font-semibold">Coming up</h2>
+                  <h2 id="tickets-later-heading" className="font-display text-[19px] font-bold tracking-[-0.02em]">Coming up</h2>
                   {renderList(laterTickets, null)}
                 </section>
               )}
@@ -305,9 +327,9 @@ export default function TicketsPage() {
           ) : (
             renderList(
               laterTickets,
-              <EmptyState icon={Ticket} title="No upcoming tickets" description="Browse events to find something interesting.">
-                <Link href="/events" className={buttonVariants({ variant: "outline" })}>Browse events</Link>
-              </EmptyState>
+              <DashEmpty title="Your wallet is empty" description="No upcoming tickets. Register for an event and its ticket lands here, ready for the door.">
+                <Link href="/events" className={buttonVariants()}>Browse events</Link>
+              </DashEmpty>
             )
           )}
         </TabsContent>
@@ -315,12 +337,17 @@ export default function TicketsPage() {
         <TabsContent value="past" className="mt-5">
           {renderList(
             pastTickets,
-            <EmptyState icon={Calendar} title="No past tickets" description="Your attended events will appear here." />
+            <DashEmpty title="No past tickets" description="Your attended events will appear here." />
           )}
         </TabsContent>
 
         <TabsContent value="all" className="mt-5">
-          {renderList(tickets, <EmptyState icon={Ticket} title="No tickets yet" />)}
+          {renderList(
+            tickets,
+            <DashEmpty title="No tickets yet" description="Tickets for events you register for are kept here.">
+              <Link href="/events" className={buttonVariants()}>Browse events</Link>
+            </DashEmpty>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -337,9 +364,9 @@ export default function TicketsPage() {
               <div className="[&>div]:rounded-none [&>div]:bg-transparent">
                 <TicketCard ticket={selectedTicket} variant="full" />
               </div>
-              <div className="grid grid-cols-2 gap-2 px-6 pb-6">
-                <Button variant="outline" onClick={() => setShowFullScreenQR(true)}>
-                  <Maximize /> Full screen
+              <div className="grid grid-cols-2 gap-2 px-6 pt-5 pb-6">
+                <Button className="col-span-2" onClick={() => setShowFullScreenQR(true)}>
+                  <Maximize /> Full screen QR
                 </Button>
                 <Button variant="outline" onClick={() => handleDownload(selectedTicket.id)}>
                   <Download /> Download PDF
@@ -347,7 +374,7 @@ export default function TicketsPage() {
                 <Button variant="outline" onClick={() => window.open(`/api/tickets/${selectedTicket.id}/calendar`, "_blank")}>
                   <CalendarPlus /> Add to calendar
                 </Button>
-                <Button variant="outline" onClick={openTransfer}>
+                <Button variant="outline" className="col-span-2" onClick={openTransfer}>
                   <Send /> Transfer
                 </Button>
                 {canCancel(selectedTicket) && (
@@ -366,7 +393,7 @@ export default function TicketsPage() {
                 size="icon"
                 aria-label="Close"
                 onClick={() => setSelectedTicket(null)}
-                className="absolute top-2 right-2 text-[#141b2d] hover:bg-[#eceff3] hover:text-[#141b2d] dark:hover:bg-[#eceff3]"
+                className="absolute top-2 right-2 text-[#171717] hover:bg-[#eceff3] hover:text-[#171717] dark:hover:bg-[#eceff3]"
               >
                 <X className="size-[18px]" />
               </Button>

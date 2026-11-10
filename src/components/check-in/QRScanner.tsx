@@ -118,21 +118,21 @@ export function QRScanner({ onScan, onError, enabled }: QRScannerProps) {
 
   return (
     <div>
-      <div className={cn("relative w-full overflow-hidden rounded-lg", viewport)}>
+      <div className={cn("relative w-full overflow-hidden rounded-2xl", viewport)}>
         {/* html5-qrcode owns this element's children; React draws its overlay beside it.
             It stays mounted in every state so a retry always finds it. */}
-        <div id={containerId} className={cn("w-full", !isStarted && "aspect-[4/3] max-h-[360px] sm:aspect-video")} />
+        <div id={containerId} className={cn("w-full", !isStarted && "aspect-square max-h-[440px] sm:aspect-video sm:max-h-[380px]")} />
         {denied ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
             <ViewfinderCorners />
-            <CameraOff className="size-6 opacity-70" aria-hidden />
-            <p className="mt-3 text-[15px] font-medium" role="alert">Camera access required</p>
+            <CameraOff className="size-8 opacity-80" aria-hidden />
+            <p className="mt-3 font-display text-xl font-bold tracking-[-0.02em]" role="alert">Camera access required</p>
             <p className="mt-1 max-w-xs text-[13px] opacity-70">
               Please allow camera access in your browser settings, then click Try again.
             </p>
             <Button
               variant="outline"
-              className="relative mt-4 border-current/30 bg-transparent text-inherit hover:bg-current/10 dark:bg-transparent dark:hover:bg-current/10"
+              className="relative mt-4 h-11 px-5 border-current/30 bg-transparent text-inherit hover:bg-current/10 dark:bg-transparent dark:hover:bg-current/10"
               onClick={() => { setHasPermission(null); setAttempt((n) => n + 1) }}
             >
               Try again
@@ -141,13 +141,13 @@ export function QRScanner({ onScan, onError, enabled }: QRScannerProps) {
         ) : !isStarted && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <ViewfinderCorners />
-            <Camera className="size-6 opacity-70" aria-hidden />
-            <p className="mt-2 text-[13px] opacity-70" aria-live="polite">{enabled ? "Starting camera…" : "Scanner paused"}</p>
+            <Camera className="size-8 opacity-80" aria-hidden />
+            <p className="mt-2 text-[15px] font-medium opacity-80" aria-live="polite">{enabled ? "Starting camera…" : "Scanner paused"}</p>
           </div>
         )}
       </div>
       {isStarted && (
-        <p className="mt-2 text-center text-[13px] text-muted-foreground">
+        <p className="mt-2.5 text-center text-sm text-muted-foreground">
           Point camera at the QR code on the participant&apos;s ticket
         </p>
       )}
@@ -157,13 +157,13 @@ export function QRScanner({ onScan, onError, enabled }: QRScannerProps) {
 
 /** Four corner marks that frame where the code should go. Decorative. */
 function ViewfinderCorners() {
-  const corner = "absolute size-9 border-current opacity-90"
+  const corner = "absolute size-10 border-lemon"
   return (
     <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 aspect-square h-[62%] -translate-x-1/2 -translate-y-1/2">
-      <span className={cn(corner, "top-0 left-0 rounded-tl-sm border-t-[3px] border-l-[3px]")} />
-      <span className={cn(corner, "top-0 right-0 rounded-tr-sm border-t-[3px] border-r-[3px]")} />
-      <span className={cn(corner, "bottom-0 left-0 rounded-bl-sm border-b-[3px] border-l-[3px]")} />
-      <span className={cn(corner, "right-0 bottom-0 rounded-br-sm border-r-[3px] border-b-[3px]")} />
+      <span className={cn(corner, "top-0 left-0 rounded-tl-sm border-t-4 border-l-4")} />
+      <span className={cn(corner, "top-0 right-0 rounded-tr-sm border-t-4 border-r-4")} />
+      <span className={cn(corner, "bottom-0 left-0 rounded-bl-sm border-b-4 border-l-4")} />
+      <span className={cn(corner, "right-0 bottom-0 rounded-br-sm border-r-4 border-b-4")} />
     </div>
   )
 }

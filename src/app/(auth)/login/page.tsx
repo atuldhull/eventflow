@@ -12,12 +12,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { OTPInput } from "@/components/forms/OTPInput"
+import { CodeBoxes } from "../_components/CodeBoxes"
+import { AuthAlert, AuthHeading, FieldError, authAction, authField, revealButton } from "../_components/ui"
 import { SocialLoginButtons } from "@/components/forms/SocialLoginButtons"
 import { useAuth } from "@/hooks/useAuth"
 import { loginSchema, type LoginInput } from "@/lib/validations/auth"
 import { getSafeCallbackUrl } from "@/lib/auth-redirect"
 import { getAuthPageErrorMessage, SignInFailure } from "@/lib/auth-errors"
+import { cn } from "@/lib/utils"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -119,20 +121,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="space-y-7">
-      <div>
-        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">Welcome back</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">Sign in to your account</p>
-      </div>
+    <div className="space-y-8">
+      <AuthHeading eyebrow="Sign in" title="Welcome" mark="back" after=".">
+        Sign in to your EventFlow account.
+      </AuthHeading>
 
-      {errorMessage && (
-        <div role="alert" className="rounded-md bg-pill-negative px-3.5 py-3 text-sm text-pill-negative-foreground">
-          {errorMessage}
-        </div>
-      )}
+      {errorMessage && <AuthAlert>{errorMessage}</AuthAlert>}
 
-      <Tabs defaultValue="password" className="w-full gap-6">
-        <TabsList className="grid h-10! w-full grid-cols-2 pointer-coarse:h-11!">
+      <Tabs defaultValue="password" className="w-full gap-7">
+        <TabsList className="grid h-12! w-full grid-cols-2 p-1 pointer-coarse:h-12!">
           <TabsTrigger value="password">Email &amp; password</TabsTrigger>
           <TabsTrigger value="otp">Login with OTP</TabsTrigger>
         </TabsList>
@@ -146,11 +143,12 @@ export default function LoginPage() {
                 type="email"
                 autoComplete="email"
                 placeholder="you@example.com"
+                className={authField}
                 aria-invalid={errors.email ? true : undefined}
                 aria-describedby={errors.email ? "email-error" : undefined}
                 {...register("email")}
               />
-              {errors.email && <p id="email-error" className="text-xs text-destructive">{errors.email.message}</p>}
+              {errors.email && <FieldError id="email-error">{errors.email.message}</FieldError>}
             </div>
 
             <div className="space-y-2">
@@ -161,7 +159,7 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="Enter your password"
-                  className="pr-11"
+                  className={cn(authField, "pr-12")}
                   aria-invalid={errors.password ? true : undefined}
                   aria-describedby={errors.password ? "password-error" : undefined}
                   {...register("password")}
@@ -169,16 +167,16 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground pointer-coarse:w-11"
+                  className={revealButton}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
-              {errors.password && <p id="password-error" className="text-xs text-destructive">{errors.password.message}</p>}
+              {errors.password && <FieldError id="password-error">{errors.password.message}</FieldError>}
             </div>
 
-            <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" size="lg" className={cn(authAction, "w-full")} disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
               Sign in
             </Button>
@@ -204,20 +202,28 @@ export default function LoginPage() {
             >
               <div className="space-y-2">
                 <Label htmlFor="otp-email">Email</Label>
-                <Input id="otp-email" type="email" autoComplete="email" placeholder="you@example.com" value={otpEmail} onChange={(e) => setOtpEmail(e.target.value)} />
-                <p className="text-xs text-muted-foreground">We&apos;ll email you a 6-digit code to sign in.</p>
+                <Input
+                  id="otp-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  className={authField}
+                  value={otpEmail}
+                  onChange={(e) => setOtpEmail(e.target.value)}
+                />
+                <p className="text-[13px] text-muted-foreground">We&apos;ll email you a 6-digit code to sign in.</p>
               </div>
-              <Button type="submit" size="lg" className="w-full" disabled={otpLoading}>
+              <Button type="submit" size="lg" className={cn(authAction, "w-full")} disabled={otpLoading}>
                 {otpLoading && <Loader2 className="size-4 animate-spin" aria-hidden />}
                 Send OTP
               </Button>
             </form>
           ) : (
             <div className="space-y-5">
-              <p className="text-sm text-muted-foreground">
-                Enter the 6-digit code sent to <span className="font-medium text-foreground">{otpEmail}</span>
+              <p className="text-[15px] leading-relaxed text-muted-foreground">
+                Enter the 6-digit code sent to <span className="font-medium break-all text-foreground">{otpEmail}</span>
               </p>
-              <OTPInput onComplete={handleOtpComplete} disabled={isSubmitting} />
+              <CodeBoxes onComplete={handleOtpComplete} disabled={isSubmitting} />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <Button type="button" variant="ghost" size="sm" className="-ml-3 tabular-nums" onClick={handleSendOtp} disabled={resendTimer > 0 || otpLoading}>
                   {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend OTP"}
@@ -240,13 +246,15 @@ export default function LoginPage() {
         </TabsContent>
       </Tabs>
 
-      <SocialLoginButtons mode="login" callbackUrl={callbackUrl} />
+      <div className="empty:hidden [&_button]:h-12">
+        <SocialLoginButtons mode="login" callbackUrl={callbackUrl} />
+      </div>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="border-t pt-6 text-center text-sm text-muted-foreground">
         New to EventFlow?{" "}
         <Link
           href={callbackUrl ? `/signup?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/signup"}
-          className="font-medium text-foreground underline-offset-4 hover:underline"
+          className="font-semibold text-foreground underline decoration-lavender decoration-2 underline-offset-4 transition-colors hover:decoration-foreground"
         >
           Create an account
         </Link>

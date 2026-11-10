@@ -8,9 +8,9 @@ import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EventDiscussion } from "@/components/events/EventDiscussion"
 import { VenueMap } from "@/components/events/VenueMap"
-import { EventHero } from "@/components/events/detail/EventHero"
+import { EventHero, EventPoster } from "@/components/events/detail/EventHero"
 import { EventStickyBar } from "@/components/events/detail/EventStickyBar"
-import { EventSchedule } from "@/components/events/detail/EventSchedule"
+import { EventSchedule, EventSpeakers } from "@/components/events/detail/EventSchedule"
 import { EventSponsors } from "@/components/events/detail/EventSponsors"
 import { EventFAQs } from "@/components/events/detail/EventFAQs"
 import { EventSidebar } from "@/components/events/detail/EventSidebar"
@@ -109,9 +109,13 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
           )}
         </nav>
 
-        {/* Phone order: cover + title, register card, content, organizer, discussion.
-            Desktop: content on the left, the register card sticky on the right. */}
-        <div className="mt-4 grid gap-y-8 lg:mt-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-x-12 xl:gap-x-16">
+        {/* Phone order: poster, title, ticket stub, content, organizer, discussion.
+            Desktop: the poster across the top, content on the left, the ticket stub sticky on the right. */}
+        <div className="mt-4 lg:mt-5">
+          <EventPoster event={event} />
+        </div>
+
+        <div className={`${event.coverImage ? "mt-12" : "mt-8"} grid gap-y-10 lg:mt-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-x-12 xl:gap-x-16`}>
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <EventHero event={event} />
           </div>
@@ -130,13 +134,13 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
             />
           </div>
 
-          <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-2">
+          <div className="min-w-0 space-y-14 lg:col-start-1 lg:row-start-2">
             <EventSection id="about" title="About this event">
-              <div className="max-w-[68ch] text-[15px] leading-7 whitespace-pre-wrap text-foreground/90">{event.description}</div>
+              <div className="max-w-[66ch] text-[17px] leading-8 whitespace-pre-wrap text-foreground/90">{event.description}</div>
               {event.tags.length > 0 && (
                 <ul className="mt-5 flex flex-wrap gap-1.5" aria-label="Tags">
                   {event.tags.map((tag) => (
-                    <li key={tag} className="rounded-sm border px-2 py-0.5 text-[13px] text-muted-foreground">{tag}</li>
+                    <li key={tag} className="rounded-full border px-3 py-1 text-[13px] font-medium text-muted-foreground">#{tag}</li>
                   ))}
                 </ul>
               )}
@@ -144,6 +148,7 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
 
             <EventAnnouncements slug={slug} timeZone={event.timezone} />
             <EventSchedule sessions={event.sessions} timeZone={event.timezone} />
+            <EventSpeakers sessions={event.sessions} />
             <EventSponsors sponsors={event.sponsors} />
             <EventFAQs faqs={event.faqs} />
 
@@ -164,22 +169,22 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
 
             {event.rules && (
               <EventSection id="rules" title="Rules and guidelines">
-                <p className="max-w-[68ch] text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{event.rules}</p>
+                <p className="max-w-[68ch] rounded-[22px] border bg-card p-5 text-[15px] leading-relaxed whitespace-pre-wrap text-muted-foreground sm:p-6">{event.rules}</p>
               </EventSection>
             )}
             {event.termsAndConditions && (
               <EventSection id="terms" title="Terms and conditions">
-                <p className="max-w-[68ch] text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{event.termsAndConditions}</p>
+                <p className="max-w-[68ch] rounded-[22px] border bg-card p-5 text-[15px] leading-relaxed whitespace-pre-wrap text-muted-foreground sm:p-6">{event.termsAndConditions}</p>
               </EventSection>
             )}
             {event.refundPolicy && (
               <EventSection id="refunds" title="Refund policy">
-                <p className="max-w-[68ch] text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{event.refundPolicy}</p>
+                <p className="max-w-[68ch] rounded-[22px] border bg-card p-5 text-[15px] leading-relaxed whitespace-pre-wrap text-muted-foreground sm:p-6">{event.refundPolicy}</p>
               </EventSection>
             )}
           </div>
 
-          <div className="min-w-0 lg:col-start-1 lg:row-start-3 lg:max-w-[520px]">
+          <div className="min-w-0 lg:col-start-1 lg:row-start-3">
             <EventOrganizer event={event} />
           </div>
 
@@ -198,18 +203,18 @@ function EventPageSkeleton() {
   return (
     <div className={`${SHELL} pt-5 pb-16 lg:pt-8`} aria-busy="true" aria-label="Loading event">
       <Skeleton className="h-4 w-32" />
-      <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-x-12 xl:gap-x-16">
+      <Skeleton className="mt-5 aspect-[4/3] w-full rounded-[28px] sm:aspect-[16/9] lg:aspect-[5/2]" />
+      <div className="mt-10 grid gap-8 lg:mt-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-x-12 xl:gap-x-16">
         <div>
-          <Skeleton className="aspect-[2/1] w-full rounded-xl sm:aspect-[5/2]" />
-          <Skeleton className="mt-6 h-4 w-48" />
-          <Skeleton className="mt-3 h-9 w-3/4" />
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="mt-3 h-14 w-3/4" />
           <Skeleton className="mt-3 h-4 w-2/3" />
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <Skeleton className="h-11" />
-            <Skeleton className="h-11" />
+            <Skeleton className="h-24 rounded-[22px]" />
+            <Skeleton className="h-24 rounded-[22px]" />
           </div>
         </div>
-        <Skeleton className="h-[420px] rounded-lg" />
+        <Skeleton className="h-[460px] rounded-[26px]" />
       </div>
     </div>
   )

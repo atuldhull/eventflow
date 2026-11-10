@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma"
 import { TicketCard } from "@/components/tickets/TicketCard"
 import { buttonVariants } from "@/components/ui/button"
 import { ticketViewTokenMatches } from "@/lib/ticket-view-token"
+import { cn } from "@/lib/utils"
 
 // The token is in the URL: never cache, never index, never send it on as a referrer.
 export const dynamic = "force-dynamic"
@@ -55,50 +56,65 @@ export default async function GuestTicketPage({
   const pdfHref = `/api/events/${encodeURIComponent(slug)}/tickets/${encodeURIComponent(ticket.id)}/pdf?k=${encodeURIComponent(token!)}`
 
   return (
-    <main className="mx-auto w-full max-w-[420px] space-y-5 px-4 py-10">
-      <div>
-        <p className="text-[13px] text-muted-foreground">Your ticket</p>
-        <h1 className="mt-0.5 text-[22px] leading-7 font-semibold">{ticket.event.title}</h1>
-      </div>
-
-      {valid ? (
-        <div className="overflow-hidden rounded-xl border">
-          <TicketCard
-            variant="full"
-            ticket={{
-              id: ticket.id,
-              ticketNumber: ticket.ticketNumber,
-              qrCode: ticket.qrCode,
-              status: ticket.status,
-              event: {
-                ...ticket.event,
-                startDate: ticket.event.startDate.toISOString(),
-                endDate: ticket.event.endDate.toISOString(),
-              },
-              ticketType: { ...ticket.ticketType, price: Number(ticket.ticketType.price) },
-              registration: ticket.registration,
-              checkIns: ticket.checkIns,
-            }}
-          />
+    <main className="relative isolate overflow-hidden">
+      <div aria-hidden className="fx-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-[380px]" />
+      <div aria-hidden className="pointer-events-none absolute top-[-140px] left-1/2 -z-10 size-[420px] -translate-x-1/2 rounded-full bg-lavender/25 blur-[110px]" />
+      <div className="mx-auto w-full max-w-[440px] space-y-6 px-4 pt-10 pb-16 sm:pt-14">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-semibold text-brand">
+            <span className="h-[2px] w-6 rounded-full bg-lemon" aria-hidden />
+            Your ticket
+          </p>
+          <h1 className="font-display mt-3 text-[30px] leading-[1.04] font-extrabold tracking-[-0.04em] text-balance sm:text-[36px]">{ticket.event.title}</h1>
         </div>
-      ) : (
-        <p role="status" className="rounded-lg bg-pill-negative px-4 py-3 text-sm text-pill-negative-foreground">
-          This ticket is no longer valid ({ticket.status.toLowerCase()}). If you think this is a mistake, contact the organizer.
-        </p>
-      )}
 
-      <div className="grid gap-2">
-        {valid && (
-          <a href={pdfHref} className={buttonVariants({ variant: "outline" })}>Download PDF</a>
+        {valid ? (
+          <div className="drop-shadow-[0_24px_36px_rgb(0_0_0/0.25)]">
+            <TicketCard
+              variant="full"
+              ticket={{
+                id: ticket.id,
+                ticketNumber: ticket.ticketNumber,
+                qrCode: ticket.qrCode,
+                status: ticket.status,
+                event: {
+                  ...ticket.event,
+                  startDate: ticket.event.startDate.toISOString(),
+                  endDate: ticket.event.endDate.toISOString(),
+                },
+                ticketType: { ...ticket.ticketType, price: Number(ticket.ticketType.price) },
+                registration: ticket.registration,
+                checkIns: ticket.checkIns,
+              }}
+            />
+          </div>
+        ) : (
+          <div role="status" className="rounded-3xl border border-destructive/40 bg-pill-negative px-5 py-5 text-pill-negative-foreground">
+            <p className="font-display text-[22px] leading-tight font-bold tracking-[-0.02em]">No longer valid</p>
+            <p className="mt-1.5 text-sm">
+              This ticket is no longer valid ({ticket.status.toLowerCase()}). If you think this is a mistake, contact the organizer.
+            </p>
+          </div>
         )}
-        <Link href="/forgot-password" className={buttonVariants({ variant: "ghost" })}>
-          Set a password to manage your tickets
-        </Link>
+
+        <div className="grid gap-2">
+          {valid && (
+            <a
+              href={pdfHref}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lemon px-6 text-[15px] font-semibold text-lemon-ink transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_40px_-10px_var(--lemon)]"
+            >
+              Download PDF
+            </a>
+          )}
+          <Link href="/forgot-password" className={cn(buttonVariants({ variant: "ghost" }), "h-11")}>
+            Set a password to manage your tickets
+          </Link>
+        </div>
+        <p className="rounded-2xl border border-dashed px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
+          Keep this link private: anyone who has it can show this ticket. Setting a password lets you sign in with this
+          email and see all your tickets in your dashboard.
+        </p>
       </div>
-      <p className="text-[13px] text-muted-foreground">
-        Keep this link private: anyone who has it can show this ticket. Setting a password lets you sign in with this
-        email and see all your tickets in your dashboard.
-      </p>
     </main>
   )
 }

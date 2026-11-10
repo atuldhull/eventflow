@@ -92,7 +92,7 @@ export default function EnterpriseDashboard() {
         actions={
           <>
             <PermissionGate permission={PERMISSIONS.EVENT_CREATE}>
-              <Button variant="outline" onClick={() => setCreateEventOpen(true)}><Plus /> Create event</Button>
+              <Button onClick={() => setCreateEventOpen(true)}><Plus /> Create event</Button>
             </PermissionGate>
             <PermissionGate permission={PERMISSIONS.MEMBER_INVITE}>
               <Button variant="outline" onClick={() => setInviteOpen(true)}><UserPlus /> Invite member</Button>
@@ -125,7 +125,7 @@ export default function EnterpriseDashboard() {
                       href={`/admin/enterprise/organizations/${org.id}`}
                       className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
                     >
-                      <Initial name={org.name} className="rounded-md" />
+                      <Initial name={org.name} className="size-9 rounded-lg border bg-raised font-display text-base font-bold text-foreground" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{org.name}</p>
                         <p className="truncate text-[13px] text-muted-foreground tabular-nums">

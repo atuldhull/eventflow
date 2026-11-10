@@ -1,15 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Award, Download, Link2, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
-import { EmptyState } from "@/components/shared/EmptyState"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Pill } from "@/components/ui/pill"
 import { Skeleton } from "@/components/ui/skeleton"
 import { statusLabel } from "@/lib/status-tone"
+import { cn } from "@/lib/utils"
+import { DashEmpty } from "../_components/bits"
 
 interface Certificate {
   id: string
@@ -70,49 +72,85 @@ export default function MyCertificatesPage() {
       />
 
       {isLoading ? (
-        <div className="grid gap-4 lg:grid-cols-2" aria-busy="true" aria-label="Loading certificates">
-          {[0, 1].map((i) => <Skeleton key={i} className="h-[190px] rounded-lg" />)}
+        <div className="grid gap-5 lg:grid-cols-2" aria-busy="true" aria-label="Loading certificates">
+          {[0, 1].map((i) => <Skeleton key={i} className="h-[260px] rounded-xl" />)}
         </div>
       ) : certificates.length === 0 ? (
-        <EmptyState icon={Award} title="No certificates yet" description="Attend events and earn certificates!" />
+        <DashEmpty title="No certificates yet" description="Attend events and earn certificates! When an organiser issues one, it shows up here, ready to download and share.">
+          <Link href="/events" className={buttonVariants()}>Browse events</Link>
+        </DashEmpty>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {certificates.map((cert) => (
-            <article key={cert.id} className="flex flex-col rounded-lg border bg-card">
-              <div className="flex flex-1 p-5">
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-[15px] leading-snug font-semibold">{cert.title}</h3>
-                    {cert.state === "revoked" ? (
-                      <Pill tone="negative" className="shrink-0">Revoked</Pill>
-                    ) : (
-                      <Pill className="shrink-0">{statusLabel(cert.type)}</Pill>
+        <div className="grid gap-5 lg:grid-cols-2">
+          {certificates.map((cert) => {
+            const revoked = cert.state === "revoked"
+            const issued = new Date(cert.issuedDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })
+            return (
+              <article key={cert.id} className="flex flex-col overflow-hidden rounded-xl border bg-card">
+                {/* the certificate itself: a paper sheet with an inner rule, a seal and a signature line */}
+                <div className="p-3">
+                  <div
+                    className={cn(
+                      "relative rounded-lg border border-dashed border-foreground/15 bg-frame px-5 pt-5 pb-4 sm:px-6",
+                      revoked && "opacity-70",
                     )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                        Certificate of {statusLabel(cert.type)}
+                      </p>
+                      {revoked && <Pill tone="negative" className="shrink-0">Revoked</Pill>}
+                    </div>
+
+                    <h3 className={cn("font-display mt-3 pr-14 text-[22px] leading-[1.15] font-bold tracking-[-0.03em]", revoked && "line-through decoration-1")}>
+                      {cert.title}
+                    </h3>
+                    {cert.recipientName && (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Awarded to <span className="font-medium text-foreground">{cert.recipientName}</span>
+                      </p>
+                    )}
+                    <p className="mt-0.5 text-sm text-muted-foreground">{cert.event.title}</p>
+
+                    <div className="mt-5 flex items-end justify-between gap-4 border-t border-foreground/10 pt-3">
+                      <div className="min-w-0 text-[13px] text-muted-foreground">
+                        <p className="truncate">
+                          {cert.event.organization?.name}
+                          {cert.event.organization?.name && " · "}
+                          <span className="tabular-nums">{issued}</span>
+                        </p>
+                        <p className="mt-0.5 font-mono text-xs tracking-wide">{cert.certificateNumber}</p>
+                      </div>
+                    </div>
+
+                    {/* the seal */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute top-12 right-5 flex size-12 items-center justify-center rounded-full border-2 border-dashed sm:right-6",
+                        revoked ? "border-destructive/50 text-destructive" : "border-brand/60 text-brand",
+                      )}
+                    >
+                      <Award className="size-5" strokeWidth={1.75} />
+                    </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{cert.event.title}</p>
-                  <p className="text-[13px] text-muted-foreground">
-                    {cert.event.organization?.name}
-                    {cert.event.organization?.name && " · "}
-                    <span className="tabular-nums">{new Date(cert.issuedDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</span>
-                  </p>
-                  <p className="pt-1 font-mono text-xs tracking-wide text-muted-foreground">{cert.certificateNumber}</p>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-2 border-t border-rule px-5 py-3">
-                {cert.state === "valid" && (
-                  <Button variant="outline" size="sm" onClick={() => handleDownload(cert.id)}>
-                    <Download /> Download
+
+                <div className="mt-auto flex flex-wrap gap-2 px-4 pb-4">
+                  {cert.state === "valid" && (
+                    <Button variant="outline" size="sm" onClick={() => handleDownload(cert.id)}>
+                      <Download /> Download
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => handleShare(cert)}>
+                    <Link2 /> Copy verify link
                   </Button>
-                )}
-                <Button variant="ghost" size="sm" onClick={() => handleShare(cert)}>
-                  <Link2 /> Copy verify link
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleLinkedIn(cert)}>
-                  <ExternalLink /> Add to LinkedIn
-                </Button>
-              </div>
-            </article>
-          ))}
+                  <Button variant="ghost" size="sm" onClick={() => handleLinkedIn(cert)}>
+                    <ExternalLink /> Add to LinkedIn
+                  </Button>
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
     </div>

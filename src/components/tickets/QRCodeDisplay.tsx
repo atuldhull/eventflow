@@ -51,7 +51,7 @@ export function QRCodeDisplay({
         fgColor="#000000"
       />
       {showTicketNumber && ticketNumber && (
-        <p className="font-mono text-sm font-medium tracking-[0.08em] text-[#141b2d]">{ticketNumber}</p>
+        <p className="font-mono text-sm font-medium tracking-[0.08em] text-[#171717]">{ticketNumber}</p>
       )}
     </div>
   )

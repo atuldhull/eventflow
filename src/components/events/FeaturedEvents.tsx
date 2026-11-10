@@ -52,14 +52,20 @@ export function FeaturedEvents() {
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 id="featured-events-heading" className="text-[22px] leading-7 font-semibold tracking-[-0.015em] sm:text-[28px] sm:leading-9">Upcoming events</h2>
-            <p className="mt-1.5 text-[15px] text-muted-foreground">Discover what&apos;s happening soon</p>
+            <p className="flex items-center gap-2 text-sm font-semibold text-brand">
+              <span className="h-[2px] w-6 rounded-full bg-lemon" aria-hidden />
+              On the programme
+            </p>
+            <h2 id="featured-events-heading" className="font-display mt-3 text-[32px] leading-[1.02] font-extrabold tracking-[-0.04em] sm:text-[48px]">
+              Upcoming events
+            </h2>
+            <p className="mt-4 text-[16px] leading-relaxed text-muted-foreground">Discover what&apos;s happening soon</p>
           </div>
-          <Link href="/events" className={cn(buttonVariants({ variant: "outline" }), "gap-2 max-sm:w-full")}>
-            Browse all events <ArrowRight className="size-4" aria-hidden />
+          <Link href="/events" className={cn(buttonVariants({ variant: "outline" }), "group h-11 gap-2 px-5 max-sm:w-full")}>
+            Browse all events <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden />
           </Link>
         </div>
-        <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+        <ul className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
           {events.map((event) => (
             <li key={event.id}>
               <EventCard event={event} variant="compact" />

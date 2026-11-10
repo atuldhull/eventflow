@@ -43,7 +43,7 @@ export function FullScreenQR({ qrData, ticketNumber, eventTitle, onClose }: Full
       role="dialog"
       aria-modal="true"
       aria-label={`Ticket QR code for ${eventTitle}`}
-      className="pt-safe pb-safe fixed inset-0 z-[100] flex animate-sheet-in flex-col items-center justify-center bg-white px-6 text-[#141b2d]"
+      className="pt-safe pb-safe fixed inset-0 z-[100] flex animate-sheet-in flex-col items-center justify-center bg-white px-6 text-[#171717]"
       onClick={onClose}
     >
       <button
@@ -54,7 +54,8 @@ export function FullScreenQR({ qrData, ticketNumber, eventTitle, onClose }: Full
       >
         <X className="size-6" />
       </button>
-      <p className="mb-6 max-w-[32ch] text-center text-[17px] leading-snug font-semibold">{eventTitle}</p>
+      <p className="mb-1 text-[13px] font-semibold tracking-[0.08em] text-[#565c6b] uppercase">Your ticket</p>
+      <p className="font-display mb-6 max-w-[24ch] text-center text-[24px] leading-[1.1] font-bold tracking-[-0.03em]">{eventTitle}</p>
       <QRCodeDisplay data={qrData} size={300} showTicketNumber={false} variant="print" />
       <p className="mt-4 font-mono text-2xl font-medium tracking-[0.08em]">{ticketNumber}</p>
       <p className="mt-8 text-sm text-[#565c6b]">Tap anywhere to close</p>

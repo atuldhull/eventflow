@@ -100,7 +100,7 @@ export function SaveEventButton({ eventId, variant = "icon", className }: Props)
     )
   }
 
-  // Sits on a cover photo: a solid quiet square (no blur), ink heart that fills when saved.
+  // Sits on a cover or poster: a solid round chip (no blur); lemon with a filled heart when saved.
   return (
     <button
       type="button"
@@ -110,7 +110,8 @@ export function SaveEventButton({ eventId, variant = "icon", className }: Props)
       aria-label={label}
       title={label}
       className={cn(
-        "press inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent disabled:opacity-60 pointer-coarse:size-11",
+        "press inline-flex size-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition-colors hover:border-lavender disabled:opacity-60 pointer-coarse:size-11",
+        saved && "border-transparent bg-lemon text-lemon-ink hover:border-transparent",
         className
       )}
     >

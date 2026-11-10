@@ -61,7 +61,7 @@ export function enumLabel(value: string | null | undefined) {
 
 export const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`
 
-/** The thin teal fill that shows how full something is. */
+/** The lavender fill that shows how full something is. */
 export function CapacityBar({ value, max, className }: { value: number; max: number; className?: string }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0
   return (
@@ -71,7 +71,7 @@ export function CapacityBar({ value, max, className }: { value: number; max: num
       aria-valuemax={max}
       aria-valuenow={value}
       aria-label={`${value} of ${max}`}
-      className={cn("h-1 w-full overflow-hidden rounded-full bg-muted", className)}
+      className={cn("h-1.5 w-full overflow-hidden rounded-full bg-muted", className)}
     >
       <div className="h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
     </div>
@@ -92,12 +92,15 @@ export function Registered({ count, capacity, suffix, className }: { count: numb
   )
 }
 
-/** Month over day, for event rows. */
+/** Month over day, for event rows: a small stub with the day set in the display face. */
 export function DateBlock({ date, timeZone, className }: { date: string | Date; timeZone?: string | null; className?: string }) {
   return (
-    <div className={cn("flex w-10 shrink-0 flex-col items-center leading-none", className)} aria-hidden>
-      <span className="text-[11px] text-muted-foreground">{formatInZone(date, timeZone, { month: "short" })}</span>
-      <span className="mt-1 text-lg font-semibold tabular-nums">{formatInZone(date, timeZone, { day: "2-digit" })}</span>
+    <div
+      className={cn("flex w-12 shrink-0 flex-col items-center rounded-lg border bg-raised pt-1.5 pb-1 leading-none", className)}
+      aria-hidden
+    >
+      <span className="text-[10px] font-semibold tracking-[0.08em] text-brand uppercase">{formatInZone(date, timeZone, { month: "short" })}</span>
+      <span className="mt-0.5 font-display text-[22px] leading-6 font-bold tracking-[-0.03em] tabular-nums">{formatInZone(date, timeZone, { day: "2-digit" })}</span>
     </div>
   )
 }

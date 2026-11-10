@@ -65,8 +65,8 @@ export function HeldRegistrations({ items, onReleased }: { items: HeldRegistrati
 
   return (
     <section aria-labelledby="held-heading" className="space-y-3">
-      <h2 id="held-heading" className="text-[15px] font-semibold">Awaiting payment</h2>
-      <ul className="divide-y divide-rule rounded-lg border">
+      <h2 id="held-heading" className="font-display text-[18px] font-bold tracking-[-0.02em]">Awaiting payment</h2>
+      <ul className="divide-y divide-rule overflow-hidden rounded-xl border border-l-4 border-l-lemon bg-card">
         {items.map((reg) => {
           const until = fmtTime(reg.holdExpiresAt)
           return (

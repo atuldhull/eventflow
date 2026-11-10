@@ -48,7 +48,7 @@ export function Section({
       className={cn("grid gap-4 border-t border-rule pt-6 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10", className)}
     >
       <div>
-        <h2 id={id ? `${id}-heading` : undefined} className="text-[15px] font-semibold">{title}</h2>
+        <h2 id={id ? `${id}-heading` : undefined} className="font-display text-[17px] font-semibold tracking-[-0.01em]">{title}</h2>
         {description && <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>}
       </div>
       <div className="min-w-0">{children}</div>
@@ -60,7 +60,7 @@ export function Section({
 export function BlockHeading({ id, title, href, linkLabel }: { id?: string; title: string; href?: string; linkLabel?: string }) {
   return (
     <div className="mb-2 flex min-h-8 items-center justify-between gap-3">
-      <h2 id={id} className="text-[15px] font-semibold">{title}</h2>
+      <h2 id={id} className="font-display text-[17px] font-semibold tracking-[-0.01em]">{title}</h2>
       {href && (
         <Link href={href} className="rounded-sm text-[13px] text-muted-foreground transition-colors hover:text-foreground">
           {linkLabel ?? "View all"}
@@ -176,7 +176,7 @@ export function CapacityCell({ count, capacity }: { count: number; capacity: num
         {capacity ? <span className="text-muted-foreground"> / {num(capacity)}</span> : null}
       </span>
       {capacity ? (
-        <span className="block h-1 w-20 overflow-hidden rounded-full bg-muted" aria-hidden>
+        <span className="block h-1.5 w-20 overflow-hidden rounded-full bg-muted" aria-hidden>
           <span className="block h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
         </span>
       ) : null}

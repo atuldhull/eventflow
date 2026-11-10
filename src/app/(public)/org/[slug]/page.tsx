@@ -41,13 +41,13 @@ export default async function OrgPublicPage({ params }: { params: Promise<{ slug
     { icon: History, label: "Past events", value: org.counts.pastEvents },
     { icon: Users, label: "Members", value: org.counts.members },
   ]
-  if (org.location) details.push({ icon: MapPin, label: "Location", value: <span className="font-normal">{org.location}</span> })
+  if (org.location) details.push({ icon: MapPin, label: "Location", value: <span>{org.location}</span> })
   if (org.website) {
     details.push({
       icon: Globe,
       label: "Website",
       value: (
-        <a href={org.website.href} target="_blank" rel="noopener noreferrer nofollow" className="block max-w-[160px] truncate font-normal underline-offset-4 hover:text-brand hover:underline">
+        <a href={org.website.href} target="_blank" rel="noopener noreferrer nofollow" className="block truncate underline decoration-lavender decoration-2 underline-offset-4 transition-colors hover:text-brand">
           {org.website.label}
         </a>
       ),
@@ -58,7 +58,7 @@ export default async function OrgPublicPage({ params }: { params: Promise<{ slug
       icon: Building2,
       label: "Part of",
       value: (
-        <Link href={`/enterprise/${org.enterprise.slug}`} className="block max-w-[160px] truncate font-normal underline-offset-4 hover:text-brand hover:underline">
+        <Link href={`/enterprise/${org.enterprise.slug}`} className="block truncate underline decoration-lavender decoration-2 underline-offset-4 transition-colors hover:text-brand">
           {org.enterprise.name}
         </Link>
       ),

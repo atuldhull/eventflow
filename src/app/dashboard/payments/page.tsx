@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CreditCard } from "lucide-react"
+import Link from "next/link"
 
 import { PageHeader } from "@/components/shared/PageHeader"
-import { EmptyState } from "@/components/shared/EmptyState"
+import { buttonVariants } from "@/components/ui/button"
+import { DashEmpty } from "../_components/bits"
 import { KpiStrip } from "@/components/shared/StatCard"
 import { Pill } from "@/components/ui/pill"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -59,46 +60,61 @@ export default function MyPaymentsPage() {
 
       {isLoading ? (
         <div className="space-y-2" aria-busy="true" aria-label="Loading payments">
-          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 rounded-xl" />)}
         </div>
       ) : payments.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border">
-          <div className="hidden grid-cols-[minmax(0,1fr)_140px_120px_120px] gap-4 border-b border-rule bg-raised px-4 py-2.5 text-xs font-medium text-muted-foreground sm:grid">
-            <span>Event</span>
-            <span>Date</span>
-            <span>Status</span>
-            <span className="text-right">Amount</span>
-          </div>
-          <ul className="divide-y divide-rule">
-            {payments.map((payment) => (
-              <li
-                key={payment.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_140px_120px_120px]"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{payment.event?.title || "Event Payment"}</p>
-                  {payment.method && <p className="text-[13px] text-muted-foreground">{payment.method}</p>}
-                </div>
-                <p className="order-3 text-[13px] text-muted-foreground tabular-nums sm:order-none sm:text-sm">
-                  {new Date(payment.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                </p>
-                <div className="order-4 justify-self-end sm:order-none sm:justify-self-start">
-                  {/* a completed payment is money received: positive, as before (events use "completed" as neutral) */}
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <table className="w-full text-sm">
+            <caption className="sr-only">Your payments</caption>
+            <thead>
+              <tr className="border-b border-rule text-left text-xs text-muted-foreground">
+                <th scope="col" className="px-4 py-3 font-medium">Event</th>
+                <th scope="col" className="hidden w-36 px-4 py-3 font-medium sm:table-cell">Date</th>
+                <th scope="col" className="hidden w-32 px-4 py-3 font-medium sm:table-cell">Status</th>
+                <th scope="col" className="w-32 px-4 py-3 text-right font-medium">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-rule">
+              {payments.map((payment) => {
+                const date = new Date(payment.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                // a completed payment is money received: positive, as before (events use "completed" as neutral)
+                const pill = (
                   <Pill tone={statusTone(payment.status === "COMPLETED" ? "completed_payment" : payment.status)}>{statusLabel(payment.status)}</Pill>
-                </div>
-                <p className="order-2 text-right text-sm font-medium tabular-nums sm:order-none">
-                  ₹{payment.amount.toLocaleString("en-IN")}
-                </p>
-              </li>
-            ))}
-          </ul>
+                )
+                return (
+                  <tr key={payment.id} className="align-middle transition-colors hover:bg-muted/50">
+                    <td className="max-w-0 px-4 py-3.5">
+                      <p className="truncate font-medium">{payment.event?.title || "Event Payment"}</p>
+                      <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                        {payment.method}
+                        {/* on phones the date rides under the event */}
+                        <span className="sm:hidden">
+                          {payment.method && " · "}
+                          <span className="tabular-nums">{date}</span>
+                        </span>
+                      </p>
+                    </td>
+                    <td className="hidden px-4 py-3.5 text-muted-foreground tabular-nums sm:table-cell">{date}</td>
+                    <td className="hidden px-4 py-3.5 sm:table-cell">{pill}</td>
+                    <td className="px-4 py-3.5 text-right">
+                      <span className="font-display text-[16px] font-bold tracking-[-0.01em] tabular-nums">
+                        ₹{payment.amount.toLocaleString("en-IN")}
+                      </span>
+                      <span className="mt-1 flex justify-end sm:hidden">{pill}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       ) : (
-        <EmptyState
-          icon={CreditCard}
+        <DashEmpty
           title="No payments yet"
           description="Your payment history will appear here when you register for paid events."
-        />
+        >
+          <Link href="/events" className={buttonVariants()}>Browse events</Link>
+        </DashEmpty>
       )}
     </div>
   )

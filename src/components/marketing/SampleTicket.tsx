@@ -55,7 +55,7 @@ export function SampleTicket({
       <div className="relative flex w-[88px] shrink-0 flex-col items-center justify-center gap-1.5 border-l-2 border-dashed border-border bg-white p-2.5 sm:w-[108px]">
         <span aria-hidden className={cn("absolute -top-2 -left-[9px] size-4 rounded-full border-b border-border", notchClassName)} />
         <span aria-hidden className={cn("absolute -bottom-2 -left-[9px] size-4 rounded-full border-t border-border", notchClassName)} />
-        <QrGlyph seed={ticket.code} className="size-14 text-[#141b2d] sm:size-16" />
+        <QrGlyph seed={ticket.code} className="size-14 text-[#171717] sm:size-16" />
         <span className="font-mono text-[10px] tracking-wide text-[#565c6b] sm:text-[10.5px]">{ticket.code}</span>
       </div>
     </div>

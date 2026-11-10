@@ -9,7 +9,8 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Pill } from "@/components/ui/pill"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/shared/PageHeader"
-import { EmptyState } from "@/components/shared/EmptyState"
+import { DashEmpty, DateBlock } from "../_components/bits"
+import { cn } from "@/lib/utils"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
@@ -50,6 +51,16 @@ interface MyRegistration {
 
 // Statuses the attendee can still cancel (before the event starts).
 const CANCELLABLE = ["PENDING", "CONFIRMED", "WAITLISTED"]
+
+/** "November 2026" groups, in the order the list is already sorted. */
+function groupByMonth(list: MyRegistration[]) {
+  const groups = new Map<string, MyRegistration[]>()
+  for (const reg of list) {
+    const key = new Date(reg.event.startDate).toLocaleDateString("en-IN", { month: "long", year: "numeric" })
+    groups.set(key, [...(groups.get(key) ?? []), reg])
+  }
+  return [...groups.entries()]
+}
 
 function pillFor(displayStatus: string) {
   if (displayStatus === "PENDING_PAYMENT") return { tone: statusTone("pending"), label: "Pending payment" }
@@ -129,80 +140,98 @@ export default function MyEventsPage() {
 
       {isLoading ? (
         <div className="space-y-2" aria-busy="true" aria-label="Loading events">
-          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-[68px] rounded-lg" />)}
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-[72px] rounded-xl" />)}
         </div>
       ) : displayed.length > 0 ? (
-        <ul className="divide-y divide-rule border-y border-rule">
-          {displayed.map((reg) => {
-            const { event } = reg
-            const start = new Date(event.startDate)
-            const live = eventTimeframe(event, now) === "live"
-            const canCancel = CANCELLABLE.includes(reg.status) && start > now
-            const pill = pillFor(reg.displayStatus)
-            const held = reg.displayStatus === "PENDING_PAYMENT"
-            const note =
-              reg.displayStatus === "PENDING_PAYMENT" && reg.holdExpiresAt
-                ? `Seat held until ${new Date(reg.holdExpiresAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`
-                : reg.status === "WAITLISTED" && reg.waitlistPosition
-                  ? `Waitlist #${reg.waitlistPosition}`
-                  : null
-            return (
-              <li key={reg.id} className="group relative flex items-center gap-4 px-1 py-3 transition-colors hover:bg-muted/50">
-                <div className="flex w-11 shrink-0 flex-col items-center leading-none">
-                  <span className="text-[11px] text-muted-foreground">{start.toLocaleDateString("en-IN", { month: "short" })}</span>
-                  <span className="mt-1 text-lg font-semibold tabular-nums">{start.getDate()}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  {/* stretched link: the whole row opens the event, the cancel button sits above it */}
-                  <Link href={`/events/${event.slug}`} className="block truncate text-sm font-medium after:absolute after:inset-0 after:content-['']">
-                    {event.title}
-                  </Link>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar className="size-3.5" />
-                      {live ? "Happening now" : start.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      {event.isOnline ? <Monitor className="size-3.5" /> : <MapPin className="size-3.5" />}
-                      {event.isOnline ? "Online" : (event.venue || event.venueCity || "TBA")}
-                    </span>
-                    <span>{event.organization?.name ?? "—"}</span>
-                    {note && <span>{note}</span>}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className="hidden text-[13px] text-muted-foreground sm:inline">{reg.ticketType}</span>
-                  <Pill tone={pill.tone}>{pill.label}</Pill>
-                  {held && (
-                    <Link href={completePaymentHref(reg)} className={buttonVariants({ size: "sm", className: "relative z-10" })}>
-                      Complete payment
-                    </Link>
-                  )}
-                  {canCancel && (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="relative z-10 text-muted-foreground hover:bg-pill-negative hover:text-destructive"
-                      aria-label={held ? `Release held seat for ${event.title}` : `Cancel registration for ${event.title}`}
-                      title={held ? "Release seat" : "Cancel registration"}
-                      onClick={() => setToCancel(reg)}
+        <div className="space-y-7">
+          {groupByMonth(displayed).map(([month, regs]) => (
+            <section key={month} aria-label={month}>
+              <h2 className="mb-2 flex items-center gap-2.5 text-[13px] text-muted-foreground">
+                <span className="font-display text-[17px] font-bold tracking-[-0.02em] text-foreground">{month.split(" ")[0]}</span>
+                <span className="tabular-nums">{month.split(" ")[1]}</span>
+                <span aria-hidden className="h-px flex-1 bg-rule" />
+                <span className="tabular-nums">{regs.length}</span>
+              </h2>
+              <ul className="divide-y divide-rule overflow-hidden rounded-xl border bg-card">
+                {regs.map((reg) => {
+                  const { event } = reg
+                  const start = new Date(event.startDate)
+                  const live = eventTimeframe(event, now) === "live"
+                  const canCancel = CANCELLABLE.includes(reg.status) && start > now
+                  const pill = pillFor(reg.displayStatus)
+                  const held = reg.displayStatus === "PENDING_PAYMENT"
+                  const note =
+                    reg.displayStatus === "PENDING_PAYMENT" && reg.holdExpiresAt
+                      ? `Seat held until ${new Date(reg.holdExpiresAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`
+                      : reg.status === "WAITLISTED" && reg.waitlistPosition
+                        ? `Waitlist #${reg.waitlistPosition}`
+                        : null
+                  return (
+                    <li
+                      key={reg.id}
+                      className="group relative flex flex-wrap items-center gap-x-4 gap-y-2.5 px-4 py-3.5 transition-colors hover:bg-muted/50 sm:flex-nowrap"
                     >
-                      <XCircle />
-                    </Button>
-                  )}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                      <DateBlock date={start} className={cn(live && "border-brand/50 bg-brand/10")} />
+                      <div className="min-w-0 flex-1">
+                        {/* stretched link: the whole row opens the event, the buttons sit above it */}
+                        <Link
+                          href={`/events/${event.slug}`}
+                          className="block truncate text-[15px] font-medium after:absolute after:inset-0 after:content-[''] group-hover:underline group-hover:underline-offset-4"
+                        >
+                          {event.title}
+                        </Link>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground">
+                          <span className={cn("inline-flex items-center gap-1", live && "font-medium text-brand")}>
+                            <Calendar className="size-3.5" />
+                            {live ? "Happening now" : start.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            {event.isOnline ? <Monitor className="size-3.5" /> : <MapPin className="size-3.5" />}
+                            {event.isOnline ? "Online" : (event.venue || event.venueCity || "TBA")}
+                          </span>
+                          <span>{event.organization?.name ?? "—"}</span>
+                          {note && <span className={cn(held && "font-medium text-foreground")}>{note}</span>}
+                        </p>
+                      </div>
+                      <div className="flex w-full shrink-0 items-center gap-3 pl-16 sm:w-auto sm:pl-0">
+                        <span className="text-[13px] text-muted-foreground">{reg.ticketType}</span>
+                        <Pill tone={pill.tone}>{pill.label}</Pill>
+                        {(held || canCancel) && (
+                          <span className="ml-auto flex items-center gap-1 sm:ml-0">
+                            {held && (
+                              <Link href={completePaymentHref(reg)} className={buttonVariants({ size: "sm", className: "relative z-10" })}>
+                                Complete payment
+                              </Link>
+                            )}
+                            {canCancel && (
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="relative z-10 text-muted-foreground hover:bg-pill-negative hover:text-destructive"
+                                aria-label={held ? `Release held seat for ${event.title}` : `Cancel registration for ${event.title}`}
+                                title={held ? "Release seat" : "Cancel registration"}
+                                onClick={() => setToCancel(reg)}
+                              >
+                                <XCircle />
+                              </Button>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       ) : (
-        <EmptyState
-          icon={Calendar}
-          title={`No ${tab === "all" ? "" : tab + " "}events`}
-          description="Events you register for will appear here."
+        <DashEmpty
+          title={tab === "past" ? "No past events yet" : tab === "upcoming" ? "Nothing on the calendar" : "No events yet"}
+          description={`No ${tab === "all" ? "" : tab + " "}events. Events you register for will appear here.`}
         >
-          <Link href="/events" className={buttonVariants({ variant: "outline" })}>Browse events</Link>
-        </EmptyState>
+          <Link href="/events" className={buttonVariants()}>Browse events</Link>
+        </DashEmpty>
       )}
 
       <Dialog open={!!toCancel} onOpenChange={(open) => !open && !isCancelling && setToCancel(null)}>

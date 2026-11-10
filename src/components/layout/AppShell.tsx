@@ -311,15 +311,15 @@ function SidebarLink({ item, active, collapsed }: { item: NavItem; active: boole
       title={collapsed ? item.label : undefined}
       aria-label={collapsed ? item.label : undefined}
       className={cn(
-        "relative flex h-8 items-center gap-2.5 rounded-md text-sm transition-colors",
+        "relative flex h-8 items-center gap-2.5 rounded-full text-sm transition-colors",
         collapsed ? "justify-center px-0" : "px-2.5",
         active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
       )}
     >
       {active && (
-        <motion.span layoutId="sidebar-active" className="absolute inset-0 rounded-md bg-sidebar-accent" transition={{ type: "spring", stiffness: 500, damping: 40 }} />
+        <motion.span layoutId="sidebar-active" className="absolute inset-0 rounded-full bg-sidebar-accent" transition={{ type: "spring", stiffness: 500, damping: 40 }} />
       )}
-      <item.icon className={cn("relative size-4 shrink-0", active ? "text-foreground" : "text-muted-foreground")} strokeWidth={1.75} />
+      <item.icon className={cn("relative size-4 shrink-0", active ? "text-brand dark:text-lemon" : "text-muted-foreground")} strokeWidth={active ? 2 : 1.75} />
       {!collapsed && <span className={cn("relative truncate", active && "font-medium")}>{item.label}</span>}
     </Link>
   )
@@ -360,11 +360,11 @@ function WorkspaceMenu({ area, workspaces }: { area: ShellArea; workspaces: Work
   const single = workspaces.length <= 1
   const inner = (
     <>
-      <span className="flex size-7 items-center justify-center rounded-md bg-foreground text-background">
+      <span className="flex size-7 -rotate-6 items-center justify-center rounded-lg bg-lemon text-lemon-ink transition-transform group-hover:rotate-0">
         <LogoMark className="size-4" />
       </span>
       <span className="min-w-0 flex-1 text-left leading-tight">
-        <span className="block text-sm font-semibold">EventFlow</span>
+        <span className="block font-display text-[15px] font-bold tracking-[-0.02em]">EventFlow</span>
         <span className="block truncate text-xs text-muted-foreground">{areaLabel[area]}</span>
       </span>
       {!single && <ChevronsUpDown className="size-4 text-muted-foreground" />}
@@ -373,7 +373,7 @@ function WorkspaceMenu({ area, workspaces }: { area: ShellArea; workspaces: Work
   if (single) return <Link href="/dashboard" className="flex w-full items-center gap-2 rounded-md p-1">{inner}</Link>
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md p-1 transition-colors hover:bg-sidebar-accent/60" aria-label="Switch workspace">
+      <DropdownMenuTrigger className="group flex w-full items-center gap-2 rounded-lg p-1 transition-colors hover:bg-sidebar-accent/60" aria-label="Switch workspace">
         {inner}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">

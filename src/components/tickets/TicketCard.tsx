@@ -2,6 +2,7 @@
 
 import { Download, MapPin, Monitor } from "lucide-react"
 import { QRCodeDisplay } from "./QRCodeDisplay"
+import { Perforation } from "./Perforation"
 import { Pill } from "@/components/ui/pill"
 import { statusTone } from "@/lib/status-tone"
 import { ticketPlace } from "@/lib/ticket-place"
@@ -64,40 +65,54 @@ export function TicketCard({ ticket, variant = "compact", onViewTicket, onDownlo
   const where = ticketPlace(ticket.event, ticket.ticketType.name)
   const place = where.label
   const showsOnlineIcon = where.kind === "online"
+  const month = start.toLocaleDateString("en-IN", { month: "short" })
+  const weekday = start.toLocaleDateString("en-IN", { weekday: "short" })
 
   if (variant === "full") {
     return (
-      <div className="overflow-hidden rounded-xl bg-card">
-        <div className="flex flex-col items-center bg-white px-6 pt-6 pb-5 text-[#141b2d]">
-          <QRCodeDisplay data={ticket.qrCode} size={232} ticketNumber={ticket.ticketNumber} variant="print" />
-          <p className="mt-1 text-[13px] text-[#565c6b]">Show this code at the entrance</p>
-        </div>
-        <Perforation notchClassName={notchClassName} />
-        <div className="space-y-4 px-6 pt-4 pb-6 text-sm">
-          <div>
-            {ticket.event.organization && <p className="text-[13px] text-muted-foreground">{ticket.event.organization.name}</p>}
-            <h3 className="mt-0.5 text-lg leading-snug font-semibold">{ticket.event.title}</h3>
+      <div className="overflow-hidden rounded-2xl border bg-card text-card-foreground">
+        {/* the admission: a lemon date tile, who runs it, the title in display type */}
+        <div className="px-6 pt-6 pb-5">
+          <div className="flex items-start gap-4">
+            <div className="flex w-[60px] shrink-0 flex-col items-center rounded-xl bg-lemon py-2 leading-none text-lemon-ink">
+              <span className="text-[11px] font-semibold tracking-[0.08em] uppercase">{month}</span>
+              <span className="font-display mt-1 text-[28px] font-extrabold tracking-[-0.04em] tabular-nums">{start.getDate()}</span>
+              <span className="mt-1 text-[11px] font-medium">{weekday}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 truncate text-[13px] text-muted-foreground">{ticket.event.organization?.name}</p>
+                <Pill tone={tone} className="shrink-0">{statusLabel}</Pill>
+              </div>
+              <h3 className="font-display mt-1 text-[22px] leading-[1.08] font-bold tracking-[-0.03em]">{ticket.event.title}</h3>
+            </div>
           </div>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             <Field label="Date">{date}</Field>
             <Field label="Time"><span className="tabular-nums">{time}</span></Field>
             <Field label="Where" span>{place}</Field>
             <Field label="Ticket">{ticket.ticketType.name}</Field>
-            <Field label="Status"><Pill tone={tone}>{statusLabel}</Pill></Field>
+            <Field label="Status">{statusLabel}</Field>
             <Field label="Registration" span><span className="font-mono text-[13px]">{ticket.registration.registrationNumber}</span></Field>
           </dl>
+        </div>
+        <Perforation notchClassName={notchClassName} />
+        {/* the stub the door scans */}
+        <div className="flex flex-col items-center bg-white px-6 pt-5 pb-5 text-[#171717]">
+          <QRCodeDisplay data={ticket.qrCode} size={216} ticketNumber={ticket.ticketNumber} variant="print" />
+          <p className="mt-1 text-[13px] text-[#565c6b]">Show this code at the entrance</p>
         </div>
       </div>
     )
   }
 
   return (
-    <article className={cn("group relative flex overflow-hidden rounded-lg border bg-card transition-colors", !isActive && !isCheckedIn && "opacity-75")}>
+    <article className={cn("group relative flex overflow-hidden rounded-xl border bg-card transition-colors hover:border-input", !isActive && !isCheckedIn && "opacity-75")}>
       {/* date stub */}
       <div className="flex w-[68px] shrink-0 flex-col items-center justify-center border-r bg-frame py-4 leading-none">
-        <span className="text-xs text-muted-foreground">{start.toLocaleDateString("en-IN", { month: "short" })}</span>
-        <span className="mt-1 text-[26px] font-semibold tracking-[-0.02em] tabular-nums">{start.getDate()}</span>
-        <span className="mt-1 text-xs text-muted-foreground">{start.toLocaleDateString("en-IN", { weekday: "short" })}</span>
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">{month}</span>
+        <span className="font-display mt-1 text-[28px] font-extrabold tracking-[-0.04em] tabular-nums">{start.getDate()}</span>
+        <span className="mt-1 text-xs text-muted-foreground">{weekday}</span>
       </div>
 
       {/* admission details; the whole area opens the ticket */}
@@ -107,7 +122,7 @@ export function TicketCard({ ticket, variant = "compact", onViewTicket, onDownlo
         className="min-w-0 flex-1 cursor-pointer px-4 py-3.5 text-left transition-colors hover:bg-muted/50 focus-visible:-outline-offset-2"
         aria-label={`Open ticket for ${ticket.event.title}`}
       >
-        <h3 className="line-clamp-2 text-[15px] leading-snug font-semibold">{ticket.event.title}</h3>
+        <h3 className="font-display line-clamp-2 text-[16px] leading-snug font-bold tracking-[-0.015em]">{ticket.event.title}</h3>
         <p className="mt-1 flex items-center gap-1.5 truncate text-[13px] text-muted-foreground">
           {showsOnlineIcon ? <Monitor className="size-3.5 shrink-0" /> : <MapPin className="size-3.5 shrink-0" />}
           <span className="truncate">{place}</span>
@@ -130,7 +145,7 @@ export function TicketCard({ ticket, variant = "compact", onViewTicket, onDownlo
           <button
             type="button"
             onClick={onDownload}
-            className="mt-0.5 inline-flex h-7 items-center gap-1 rounded-sm px-1.5 text-xs font-medium text-[#141b2d] hover:bg-[#eceff3] pointer-coarse:h-9"
+            className="mt-0.5 inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-medium text-[#171717] hover:bg-[#eceff3] pointer-coarse:h-9"
             aria-label={`Download PDF ticket for ${ticket.event.title}`}
           >
             <Download className="size-3.5" /> PDF
@@ -145,16 +160,7 @@ function Field({ label, children, span }: { label: string; children: React.React
   return (
     <div className={cn("min-w-0", span && "col-span-2")}>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 font-medium">{children}</dd>
-    </div>
-  )
-}
-
-function Perforation({ notchClassName }: { notchClassName: string }) {
-  return (
-    <div className="relative h-0 border-t-2 border-dashed border-border" aria-hidden>
-      <span className={cn("absolute -top-[9px] -left-2 size-4 rounded-full", notchClassName)} />
-      <span className={cn("absolute -top-[9px] -right-2 size-4 rounded-full", notchClassName)} />
+      <dd className="mt-0.5 font-medium break-words">{children}</dd>
     </div>
   )
 }

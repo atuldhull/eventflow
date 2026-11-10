@@ -1,13 +1,17 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { MotionConfig, motion } from "framer-motion"
 import { CalendarSearch, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { EventCard, EventCardSkeleton } from "@/components/events/EventCard"
 import { useDebounce } from "@/hooks/useDebounce"
 import { cn } from "@/lib/utils"
+
+const EASE = [0.22, 1, 0.36, 1] as const
 
 const CATEGORIES = ["TECH", "CULTURAL", "SPORTS", "WORKSHOP", "HACKATHON", "CONFERENCE", "SEMINAR", "WEBINAR", "FEST", "COMPETITION", "MEETUP", "OTHER"]
 
@@ -136,144 +140,192 @@ export function EventsBrowser({
 
   const hasFilters = !!(search || category !== "All" || pricing)
 
+  // The header's big number: what the current view holds, named for that view
+  const countLabel = hasFilters
+    ? `matching ${when === "past" ? "past " : ""}event${total !== 1 ? "s" : ""}`
+    : when === "past"
+      ? `past event${total !== 1 ? "s" : ""}`
+      : `upcoming event${total !== 1 ? "s" : ""}`
+
   return (
-    <div className="mx-auto w-full max-w-[1240px] px-5 pt-8 pb-16 sm:px-8 lg:pt-12 lg:pb-24">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.02em] sm:text-[32px]">Events</h1>
-          <p className="mt-2 max-w-[56ch] text-[15px] text-muted-foreground">
-            Workshops, hackathons, conferences and more, happening near you.
-          </p>
+    <MotionConfig reducedMotion="user">
+      {/* Header: the programme's title, set big, with the live count beside it */}
+      <header className="relative isolate overflow-hidden border-b border-rule">
+        <div aria-hidden className="fx-aurora pointer-events-none absolute inset-0 -z-10">
+          <span className="top-[-40%] left-[-10%] size-[460px] bg-lavender/30 dark:bg-lavender/25" />
+          <span className="top-[-30%] right-[-6%] size-[380px] bg-lemon/30 dark:bg-lemon/10" />
         </div>
-        <p className="text-[13px] text-muted-foreground tabular-nums" aria-live="polite">
-          {total > 0 && `${total} event${total !== 1 ? "s" : ""}`}
-        </p>
-      </div>
-
-      {/* Search + price */}
-      <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center">
-        <div className="relative w-full md:max-w-[440px]">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input
-            type="search"
-            aria-label="Search events"
-            placeholder="Search by title, category or keyword"
-            className="h-10 pl-9 pointer-coarse:h-11"
-            value={search}
-            onChange={(e) => changeSearch(e.target.value)}
-          />
-        </div>
-        <div role="group" aria-label="When" className="inline-flex w-full rounded-md bg-muted p-[3px] md:ml-auto md:w-auto">
-          {WHEN.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => chooseWhen(opt.value)}
-              aria-pressed={when === opt.value}
-              className={cn(
-                "h-8 flex-1 rounded-[5px] px-4 text-[13px] font-medium whitespace-nowrap transition-colors md:flex-none pointer-coarse:h-10",
-                when === opt.value
-                  ? "bg-background text-foreground shadow-xs ring-1 ring-border"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <div role="group" aria-label="Price" className="inline-flex w-full rounded-md bg-muted p-[3px] md:w-auto">
-          {PRICING.map((opt) => (
-            <button
-              key={opt.value || "all"}
-              type="button"
-              onClick={() => choosePricing(opt.value)}
-              aria-pressed={pricing === opt.value}
-              className={cn(
-                "h-8 flex-1 rounded-[5px] px-4 text-[13px] font-medium transition-colors md:flex-none pointer-coarse:h-10",
-                pricing === opt.value
-                  ? "bg-background text-foreground shadow-xs ring-1 ring-border"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Categories: one scrolling row on phones, wrapped on wider screens */}
-      <div className="-mx-5 mt-4 overflow-x-auto px-5 scrollbar-none sm:mx-0 sm:overflow-visible sm:px-0">
-        <div role="group" aria-label="Category" className="flex w-max gap-1.5 sm:w-auto sm:flex-wrap">
-          {["All", ...chips].map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => chooseCategory(cat)}
-              aria-pressed={category === cat}
-              className={cn(
-                "press h-8 shrink-0 rounded-sm border px-3 text-[13px] font-medium whitespace-nowrap transition-colors pointer-coarse:h-10",
-                category === cat
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border text-muted-foreground hover:border-input hover:text-foreground"
-              )}
-            >
-              {cat === "All" ? "All" : categoryLabel(cat)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Results */}
-      <div className="mt-8">
-        {isLoading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6" aria-busy="true" aria-label="Loading events">
-            {Array.from({ length: 6 }).map((_, i) => <EventCardSkeleton key={i} />)}
+        <div aria-hidden className="fx-grid pointer-events-none absolute inset-0 -z-10" />
+        <div className="mx-auto grid w-full max-w-[1240px] gap-8 px-5 pt-12 pb-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:pt-16 lg:pb-14">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-semibold text-brand">
+              <span className="h-[2px] w-6 rounded-full bg-lemon" aria-hidden />
+              The programme
+            </p>
+            <h1 className="font-display mt-4 text-[56px] leading-[0.92] font-extrabold tracking-[-0.05em] sm:text-[88px] lg:text-[112px]">
+              What&apos;s{" "}
+              <span className="relative z-0 inline-block px-[0.06em] whitespace-nowrap">
+                <motion.span
+                  aria-hidden
+                  className="absolute -inset-x-[0.04em] top-[0.08em] bottom-[0.02em] -z-10 origin-left -rotate-[2deg] rounded-[0.14em] bg-lemon"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.7, delay: 0.2, ease: EASE }}
+                />
+                <span className="relative text-lemon-ink">on</span>
+              </span>
+            </h1>
+            <p className="mt-5 max-w-[50ch] text-[17px] leading-relaxed text-muted-foreground">
+              Workshops, hackathons, conferences and more, happening near you.
+            </p>
           </div>
-        ) : loadFailed ? (
-          <EmptyState
-            variant="page"
-            icon={CalendarSearch}
-            title="Couldn't load events"
-            description="Check your connection and try again."
+
+          {/* the live count, on a ticket-stub tile */}
+          <div
+            className="flex items-center gap-4 self-start justify-self-start rounded-[22px] border bg-card/80 py-4 pr-6 pl-5 backdrop-blur-sm lg:self-end"
+            aria-live="polite"
           >
-            <Button variant="outline" onClick={() => fetchEvents()}>Try again</Button>
-          </EmptyState>
-        ) : events.length > 0 ? (
-          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-            {events.map((event) => (
-              <li key={event.id}>
-                <EventCard event={event} showSave />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState
-            variant="page"
-            icon={CalendarSearch}
-            title="No events found"
-            description={hasFilters ? "Try different search terms or filters." : when === "past" ? "No past events to show yet." : "Check back soon for upcoming events, or look through past events."}
-          >
-            {hasFilters && (
-              <Button
-                variant="outline"
-                onClick={() => { setSearch(""); setCategory("All"); setPricing(""); setPage(1) }}
+            <div className="font-display text-[56px] leading-none font-extrabold tracking-[-0.05em] text-brand tabular-nums">
+              {isLoading && total === 0 ? <Skeleton className="h-12 w-12" /> : total.toLocaleString("en-IN")}
+            </div>
+            <div className="self-stretch border-l-2 border-dashed border-border flex flex-col justify-center py-1 pl-4 text-[14px] leading-snug">
+              <span className="block font-semibold">{countLabel}</span>
+              {totalPages > 1 && <span className="block text-muted-foreground tabular-nums">Page {page} of {totalPages}</span>}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto w-full max-w-[1240px] px-5 pt-8 pb-16 sm:px-8 lg:pt-10 lg:pb-24">
+        {/* Search + when + price */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="relative w-full md:max-w-[440px]">
+            <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input
+              type="search"
+              aria-label="Search events"
+              placeholder="Search by title, category or keyword"
+              className="h-12 rounded-full pl-11 text-[15px]"
+              value={search}
+              onChange={(e) => changeSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row md:ml-auto">
+            <div role="group" aria-label="When" className="inline-flex w-full rounded-full border bg-card p-1 sm:w-auto">
+              {WHEN.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => chooseWhen(opt.value)}
+                  aria-pressed={when === opt.value}
+                  className={cn(
+                    "h-10 flex-1 rounded-full px-4 text-[14px] font-semibold whitespace-nowrap transition-colors sm:flex-none pointer-coarse:h-11",
+                    when === opt.value ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div role="group" aria-label="Price" className="inline-flex w-full rounded-full border bg-card p-1 sm:w-auto">
+              {PRICING.map((opt) => (
+                <button
+                  key={opt.value || "all"}
+                  type="button"
+                  onClick={() => choosePricing(opt.value)}
+                  aria-pressed={pricing === opt.value}
+                  className={cn(
+                    "h-10 flex-1 rounded-full px-4 text-[14px] font-semibold transition-colors sm:flex-none pointer-coarse:h-11",
+                    pricing === opt.value ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Categories: one scrolling row on phones, wrapped on wider screens */}
+        <div className="-mx-5 mt-5 overflow-x-auto px-5 py-1.5 scrollbar-none sm:mx-0 sm:overflow-visible sm:px-0">
+          <div role="group" aria-label="Category" className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
+            {["All", ...chips].map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => chooseCategory(cat)}
+                aria-pressed={category === cat}
+                className={cn(
+                  "press h-9 shrink-0 rounded-full border px-4 text-[14px] font-medium whitespace-nowrap transition-[color,background-color,border-color,transform] duration-300 pointer-coarse:h-11 motion-safe:hover:-translate-y-0.5",
+                  category === cat
+                    ? "-rotate-[1.5deg] border-transparent bg-lemon font-semibold text-lemon-ink shadow-[0_8px_24px_-10px_var(--lemon)]"
+                    : "border-border text-muted-foreground hover:border-lavender hover:text-foreground",
+                )}
               >
-                Clear filters
-              </Button>
-            )}
-          </EmptyState>
+                {cat === "All" ? "All" : categoryLabel(cat)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Results */}
+        <div className="mt-10">
+          {isLoading ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7" aria-busy="true" aria-label="Loading events">
+              {Array.from({ length: 6 }).map((_, i) => <EventCardSkeleton key={i} />)}
+            </div>
+          ) : loadFailed ? (
+            <EmptyState
+              variant="page"
+              icon={CalendarSearch}
+              title="Couldn't load events"
+              description="Check your connection and try again."
+            >
+              <Button variant="outline" onClick={() => fetchEvents()}>Try again</Button>
+            </EmptyState>
+          ) : events.length > 0 ? (
+            <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
+              {events.map((event, i) => (
+                <motion.li
+                  key={event.id}
+                  initial={{ opacity: 0, y: 28 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: Math.min(i, 8) * 0.05, ease: EASE }}
+                >
+                  <EventCard event={event} showSave />
+                </motion.li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              variant="page"
+              icon={CalendarSearch}
+              title="No events found"
+              description={hasFilters ? "Try different search terms or filters." : when === "past" ? "No past events to show yet." : "Check back soon for upcoming events, or look through past events."}
+            >
+              {hasFilters && (
+                <Button
+                  variant="outline"
+                  onClick={() => { setSearch(""); setCategory("All"); setPricing(""); setPage(1) }}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </EmptyState>
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <nav aria-label="Pagination" className="mt-12 flex items-center justify-between gap-3 border-t border-rule pt-6 sm:justify-center">
+            <Button variant="outline" className="h-11 px-5" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+            <span className="px-3 text-[14px] text-muted-foreground tabular-nums">
+              Page <span className="font-display text-[18px] font-bold text-foreground">{page}</span> of {totalPages}
+            </span>
+            <Button variant="outline" className="h-11 px-5" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+          </nav>
         )}
       </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <nav aria-label="Pagination" className="mt-10 flex items-center justify-between gap-3 border-t border-rule pt-6 sm:justify-center">
-          <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
-          <span className="px-3 text-[13px] text-muted-foreground tabular-nums">Page {page} of {totalPages}</span>
-          <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
-        </nav>
-      )}
-    </div>
+    </MotionConfig>
   )
 }

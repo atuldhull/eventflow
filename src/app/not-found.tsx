@@ -1,27 +1,28 @@
 import Link from "next/link"
-import { Search, Home, Calendar } from "lucide-react"
-import { buttonVariants } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+import { LogoMark } from "@/components/shared/Logo"
+import { Container } from "@/components/marketing/layout"
+import { NotFoundView } from "./_system/NotFoundView"
 
+/** 404 for any unknown URL. No site chrome around it here, so it brings a slim header of its own. */
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="max-w-md w-full p-8 text-center space-y-4">
-        <div className="text-7xl font-bold text-muted-foreground/20">404</div>
-        <h1 className="text-2xl font-bold">Page Not Found</h1>
-        <p className="text-muted-foreground text-sm">
-          The page you&apos;re looking for doesn&apos;t exist or has been moved.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-          <Link href="/" className={cn(buttonVariants(), "gap-2")}>
-            <Home className="h-4 w-4" /> Go Home
+    <div className="pt-safe pb-safe flex min-h-dvh flex-col overflow-x-clip">
+      <header>
+        <Container className="flex h-16 items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2 rounded-md text-foreground" aria-label="EventFlow home">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-lemon text-lemon-ink">
+              <LogoMark className="size-5" />
+            </span>
+            <span className="font-display text-[18px] font-bold tracking-[-0.03em]">EventFlow</span>
           </Link>
-          <Link href="/events" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
-            <Calendar className="h-4 w-4" /> Browse Events
+          <Link href="/login" className="inline-flex min-h-11 items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            Sign in
           </Link>
-        </div>
-      </Card>
+        </Container>
+      </header>
+      <main className="flex flex-1 items-center">
+        <NotFoundView message="The page you're looking for doesn't exist or has been moved." />
+      </main>
     </div>
   )
 }

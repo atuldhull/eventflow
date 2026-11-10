@@ -96,28 +96,28 @@ export function CheckInSearch({ eventId, onCheckIn, onUndo }: CheckInSearchProps
   return (
     <div className="space-y-3">
       <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-faint" aria-hidden />
+        <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-faint" aria-hidden />
         <Input
           type="search"
           aria-label="Search participants"
           placeholder="Name, email, ticket or registration #"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-12 pr-10 pl-10 text-base md:text-base pointer-coarse:h-12"
+          className="h-14 rounded-full pr-11 pl-11 text-[17px] md:text-[17px] pointer-coarse:h-14"
           autoFocus
         />
-        {isSearching && <Loader2 className="absolute top-1/2 right-3.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-label="Searching" />}
+        {isSearching && <Loader2 className="absolute top-1/2 right-4 size-5 -translate-y-1/2 animate-spin text-muted-foreground" aria-label="Searching" />}
       </div>
 
       {results.length > 0 && (
-        <ul className="divide-y divide-rule rounded-lg border">
+        <ul className="divide-y divide-rule overflow-hidden rounded-2xl border">
           {results.map((r) => (
-            <li key={r.registrationId} className="flex items-center gap-3 px-3 py-3 sm:px-4">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium" aria-hidden>
+            <li key={r.registrationId} className="flex min-h-[72px] items-center gap-3 px-3.5 py-3 sm:px-4">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted font-display text-base font-bold" aria-hidden>
                 {r.participant.name[0]?.toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{r.participant.name}</p>
+                <p className="truncate text-base font-semibold">{r.participant.name}</p>
                 <p className="truncate text-[13px] text-muted-foreground">{r.participant.email}</p>
                 <p className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                   <span className="truncate">{r.ticketType}</span>
@@ -139,7 +139,7 @@ export function CheckInSearch({ eventId, onCheckIn, onUndo }: CheckInSearchProps
                     <CheckCircle className="size-5 text-positive sm:hidden" aria-label="Checked in" />
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="default"
                       className="text-muted-foreground"
                       aria-label={`Undo check-in for ${r.participant.name}`}
                       onClick={() => r.checkInId && setConfirming(r)}
@@ -151,10 +151,10 @@ export function CheckInSearch({ eventId, onCheckIn, onUndo }: CheckInSearchProps
                   </>
                 ) : (
                   <Button
-                    size="sm"
+                    size="lg"
                     onClick={() => handleCheckIn(r.registrationId)}
                     disabled={loadingId === r.registrationId}
-                    className="min-w-[92px]"
+                    className="h-11 min-w-[104px] font-semibold pointer-coarse:h-12"
                   >
                     {loadingId === r.registrationId ? <Loader2 className="animate-spin" /> : "Check in"}
                   </Button>
@@ -166,7 +166,7 @@ export function CheckInSearch({ eventId, onCheckIn, onUndo }: CheckInSearchProps
       )}
 
       {query.length >= 2 && !isSearching && results.length === 0 && (
-        <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">No participants found</p>
+        <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">No participants found</p>
       )}
       {query.length < 2 && (
         <p className="px-1 text-[13px] text-muted-foreground">Type at least two characters to search.</p>

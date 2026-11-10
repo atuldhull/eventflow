@@ -2,7 +2,7 @@ import { cache } from "react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Building2, CalendarCheck, CalendarClock, CalendarX2, Globe, History, MapPin, Users } from "lucide-react"
+import { ArrowUpRight, Building2, CalendarCheck, CalendarClock, CalendarX2, Globe, History, MapPin, Users } from "lucide-react"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { ProfileEvents, ProfileMark, ProfileSection, PublicProfile, type ProfileDetail } from "@/components/marketing/PublicProfile"
 import { getPublicEnterprise, profileMetaDescription } from "@/lib/public-profiles"
@@ -43,13 +43,13 @@ export default async function EnterprisePublicPage({ params }: { params: Promise
     { icon: History, label: "Past events", value: ent.counts.pastEvents },
     { icon: Users, label: "Members", value: ent.counts.members },
   ]
-  if (ent.location) details.push({ icon: MapPin, label: "Location", value: <span className="font-normal">{ent.location}</span> })
+  if (ent.location) details.push({ icon: MapPin, label: "Location", value: <span>{ent.location}</span> })
   if (ent.website) {
     details.push({
       icon: Globe,
       label: "Website",
       value: (
-        <a href={ent.website.href} target="_blank" rel="noopener noreferrer nofollow" className="block max-w-[160px] truncate font-normal underline-offset-4 hover:text-brand hover:underline">
+        <a href={ent.website.href} target="_blank" rel="noopener noreferrer nofollow" className="block truncate underline decoration-lavender decoration-2 underline-offset-4 transition-colors hover:text-brand">
           {ent.website.label}
         </a>
       ),
@@ -69,21 +69,34 @@ export default async function EnterprisePublicPage({ params }: { params: Promise
     >
       <ProfileSection title="Organizations" count={ent.counts.organizations}>
         {ent.organizations.length === 0 ? (
-          <EmptyState icon={Building2} title="No organizations yet." />
+          <EmptyState icon={Building2} title="No organizations yet." className="rounded-3xl py-14" />
         ) : (
-          <ul className="divide-y divide-rule rounded-lg border bg-card">
+          <ul className="grid gap-3 sm:grid-cols-2">
             {ent.organizations.map((org) => (
-              <li key={org.slug} className="group relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-raised">
+              <li
+                key={org.slug}
+                className="group relative flex items-center gap-4 rounded-3xl border bg-card p-4 transition-[border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-lavender/60"
+              >
                 <ProfileMark name={org.name} logo={org.logo} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/org/${org.slug}`} className="block truncate text-sm font-medium outline-none after:absolute after:inset-0 after:content-[''] focus-visible:underline group-hover:underline group-hover:underline-offset-4">
+                  <Link
+                    href={`/org/${org.slug}`}
+                    className="font-display block truncate text-[18px] font-bold tracking-[-0.02em] outline-none after:absolute after:inset-0 after:rounded-3xl after:content-[''] focus-visible:after:outline-2 focus-visible:after:outline-lavender"
+                  >
                     {org.name}
                   </Link>
                   {org.category && <p className="truncate text-[13px] text-muted-foreground">{org.category}</p>}
                 </div>
-                <span className="shrink-0 text-[13px] text-muted-foreground tabular-nums">
+                <span
+                  className={
+                    org.upcomingEvents > 0
+                      ? "shrink-0 rounded-full bg-lemon px-2.5 py-1 text-[12px] font-semibold text-lemon-ink tabular-nums"
+                      : "shrink-0 text-[12px] text-muted-foreground"
+                  }
+                >
                   {org.upcomingEvents > 0 ? `${org.upcomingEvents} upcoming` : "No upcoming events"}
                 </span>
+                <ArrowUpRight className="size-4 shrink-0 text-brand opacity-0 transition-opacity group-hover:opacity-100 max-sm:hidden" aria-hidden />
               </li>
             ))}
           </ul>

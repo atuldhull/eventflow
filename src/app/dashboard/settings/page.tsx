@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { SettingsSection } from "../_components/bits"
 
 const notificationCategories = [
   { label: "Registration Confirmations", key: "reg_confirm", email: true, inApp: true, required: true },
@@ -53,17 +54,7 @@ function mergePrefs(saved: unknown): Prefs {
   return prefs
 }
 
-function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return (
-    <section className="grid gap-4 border-t border-rule pt-6 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
-      <div>
-        <h2 className="text-[15px] font-semibold">{title}</h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
-      </div>
-      <div className="min-w-0">{children}</div>
-    </section>
-  )
-}
+const Section = SettingsSection
 
 export default function SettingsPage() {
   const { data: session } = useSession()
@@ -232,7 +223,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-8">
       <PageHeader
         title="Settings"
         actions={
@@ -277,9 +268,9 @@ export default function SettingsPage() {
           )}
         </Section>
 
-        <Section title="Notifications" description="Choose how we reach you. Required messages can't be turned off.">
-          <div className="overflow-hidden rounded-lg border">
-            <div className="grid grid-cols-[minmax(0,1fr)_64px_64px] items-center gap-2 border-b border-rule bg-raised px-4 py-2.5 text-xs font-medium text-muted-foreground">
+        <Section title="Notifications" description="Choose how we reach you. Required messages can't be turned off." panel={false}>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <div className="grid grid-cols-[minmax(0,1fr)_64px_64px] items-center gap-2 border-b border-rule px-4 py-3 text-xs font-medium text-muted-foreground">
               <span>Category</span>
               <span className="text-center">Email</span>
               <span className="text-center">In-app</span>
@@ -313,29 +304,31 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <Section title="Your data" description="Download a copy of everything we keep about you, or delete your account.">
-          <div className="grid gap-6">
-            <div className="grid gap-2">
-              <p className="text-sm text-muted-foreground">
-                A JSON file with your profile, registrations, tickets, payments, certificates, notifications and saved events.
-              </p>
-              <div>
-                <Button variant="outline" onClick={handleExport} disabled={isExporting}>
-                  {isExporting ? <Loader2 className="animate-spin" /> : <Download />}
-                  Download my data
-                </Button>
-              </div>
-            </div>
-            <div className="grid gap-2 rounded-lg border border-destructive/40 p-4">
-              <h3 className="text-sm font-semibold text-destructive">Delete my account</h3>
-              <p className="text-sm text-muted-foreground">
-                Your profile is erased and your upcoming registrations are cancelled. Payment records are kept, without your name, because tax law requires it. This cannot be undone.
-              </p>
-              <div>
-                <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 /> Delete my account
-                </Button>
-              </div>
+        <Section title="Your data" description="Download a copy of everything we keep about you.">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              A JSON file with your profile, registrations, tickets, payments, certificates, notifications and saved events.
+            </p>
+            <Button variant="outline" className="shrink-0" onClick={handleExport} disabled={isExporting}>
+              {isExporting ? <Loader2 className="animate-spin" /> : <Download />}
+              Download my data
+            </Button>
+          </div>
+        </Section>
+      </div>
+
+      {/* Destructive actions live apart from everything else, below a clear break */}
+      <div className="border-t border-dashed pt-8">
+        <Section title="Danger zone" description="Permanent actions on your account." tone="danger">
+          <div className="grid gap-3">
+            <h3 className="text-sm font-semibold text-destructive">Delete my account</h3>
+            <p className="text-sm text-muted-foreground">
+              Your profile is erased and your upcoming registrations are cancelled. Payment records are kept, without your name, because tax law requires it. This cannot be undone.
+            </p>
+            <div>
+              <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 /> Delete my account
+              </Button>
             </div>
           </div>
         </Section>

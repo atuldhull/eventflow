@@ -230,60 +230,91 @@ export default function EventCheckInPage({ params }: { params: Promise<{ eventId
   const pct = checkInStats.expected > 0 ? Math.round((checkInStats.checkedIn / checkInStats.expected) * 100) : 0
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-4 sm:space-y-5">
       {/* Header: back, event, export */}
       <div className="flex items-center gap-2">
         <Link
           href="/admin/org/check-in"
           aria-label="Back to check-in"
-          className="-ml-2 flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground pointer-coarse:size-11"
+          className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft className="size-5" />
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[17px] leading-6 font-semibold sm:text-[22px] sm:leading-7">{eventTitle || "Event check-in"}</h1>
+          <h1 className="truncate font-display text-[20px] leading-7 font-bold tracking-[-0.025em] sm:text-[28px] sm:leading-8">{eventTitle || "Event check-in"}</h1>
           <p className="truncate text-[13px] text-muted-foreground">
-            Check-in{!eventTitle && <> · ID <span className="font-mono">{eventId.slice(0, 8)}…</span></>}
+            Door check-in{!eventTitle && <> · ID <span className="font-mono">{eventId.slice(0, 8)}…</span></>}
             <ZoneNote timeZone={eventTimeZone} className="before:content-['_·_']" />
           </p>
         </div>
         {canExport && (
-          <Button variant="ghost" size="sm" className="shrink-0" onClick={() => window.open(`/api/check-in/export?eventId=${encodeURIComponent(eventId)}`)}>
+          <Button variant="outline" size="sm" className="shrink-0" onClick={() => window.open(`/api/check-in/export?eventId=${encodeURIComponent(eventId)}`)}>
             <Download /> CSV
           </Button>
         )}
       </div>
 
-      {/* Live numbers, refreshed every 10 s */}
-      <dl className="grid grid-cols-3 divide-x divide-border overflow-hidden rounded-lg border" aria-label="Check-in stats">
-        {[
-          { label: "Expected", value: checkInStats.expected },
-          { label: "Checked in", value: checkInStats.checkedIn, caption: `${pct}%` },
-          { label: "Not arrived", value: checkInStats.notArrived },
-        ].map((s) => (
-          <div key={s.label} className="min-w-0 px-3 py-3 sm:px-4">
-            <dt className="truncate text-[13px] text-muted-foreground">{s.label}</dt>
-            <dd className="mt-0.5 flex items-baseline gap-1.5 text-[22px] leading-7 tracking-[-0.01em] tabular-nums">
-              {s.value.toLocaleString("en-IN")}
-              {s.caption && <span className="text-xs tracking-normal text-muted-foreground">{s.caption}</span>}
+      {/* Live numbers, refreshed every 10 s: the door's one big number */}
+      <section className="rounded-2xl border bg-card px-5 pt-4 pb-5 sm:px-6" aria-label="Live check-in">
+        <div className="flex items-center justify-between gap-3 text-[13px] text-muted-foreground">
+          <span className="font-medium text-foreground">Checked in</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-positive motion-reduce:animate-none" />
+            Live
+          </span>
+        </div>
+        <dl aria-label="Check-in stats">
+          <div className="mt-1">
+            <dt className="sr-only">Checked in</dt>
+            <dd className="flex flex-wrap items-baseline gap-x-2 font-display tabular-nums">
+              <span className="text-[64px] leading-[0.95] font-bold tracking-[-0.05em] sm:text-[88px]">
+                {checkInStats.checkedIn.toLocaleString("en-IN")}
+              </span>
+              <span aria-hidden className="text-[28px] leading-none font-semibold tracking-[-0.03em] text-muted-foreground sm:text-[36px]">
+                / {checkInStats.expected.toLocaleString("en-IN")}
+              </span>
             </dd>
           </div>
-        ))}
-      </dl>
+          <div
+            role="meter"
+            aria-valuemin={0}
+            aria-valuemax={checkInStats.expected}
+            aria-valuenow={checkInStats.checkedIn}
+            aria-label={`${checkInStats.checkedIn} of ${checkInStats.expected} checked in`}
+            className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-muted"
+          >
+            <div className="h-full rounded-full bg-brand transition-[width] duration-500" style={{ width: `${Math.min(100, pct)}%` }} />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-[13px]">
+            <div className="min-w-0">
+              <dt className="truncate text-muted-foreground">Arrived</dt>
+              <dd className="mt-0.5 font-display text-lg leading-6 font-semibold tabular-nums">{pct}%</dd>
+            </div>
+            <div className="min-w-0 text-center">
+              <dt className="truncate text-muted-foreground">Not arrived</dt>
+              <dd className="mt-0.5 font-display text-lg leading-6 font-semibold tabular-nums">{checkInStats.notArrived.toLocaleString("en-IN")}</dd>
+            </div>
+            <div className="min-w-0 text-right">
+              <dt className="truncate text-muted-foreground">Expected</dt>
+              <dd className="mt-0.5 font-display text-lg leading-6 font-semibold tabular-nums">{checkInStats.expected.toLocaleString("en-IN")}</dd>
+            </div>
+          </div>
+        </dl>
+      </section>
 
       <Tabs defaultValue="scanner" className="gap-0">
         <div className="border-b border-rule">
-          <TabsList variant="line">
-            <TabsTrigger value="scanner">Scan</TabsTrigger>
-            <TabsTrigger value="attendees">Attendees</TabsTrigger>
-            <TabsTrigger value="stats">Activity</TabsTrigger>
+          <TabsList variant="line" className="group-data-horizontal/tabs:h-11">
+            <TabsTrigger value="scanner" className="px-3 text-[15px]">Scan</TabsTrigger>
+            <TabsTrigger value="attendees" className="px-3 text-[15px]">Attendees</TabsTrigger>
+            <TabsTrigger value="stats" className="px-3 text-[15px]">Activity</TabsTrigger>
           </TabsList>
         </div>
 
         {/* Scanner Tab */}
         <TabsContent value="scanner" className="space-y-4 pt-4">
-          {/* Mode toggle */}
-          <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1" role="group" aria-label="Check-in method">
+          {/* Mode toggle: camera or name search, one tap apart */}
+          <div className="grid grid-cols-2 gap-1 rounded-full border bg-muted p-1" role="group" aria-label="Check-in method">
             {([
               { mode: "qr", label: "QR scanner", icon: QrCode },
               { mode: "manual", label: "Manual", icon: Search },
@@ -294,29 +325,16 @@ export default function EventCheckInPage({ params }: { params: Promise<{ eventId
                 aria-pressed={scanMode === m.mode}
                 onClick={() => setScanMode(m.mode)}
                 className={cn(
-                  "press flex h-9 items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors pointer-coarse:h-11",
-                  scanMode === m.mode ? "bg-background text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground",
+                  "press flex h-12 items-center justify-center gap-2 rounded-full text-[15px] font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                  scanMode === m.mode ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <m.icon className="size-4" aria-hidden /> {m.label}
+                <m.icon className="size-[18px]" aria-hidden /> {m.label}
               </button>
             ))}
           </div>
 
-          {scanMode === "qr" ? (
-            <QRScanner
-              onScan={handleQRScan}
-              enabled={scannerEnabled && !bannerUndo}
-            />
-          ) : (
-            <CheckInSearch
-              eventId={eventId}
-              onCheckIn={handleManualCheckIn}
-              onUndo={handleUndoCheckIn}
-            />
-          )}
-
-          {/* Last scan */}
+          {/* Last scan: above the camera so it is seen at a glance */}
           {lastScan && (
             <CheckInResult
               key={lastScan.seq}
@@ -334,6 +352,19 @@ export default function EventCheckInPage({ params }: { params: Promise<{ eventId
                   : undefined
               }
               isUndoing={isUndoing}
+            />
+          )}
+
+          {scanMode === "qr" ? (
+            <QRScanner
+              onScan={handleQRScan}
+              enabled={scannerEnabled && !bannerUndo}
+            />
+          ) : (
+            <CheckInSearch
+              eventId={eventId}
+              onCheckIn={handleManualCheckIn}
+              onUndo={handleUndoCheckIn}
             />
           )}
           <UndoCheckInDialog
@@ -374,7 +405,7 @@ export default function EventCheckInPage({ params }: { params: Promise<{ eventId
             <>
               {checkInStats.byTicketType.length > 1 && (
                 <section aria-labelledby="by-ticket-heading">
-                  <h2 id="by-ticket-heading" className="mb-2 text-[15px] font-semibold">By ticket type</h2>
+                  <h2 id="by-ticket-heading" className="mb-2 font-display text-[17px] font-semibold tracking-[-0.01em]">By ticket type</h2>
                   <dl className="divide-y divide-rule rounded-lg border px-4">
                     {checkInStats.byTicketType.map((t) => (
                       <div key={t.type} className="py-3">
@@ -391,7 +422,7 @@ export default function EventCheckInPage({ params }: { params: Promise<{ eventId
                 </section>
               )}
               <section aria-labelledby="recent-heading">
-                <h2 id="recent-heading" className="mb-2 text-[15px] font-semibold">Latest arrivals</h2>
+                <h2 id="recent-heading" className="mb-2 font-display text-[17px] font-semibold tracking-[-0.01em]">Latest arrivals</h2>
                 <ul className="divide-y divide-rule border-y border-rule">
                   {checkInStats.recent.map((c) => (
                     <li key={c.id} className="flex items-center gap-3 py-3">

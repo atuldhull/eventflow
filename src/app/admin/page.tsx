@@ -55,7 +55,7 @@ export default function AdminPage() {
     return (
       <div className="max-w-2xl space-y-6" aria-busy="true" aria-label="Loading workspaces">
         <div className="space-y-2"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-72" /></div>
-        <div className="space-y-px overflow-hidden rounded-lg border">
+        <div className="space-y-px overflow-hidden rounded-xl border">
           {[0, 1].map((i) => <Skeleton key={i} className="h-14 rounded-none" />)}
         </div>
       </div>
@@ -128,8 +128,8 @@ function WorkspaceList({
   const headingId = `ws-${label.toLowerCase()}`
   return (
     <section aria-labelledby={headingId}>
-      <h2 id={headingId} className="mb-2 text-[15px] font-semibold">{label}</h2>
-      <ul className="divide-y divide-rule overflow-hidden rounded-lg border">
+      <h2 id={headingId} className="mb-2 font-display text-[17px] font-semibold tracking-[-0.01em]">{label}</h2>
+      <ul className="divide-y divide-rule overflow-hidden rounded-xl border">
         {items.map((ws) => (
           <li key={ws.id}>
             <button
@@ -137,10 +137,10 @@ function WorkspaceList({
               onClick={() => onPick(ws.id)}
               className="group flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60"
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-raised text-[13px] font-semibold" aria-hidden>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-raised font-display text-base font-bold" aria-hidden>
                 {ws.name.charAt(0).toUpperCase()}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{ws.name}</span>
+              <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{ws.name}</span>
               {ws.role && <Pill tone="neutral">{getRoleLabel(ws.role as Role)}</Pill>}
               <ChevronRight className="size-4 shrink-0 text-faint transition-colors group-hover:text-foreground" aria-hidden />
             </button>

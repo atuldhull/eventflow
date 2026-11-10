@@ -41,7 +41,7 @@ export function PageHeader({ title, description, actions, breadcrumbs, className
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.015em] text-foreground">{title}</h1>
+          <h1 className="font-display text-[28px] leading-8 font-bold tracking-[-0.03em] text-foreground">{title}</h1>
           {description && <p className="mt-1 max-w-[68ch] text-sm text-muted-foreground">{description}</p>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2 [&>*]:max-sm:flex-1">{actions}</div>}

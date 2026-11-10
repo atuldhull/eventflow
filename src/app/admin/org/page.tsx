@@ -132,30 +132,30 @@ export default function OrgDashboard() {
         {/* Upcoming events */}
         <section aria-labelledby="upcoming-heading" className="min-w-0">
           <div className="mb-2 flex items-center justify-between">
-            <h2 id="upcoming-heading" className="text-[15px] font-semibold">Upcoming events</h2>
+            <h2 id="upcoming-heading" className="font-display text-[17px] font-semibold tracking-[-0.01em]">Upcoming events</h2>
             <Link href="/admin/org/events" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
               All events
             </Link>
           </div>
           {isLoading ? (
-            <div className="space-y-px border-y border-rule" aria-busy="true" aria-label="Loading events">
+            <div className="divide-y divide-rule rounded-xl border px-4" aria-busy="true" aria-label="Loading events">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="flex items-center gap-4 py-3.5">
-                  <Skeleton className="h-9 w-10" />
+                  <Skeleton className="h-12 w-12 rounded-lg" />
                   <div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-1/3" /></div>
                   <Skeleton className="hidden h-4 w-32 sm:block" />
                 </div>
               ))}
             </div>
           ) : upcomingEvents.length > 0 ? (
-            <ul className="divide-y divide-rule border-y border-rule">
+            <ul className="divide-y divide-rule overflow-hidden rounded-xl border">
               {upcomingEvents.map((event) => (
-                <li key={event.id} className="group relative flex items-center gap-4 px-1 py-3 transition-colors hover:bg-muted/50">
+                <li key={event.id} className="group relative flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/50">
                   <DateBlock date={event.startDate} timeZone={event.timezone} />
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/admin/org/events/${event.id}`}
-                      className="block truncate text-sm font-medium after:absolute after:inset-0 after:content-['']"
+                      className="block line-clamp-2 text-[15px] font-medium after:absolute sm:truncate after:inset-0 after:content-['']"
                     >
                       {event.title}
                     </Link>
@@ -185,28 +185,52 @@ export default function OrgDashboard() {
         {/* Pending actions + recent activity */}
         <div className="min-w-0 space-y-6">
           <section aria-labelledby="pending-heading">
-            <h2 id="pending-heading" className="mb-2 text-[15px] font-semibold">Pending actions</h2>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 id="pending-heading" className="font-display text-[17px] font-semibold tracking-[-0.01em]">Pending actions</h2>
+              {!isLoading && data?.pendingActions.length ? (
+                <span className="text-[13px] text-muted-foreground tabular-nums">{data.pendingActions.length} to do</span>
+              ) : null}
+            </div>
             {isLoading ? (
-              <Skeleton className="h-12 rounded-lg" />
+              <Skeleton className="h-16 rounded-xl" />
             ) : data?.pendingActions.length ? (
-              <ul className="divide-y divide-rule overflow-hidden rounded-lg border">
-                {data.pendingActions.map((a) => (
-                  <li key={a.key}>
-                    <Link href={a.href} className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/50">
-                      <span className="min-w-0 flex-1">{a.label}</span>
-                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    </Link>
-                  </li>
-                ))}
+              <ul className="divide-y divide-rule overflow-hidden rounded-xl border">
+                {data.pendingActions.map((a) => {
+                  // The label already starts with the count ("2 registrations awaiting approval"):
+                  // the count is set large on its own, the rest of the sentence beside it.
+                  const rest = a.label.replace(new RegExp(`^${a.count}\\s+`), "")
+                  const split = rest !== a.label
+                  return (
+                    <li key={a.key}>
+                      <Link href={a.href} className="group flex min-h-14 items-center gap-3.5 px-4 py-3 text-sm transition-colors hover:bg-muted/50">
+                        <span
+                          aria-hidden
+                          className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border-2 border-foreground/80 px-1.5 font-display text-[17px] leading-none font-bold tabular-nums"
+                        >
+                          {a.count.toLocaleString("en-IN")}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          {split ? (
+                            <>
+                              <span className="sr-only">{a.label}</span>
+                              <span aria-hidden>{rest.charAt(0).toUpperCase() + rest.slice(1)}</span>
+                            </>
+                          ) : a.label}
+                        </span>
+                        <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+                      </Link>
+                    </li>
+                  )
+                })}
               </ul>
             ) : (
-              <div className="rounded-lg border px-4 py-3.5 text-sm text-muted-foreground">All caught up.</div>
+              <div className="rounded-xl border px-4 py-3.5 text-sm text-muted-foreground">All caught up.</div>
             )}
           </section>
 
           <section aria-labelledby="activity-heading">
             <div className="mb-2 flex items-center justify-between">
-              <h2 id="activity-heading" className="text-[15px] font-semibold">Recent activity</h2>
+              <h2 id="activity-heading" className="font-display text-[17px] font-semibold tracking-[-0.01em]">Recent activity</h2>
               <PermissionGate permission={PERMISSIONS.AUDIT_VIEW}>
                 <Link href="/admin/org/audit-logs" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                   View all

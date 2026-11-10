@@ -8,7 +8,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Pill } from "@/components/ui/pill"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/shared/PageHeader"
-import { EmptyState } from "@/components/shared/EmptyState"
+import { DashEmpty, PosterFallback } from "../_components/bits"
 import { SaveEventButton } from "@/components/events/SaveEventButton"
 import { cn } from "@/lib/utils"
 
@@ -51,31 +51,34 @@ export default function SavedEventsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Saved" description="Events you've saved to come back to later" />
+      <PageHeader
+        title="Saved"
+        description={isLoading ? "Events you've saved to come back to later" : `${events.length} event${events.length === 1 ? "" : "s"} you've saved to come back to later`}
+      />
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading saved events">
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-[300px] rounded-lg" />)}
         </div>
       ) : events.length === 0 ? (
-        <EmptyState icon={Heart} title="No saved events yet" description="Tap the heart on any event to save it here for later.">
-          <Link href="/events" className={buttonVariants({ variant: "outline" })}>Browse events</Link>
-        </EmptyState>
+        <DashEmpty title="No saved events yet" description="Tap the heart on any event to save it here for later.">
+          <Link href="/events" className={buttonVariants()}>
+            <Heart className="size-4" /> Browse events
+          </Link>
+        </DashEmpty>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {events.map((event) => {
             const start = new Date(event.startDate)
             return (
-              <article key={event.id} className="relative flex flex-col overflow-hidden rounded-lg border bg-card">
+              <article key={event.id} className="group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:border-foreground/20">
                 <Link href={`/events/${event.slug}`} className="block" tabIndex={-1} aria-hidden>
-                  <div className="relative h-36 bg-raised">
+                  <div className="relative h-40 overflow-hidden bg-raised [&>img]:transition-transform [&>img]:duration-500 group-hover:[&>img]:scale-[1.03] motion-reduce:[&>img]:transition-none">
                     {event.coverImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={event.coverImage} alt="" className="size-full object-cover" />
                     ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <Calendar className="size-8 text-faint" />
-                      </div>
+                      <PosterFallback seed={event.slug} date={start} category={event.category} />
                     )}
                   </div>
                 </Link>

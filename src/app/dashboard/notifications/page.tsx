@@ -5,7 +5,7 @@ import { Bell, ClipboardCheck, CreditCard, Clock, Megaphone, Award, Trash2 } fro
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
-import { EmptyState } from "@/components/shared/EmptyState"
+import { DashEmpty } from "../_components/bits"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -74,7 +74,9 @@ export default function NotificationsPage() {
     } catch {}
   }
 
-  const formatTime = (dateStr: string) => {
+  const unreadCount = notifications.filter((n) => !n.isRead).length
+
+  const formatTime =(dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime()
     const mins = Math.floor(diff / 60000)
     if (mins < 60) return `${mins}m ago`
@@ -87,6 +89,7 @@ export default function NotificationsPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title="Notifications"
+        description={isLoading ? undefined : unreadCount > 0 ? `${unreadCount} unread` : "All read"}
         actions={
           <Button variant="outline" size="sm" onClick={markAllRead}>
             Mark all as read
@@ -106,38 +109,45 @@ export default function NotificationsPage() {
         <TabsContent value={tab} className="mt-4">
           {isLoading ? (
             <div className="space-y-2" aria-busy="true" aria-label="Loading notifications">
-              {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[72px] rounded-lg" />)}
+              {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[76px] rounded-xl" />)}
             </div>
           ) : notifications.length === 0 ? (
-            <EmptyState icon={Bell} title="No notifications" description="You're all caught up!" />
+            <DashEmpty title="No notifications" description="You're all caught up! Updates about your registrations, payments and events land here." />
           ) : (
-            <ul className="divide-y divide-rule border-y border-rule">
+            <ul className="divide-y divide-rule overflow-hidden rounded-xl border bg-card">
               {notifications.map((n) => {
                 const Icon = categoryIcons[n.category] || Bell
                 return (
-                  <li key={n.id} className="flex items-start gap-3 py-3.5 pr-1">
-                    <span className="relative mt-0.5 shrink-0" aria-hidden>
-                      <Icon className="size-[18px] text-muted-foreground" />
+                  <li key={n.id} className={cn("relative flex items-start gap-3.5 py-4 pr-2 pl-4 transition-colors sm:pl-5", !n.isRead && "bg-brand/5")}>
+                    {!n.isRead && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-brand" />}
+                    <span
+                      className={cn(
+                        "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border bg-frame",
+                        !n.isRead ? "text-brand" : "text-muted-foreground",
+                      )}
+                      aria-hidden
+                    >
+                      <Icon className="size-[18px]" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
-                        <p className={cn("text-sm", !n.isRead && "font-semibold")}>
+                        <p className={cn("text-sm", !n.isRead ? "font-semibold" : "font-medium")}>
                           {!n.isRead && (
                             <span className="mr-2 inline-block size-2 rounded-full bg-brand align-middle" aria-label="Unread" role="img" />
                           )}
                           {n.title}
                         </p>
-                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatTime(n.createdAt)}</span>
+                        <span className="shrink-0 pt-0.5 text-xs text-muted-foreground tabular-nums">{formatTime(n.createdAt)}</span>
                       </div>
                       <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
-                      {n.event && <p className="mt-1 text-[13px] text-faint">{n.event.title}</p>}
+                      {n.event && <p className="mt-1.5 text-[13px] font-medium text-faint">{n.event.title}</p>}
                     </div>
                     <Button
                       variant="ghost"
                       size="icon-sm"
                       onClick={() => deleteNotification(n.id)}
                       aria-label={`Delete notification: ${n.title}`}
-                      className="-mt-1 shrink-0 text-muted-foreground hover:text-destructive"
+                      className="-mt-0.5 shrink-0 text-muted-foreground hover:bg-pill-negative hover:text-destructive"
                     >
                       <Trash2 />
                     </Button>

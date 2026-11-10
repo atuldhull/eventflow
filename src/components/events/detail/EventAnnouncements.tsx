@@ -37,12 +37,15 @@ export function EventAnnouncements({ slug, timeZone }: { slug: string; timeZone?
 
   return (
     <EventSection id="announcements" title="Announcements" meta={items.length}>
-      <ul className="divide-y divide-rule rounded-lg border">
+      <ul className="space-y-3">
         {items.map((a) => (
-          <li key={a.id} className="px-4 py-3">
+          <li
+            key={a.id}
+            className={`relative overflow-hidden rounded-[18px] border bg-card py-4 pr-5 pl-6 before:absolute before:inset-y-0 before:left-0 before:w-1.5 ${a.isPinned ? "before:bg-lemon" : a.priority === "URGENT" ? "before:bg-destructive" : "before:bg-lavender"}`}
+          >
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               {a.isPinned && <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned" />}
-              <h3 className="text-sm font-medium">{a.title}</h3>
+              <h3 className="font-display text-[18px] leading-tight font-bold tracking-[-0.02em]">{a.title}</h3>
               {(a.priority === "URGENT" || a.priority === "HIGH") && (
                 <Pill tone={a.priority === "URGENT" ? "negative" : "warning"}>{a.priority === "URGENT" ? "Urgent" : "Important"}</Pill>
               )}
@@ -52,7 +55,7 @@ export function EventAnnouncements({ slug, timeZone }: { slug: string; timeZone?
                 {formatInZone(a.publishedAt, timeZone, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
               </p>
             )}
-            <p className="mt-2 max-w-[68ch] text-sm leading-6 whitespace-pre-wrap text-foreground/90">{a.content}</p>
+            <p className="mt-2 max-w-[68ch] text-[15px] leading-7 whitespace-pre-wrap text-foreground/90">{a.content}</p>
           </li>
         ))}
       </ul>

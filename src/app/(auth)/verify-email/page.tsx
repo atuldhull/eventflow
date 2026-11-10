@@ -9,7 +9,9 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { OTPInput } from "@/components/forms/OTPInput"
+import { CodeBoxes } from "../_components/CodeBoxes"
+import { AuthHeading, authAction, authField } from "../_components/ui"
+import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
 import { getSafeCallbackUrl } from "@/lib/auth-redirect"
 
@@ -85,19 +87,16 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <div className="space-y-7">
-      <div>
-        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">Verify your email</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {otpSent ? (
-            <>
-              Enter the 6-digit code sent to <span className="font-medium break-all text-foreground">{email}</span>
-            </>
-          ) : (
-            "Enter your email to receive a verification code"
-          )}
-        </p>
-      </div>
+    <div className="space-y-8">
+      <AuthHeading eyebrow="One last step" title="Verify your" mark="email" after=".">
+        {otpSent ? (
+          <>
+            Enter the 6-digit code sent to <span className="font-medium break-all text-foreground">{email}</span>
+          </>
+        ) : (
+          "Enter your email to receive a verification code"
+        )}
+      </AuthHeading>
 
       {!otpSent ? (
         <form
@@ -110,16 +109,16 @@ export default function VerifyEmailPage() {
         >
           <div className="space-y-2">
             <Label htmlFor="verify-email">Email</Label>
-            <Input id="verify-email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input id="verify-email" type="email" autoComplete="email" placeholder="you@example.com" className={authField} value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" size="lg" className={cn(authAction, "w-full")} disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
             Send verification code
           </Button>
         </form>
       ) : (
         <div className="space-y-5">
-          <OTPInput onComplete={handleVerify} disabled={isSubmitting} />
+          <CodeBoxes onComplete={handleVerify} disabled={isSubmitting} />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Button type="button" variant="ghost" size="sm" className="-ml-3 tabular-nums" onClick={handleSendCode} disabled={resendTimer > 0 || isSubmitting}>
               {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
@@ -140,8 +139,8 @@ export default function VerifyEmailPage() {
         </div>
       )}
 
-      <Link href="/login" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-        <ArrowLeft className="size-3.5" aria-hidden />
+      <Link href="/login" className="group inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+        <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden />
         Back to login
       </Link>
     </div>

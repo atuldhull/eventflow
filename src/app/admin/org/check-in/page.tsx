@@ -82,7 +82,7 @@ export default function CheckInHubPage() {
       <PageHeader title="Check-in" description="Scan tickets and manage attendance" />
 
       <section aria-labelledby="today-heading">
-        <h2 id="today-heading" className="mb-2 text-[15px] font-semibold">Today&apos;s events</h2>
+        <h2 id="today-heading" className="mb-2 font-display text-[17px] font-semibold tracking-[-0.01em]">Today&apos;s events</h2>
         {isLoading ? (
           <ListSkeleton />
         ) : today.length > 0 ? (
@@ -102,7 +102,7 @@ export default function CheckInHubPage() {
 
       {(isLoading || upcoming.length > 0) && (
         <section aria-labelledby="upcoming-heading">
-          <h2 id="upcoming-heading" className="mb-2 text-[15px] font-semibold">Coming up</h2>
+          <h2 id="upcoming-heading" className="mb-2 font-display text-[17px] font-semibold tracking-[-0.01em]">Coming up</h2>
           {isLoading ? <ListSkeleton /> : <EventList events={upcoming} />}
         </section>
       )}
@@ -112,13 +112,13 @@ export default function CheckInHubPage() {
 
 function EventList({ events, primary = false }: { events: HubEvent[]; primary?: boolean }) {
   return (
-    <ul className="divide-y divide-rule border-y border-rule">
+    <ul className={cn("divide-y divide-rule overflow-hidden rounded-xl border", primary && "border-foreground/25")}>
       {events.map((e) => (
-        <li key={e.id} className="flex items-center gap-4 px-1 py-3">
+        <li key={e.id} className={cn("flex items-center gap-4 px-4", primary ? "py-4 max-sm:flex-wrap" : "py-3.5")}>
           <DateBlock date={e.startDate} timeZone={e.timezone} />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
-              <Link href={`/admin/org/events/${e.id}`} className="truncate text-sm font-medium hover:underline hover:underline-offset-4">
+              <Link href={`/admin/org/events/${e.id}`} className={cn("truncate font-medium hover:underline hover:underline-offset-4", primary ? "font-display text-lg font-semibold tracking-[-0.015em]" : "text-[15px]")}>
                 {e.title}
               </Link>
               <Pill tone={statusTone(e.status)} className="shrink-0 max-sm:hidden">{statusLabel(e.status)}</Pill>
@@ -132,9 +132,9 @@ function EventList({ events, primary = false }: { events: HubEvent[]; primary?: 
           <Registered count={e.currentRegistrations || 0} capacity={e.maxCapacity} suffix="registered" className="hidden w-40 shrink-0 sm:block" />
           <Link
             href={`/admin/org/events/${e.id}/check-in`}
-            className={cn(buttonVariants({ variant: primary ? "default" : "outline", size: "sm" }), "shrink-0")}
+            className={cn(buttonVariants({ variant: primary ? "default" : "outline", size: primary ? "lg" : "sm" }), "shrink-0", primary && "h-11 px-5 font-semibold max-sm:w-full pointer-coarse:h-12")}
           >
-            <QrCode /> <span className="max-sm:sr-only">Check in</span>
+            <QrCode /> <span className={primary ? undefined : "max-sm:sr-only"}>Check in</span>
           </Link>
         </li>
       ))}
@@ -144,10 +144,10 @@ function EventList({ events, primary = false }: { events: HubEvent[]; primary?: 
 
 function ListSkeleton() {
   return (
-    <div className="space-y-px border-y border-rule" aria-busy="true" aria-label="Loading events">
+    <div className="divide-y divide-rule rounded-xl border px-4" aria-busy="true" aria-label="Loading events">
       {[0, 1].map((i) => (
         <div key={i} className="flex items-center gap-4 py-3.5">
-          <Skeleton className="h-9 w-10" />
+          <Skeleton className="h-12 w-12 rounded-lg" />
           <div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-1/3" /></div>
           <Skeleton className="h-8 w-24" />
         </div>

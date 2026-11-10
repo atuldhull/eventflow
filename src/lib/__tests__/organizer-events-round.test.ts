@@ -111,7 +111,7 @@ describe("event limit on create and duplicate (item 1)", () => {
     expect(res.status).toBe(403)
     expect(json.message).toContain("You've created 5 of 5 events this month on the Free plan")
     expect(json.message).toContain("The count resets on 1 ")
-    expect(json.message).toContain("ask an enterprise admin to upgrade to Starter")
+    expect(json.message).toContain("ask an enterprise admin to upgrade to Pro")
     expect(prismaMock.event.create).not.toHaveBeenCalled()
   })
 

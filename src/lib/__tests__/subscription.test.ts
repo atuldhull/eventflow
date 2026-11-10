@@ -163,7 +163,7 @@ describe("event limit (N events per month): one rule for create, duplicate, recu
     expect(check.allowed).toBe(false)
     expect(check.message).toContain("You've created 5 of 5 events this month on the Free plan across your enterprise.")
     expect(check.message).toContain("resets on 1 December 2026")
-    expect(check.message).toContain("ask an enterprise admin to upgrade to Starter (25 events a month)")
+    expect(check.message).toContain("ask an enterprise admin to upgrade to Pro (unlimited events)")
   })
 
   it("a standalone organization uses its own subscription; a lapsed paid plan counts as FREE", async () => {
@@ -176,7 +176,7 @@ describe("event limit (N events per month): one rule for create, duplicate, recu
     expect(prismaMock.subscription.findFirst).toHaveBeenCalledWith({ where: { organizationId: ORG_ID } })
     expect(check).toMatchObject({ allowed: false, plan: "FREE", limit: 5, scope: { entityType: "org", entityId: ORG_ID } })
     expect(check.message).toContain("You've created 5 of 5 events this month on the Free plan.")
-    expect(check.message).toContain("upgrade to Starter (25 events a month) from Billing")
+    expect(check.message).toContain("upgrade to Pro (unlimited events) from Billing")
   })
 
   it("checks a batch of new events (recurrences) as a whole", async () => {

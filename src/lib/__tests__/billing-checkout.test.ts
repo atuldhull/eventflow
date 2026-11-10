@@ -123,7 +123,7 @@ describe("POST /api/admin/billing/subscribe", () => {
 
   it("uses the yearly price for yearly billing", async () => {
     await subscribe(post("/api/admin/billing/subscribe", { plan: "PRO", billingInterval: "YEARLY", entityType: "org", entityId: ORG_ID }))
-    expect(mocks.orders.create).toHaveBeenCalledWith(expect.objectContaining({ amount: 2999900 }))
+    expect(mocks.orders.create).toHaveBeenCalledWith(expect.objectContaining({ amount: 999900 }))
     expectNoSubscriptionWrites()
   })
 

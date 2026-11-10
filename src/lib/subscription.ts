@@ -12,10 +12,12 @@ export const PLAN_CONFIG = {
     limits: { maxEvents: 25, maxParticipantsPerEvent: 500, maxOrganizations: 3, maxTeamMembers: 15 },
     features: { customBranding: true, apiAccess: false, advancedAnalytics: true, customDomain: false, smsNotifications: true, prioritySupport: false },
   },
+  // Matches the public pricing page: Pro is ₹999 a month (₹9,999 a year). STARTER is a legacy
+  // tier kept for existing subscriptions; it is no longer offered as an upgrade.
   PRO: {
-    price: { monthly: 2999, yearly: 29999 },
-    limits: { maxEvents: -1, maxParticipantsPerEvent: 5000, maxOrganizations: 10, maxTeamMembers: 50 },
-    features: { customBranding: true, apiAccess: true, advancedAnalytics: true, customDomain: true, smsNotifications: true, prioritySupport: true },
+    price: { monthly: 999, yearly: 9999 },
+    limits: { maxEvents: -1, maxParticipantsPerEvent: 5000, maxOrganizations: 5, maxTeamMembers: 25 },
+    features: { customBranding: true, apiAccess: true, advancedAnalytics: true, customDomain: false, smsNotifications: true, prioritySupport: true },
   },
   ENTERPRISE: {
     price: { monthly: 0, yearly: 0 },
@@ -134,9 +136,11 @@ export function countEventsThisMonth(scope: PlanScope, now = new Date()): Promis
 
 const PLAN_LABEL: Record<PlanName, string> = { FREE: "Free", STARTER: "Starter", PRO: "Pro", ENTERPRISE: "Enterprise" }
 
+// The upgrade path offered to people: Free, then Pro, then Enterprise (Starter is legacy).
 function nextPlan(plan: PlanName): PlanName | null {
-  const order: PlanName[] = ["FREE", "STARTER", "PRO", "ENTERPRISE"]
-  return order[order.indexOf(plan) + 1] ?? null
+  if (plan === "FREE" || plan === "STARTER") return "PRO"
+  if (plan === "PRO") return "ENTERPRISE"
+  return null
 }
 
 export type EventLimitCheck = {

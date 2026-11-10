@@ -12,8 +12,8 @@ import { fmtDate, inr, num } from "@/app/admin/enterprise/_components/admin-ui"
 
 const planMeta = [
   { key: "FREE", name: "Free", price: "₹0" },
-  { key: "STARTER", name: "Starter", price: "₹999" },
-  { key: "PRO", name: "Pro", price: "₹2,999" },
+  { key: "STARTER", name: "Starter (legacy)", price: "₹999" },
+  { key: "PRO", name: "Pro", price: "₹999" },
   { key: "ENTERPRISE", name: "Enterprise", price: "Custom" },
 ]
 

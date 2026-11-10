@@ -50,16 +50,17 @@ export const PLANS = {
   PRO: {
     id: "pro" as const,
     name: "Pro",
-    description: "For professional event management",
-    price: { monthly: 2999, yearly: 29999 },
+    description: "For growing organizations",
+    // Matches the public pricing page (₹999 a month, ₹9,999 a year).
+    price: { monthly: 999, yearly: 9999 },
     limits: {
-      maxEventsPerMonth: -1, maxParticipantsPerEvent: 5000, maxOrganizations: 10,
-      maxTeamMembers: 50, maxStorageGB: 50, maxEmailsPerMonth: 25000,
+      maxEventsPerMonth: -1, maxParticipantsPerEvent: 5000, maxOrganizations: 5,
+      maxTeamMembers: 25, maxStorageGB: 50, maxEmailsPerMonth: 25000,
       maxApiRequestsPerDay: 10000, maxWebhooks: 5, maxCertificateTemplates: -1, maxCouponsPerEvent: -1,
     },
     features: {
       customBranding: true, advancedAnalytics: true, apiAccess: true, webhooks: true,
-      whiteLabel: false, customDomain: true, smsNotifications: true, prioritySupport: true,
+      whiteLabel: false, customDomain: false, smsNotifications: true, prioritySupport: true,
       certificateCustomTemplates: true, bulkImport: true, exportData: true,
       multiTrackEvents: true, recurringEvents: true, subEvents: true,
       teamRegistration: true, waitlist: true, approvalWorkflow: true, couponCodes: true,
@@ -124,10 +125,12 @@ export function getYearlySavings(planId: PlanId): number {
   return Math.round(((monthlyAnnual - plan.price.yearly) / monthlyAnnual) * 100)
 }
 
+// The upgrade path offered to people: Free, then Pro, then Enterprise. STARTER is a legacy
+// tier kept for existing subscriptions and is no longer offered.
 export function getNextPlan(currentPlan: PlanId): PlanId | null {
-  const order: PlanId[] = ["FREE", "STARTER", "PRO", "ENTERPRISE"]
-  const idx = order.indexOf(currentPlan)
-  return idx < order.length - 1 ? order[idx + 1] : null
+  if (currentPlan === "FREE" || currentPlan === "STARTER") return "PRO"
+  if (currentPlan === "PRO") return "ENTERPRISE"
+  return null
 }
 
 export function getPreviousPlan(currentPlan: PlanId): PlanId | null {

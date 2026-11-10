@@ -1,84 +1,97 @@
 import { cn } from "@/lib/utils"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 interface StatCardProps {
   title: string
   value: string | number
   change?: { value: number; trend: "up" | "down" | "neutral" }
-  icon: LucideIcon
+  /** kept for compatibility; rendered as a small grey glyph beside the label */
+  icon?: LucideIcon
+  /** kept for compatibility; KPIs no longer sit on tinted icon tiles */
   iconColor?: string
   description?: string
   isLoading?: boolean
+  className?: string
 }
 
-export function StatCard({
-  title,
-  value,
-  change,
-  icon: Icon,
-  iconColor = "bg-primary/10 text-primary",
-  description,
-  isLoading = false,
-}: StatCardProps) {
-  if (isLoading) {
-    return (
-      <Card className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-8 w-32" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-          <Skeleton className="h-10 w-10 rounded-lg" />
-        </div>
-      </Card>
-    )
-  }
-
+/**
+ * A KPI is type, not a tile: a 14px grey label, a 28px value at regular
+ * weight in tabular figures, and the change written as a phrase. Colour only
+ * when there is a real change; a zero change is grey.
+ */
+export function StatCard({ title, value, change, icon: Icon, description, isLoading = false, className }: StatCardProps) {
   return (
-    <Card className="p-6">
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold">{value}</p>
-          {change && (
-            <div className="flex items-center gap-1">
-              {change.trend === "up" && (
-                <TrendingUp className="h-3.5 w-3.5 text-green-500" />
-              )}
-              {change.trend === "down" && (
-                <TrendingDown className="h-3.5 w-3.5 text-red-500" />
-              )}
-              {change.trend === "neutral" && (
-                <Minus className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-              <span
-                className={cn(
-                  "text-xs font-medium",
-                  change.trend === "up" && "text-green-500",
-                  change.trend === "down" && "text-red-500",
-                  change.trend === "neutral" && "text-muted-foreground"
-                )}
-              >
-                {change.trend === "up" ? "+" : ""}
-                {change.value}%
-              </span>
-              {description && (
-                <span className="text-xs text-muted-foreground">{description}</span>
-              )}
-            </div>
-          )}
-          {!change && description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          )}
-        </div>
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", iconColor)}>
-          <Icon className="h-5 w-5" />
-        </div>
+    <Card className={cn("gap-0 px-5 py-4", className)}>
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {Icon && <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />}
+        <span className="truncate">{title}</span>
       </div>
+      {isLoading ? (
+        <>
+          <Skeleton className="mt-2 h-7 w-24" />
+          <Skeleton className="mt-2 h-3.5 w-32" />
+        </>
+      ) : (
+        <>
+          <p className="mt-1.5 text-[28px] leading-8 font-normal tracking-[-0.02em] tabular-nums">{value}</p>
+          {(change || description) && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {change && (
+                <span
+                  className={cn(
+                    "font-medium tabular-nums",
+                    change.trend === "up" && change.value !== 0 && "text-positive",
+                    change.trend === "down" && change.value !== 0 && "text-destructive",
+                  )}
+                >
+                  {change.trend === "down" ? "−" : change.value === 0 ? "" : "+"}
+                  {Math.abs(change.value)}%
+                </span>
+              )}
+              {change && description ? " " : ""}
+              {description}
+            </p>
+          )}
+        </>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * Several peer KPIs as one card split by 1px dividers. On a phone it becomes
+ * a 2-column grid (the last cell spans when the count is odd).
+ */
+export function KpiStrip({
+  items,
+  isLoading,
+  className,
+}: {
+  items: { label: string; value: React.ReactNode; caption?: React.ReactNode }[]
+  isLoading?: boolean
+  className?: string
+}) {
+  return (
+    <Card className={cn("gap-0 overflow-hidden p-0", className)}>
+      <dl
+        className="grid grid-cols-2 sm:flex sm:divide-x sm:divide-border [&>div]:border-border max-sm:[&>div:nth-child(odd)]:border-r max-sm:[&>div:nth-child(n+3)]:border-t max-sm:[&>div:last-child:nth-child(odd)]:col-span-2 max-sm:[&>div:last-child:nth-child(odd)]:border-r-0"
+      >
+        {items.map((it) => (
+          <div key={it.label} className="min-w-0 flex-1 px-5 py-4">
+            <dt className="truncate text-sm text-muted-foreground">{it.label}</dt>
+            {isLoading ? (
+              <dd><Skeleton className="mt-2 h-7 w-20" /></dd>
+            ) : (
+              <>
+                <dd className="mt-1.5 text-[26px] leading-8 tracking-[-0.02em] tabular-nums">{it.value}</dd>
+                {it.caption && <dd className="mt-0.5 text-xs text-muted-foreground">{it.caption}</dd>}
+              </>
+            )}
+          </div>
+        ))}
+      </dl>
     </Card>
   )
 }

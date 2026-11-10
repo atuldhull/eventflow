@@ -1,10 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { X, Search, Upload, ImageIcon, Check, Loader2 } from "lucide-react"
+import { Upload, ImageIcon, Check, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DataTableSearch } from "@/components/tables/DataTableToolbar"
+import { cn } from "@/lib/utils"
 import { useRBAC } from "@/hooks/useRBAC"
 
 interface MediaItem {
@@ -78,59 +82,54 @@ export function MediaPicker({ isOpen, onClose, onSelect, folder }: MediaPickerPr
     if (item) { onSelect(item); onClose() }
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <motion.div className="bg-background rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-xl"
-        initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="p-4 border-b flex items-center justify-between shrink-0">
-          <h3 className="font-semibold">Select Image</h3>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}><X className="h-4 w-4" /></Button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-2xl">
+        <DialogHeader className="px-5 pt-4 pb-0">
+          <DialogTitle>Select image</DialogTitle>
+          <DialogDescription className="sr-only">Pick an image from your media library or add one by URL.</DialogDescription>
+        </DialogHeader>
 
         {/* Tabs */}
-        <div className="flex border-b shrink-0">
+        <div className="flex shrink-0 gap-4 border-b px-5" role="tablist">
           {(["library", "upload"] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
-              {tab === "library" ? "Library" : "Upload"}
+            <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}
+              className={cn("relative min-h-11 text-sm font-medium transition-colors after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5", activeTab === tab ? "text-foreground after:bg-foreground" : "text-muted-foreground hover:text-foreground")}>
+              {tab === "library" ? "Library" : "Add by URL"}
             </button>
           ))}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {activeTab === "library" && (
             <div className="space-y-3">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} placeholder="Search..." className="pl-8 h-8 text-xs" />
-                </div>
-              </div>
+              <DataTableSearch value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} placeholder="Search images" className="sm:w-full" />
 
-              {/* Folder pills */}
-              <div className="flex gap-1 flex-wrap">
-                <button onClick={() => setActiveFolder("all")} className={`px-2 py-1 rounded-full text-[10px] font-medium ${activeFolder === "all" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>All</button>
+              {/* Folders */}
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Folder">
+                <button type="button" onClick={() => setActiveFolder("all")} aria-pressed={activeFolder === "all"} className={cn("inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium transition-colors pointer-coarse:h-9", activeFolder === "all" ? "border-brand/40 bg-brand/10 text-brand" : "border-border text-muted-foreground hover:bg-accent hover:text-foreground")}>All</button>
                 {folders.map((f) => (
-                  <button key={f} onClick={() => setActiveFolder(f)} className={`px-2 py-1 rounded-full text-[10px] font-medium ${activeFolder === f ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{f}</button>
+                  <button key={f} type="button" onClick={() => setActiveFolder(f)} aria-pressed={activeFolder === f} className={cn("inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium transition-colors pointer-coarse:h-9", activeFolder === f ? "border-brand/40 bg-brand/10 text-brand" : "border-border text-muted-foreground hover:bg-accent hover:text-foreground")}>{f}</button>
                 ))}
               </div>
 
               {isLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" aria-busy="true">
+                  {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="aspect-square rounded-md" />)}
+                </div>
               ) : media.length === 0 ? (
-                <p className="text-center text-xs text-muted-foreground py-8">No images found. Upload your first image!</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">No images found. Upload your first image!</p>
               ) : (
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {media.filter((m) => m.fileType.startsWith("image")).map((item) => (
-                    <button key={item.id} onClick={() => setSelectedId(item.id)} onDoubleClick={() => { onSelect(item); onClose() }}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-colors relative ${selectedId === item.id ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-muted-foreground/20"}`}>
-                      {item.fileUrl ? <img src={item.fileUrl} alt={item.altText || item.fileName} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-muted flex items-center justify-center"><ImageIcon className="h-6 w-6 text-muted-foreground/20" /></div>}
-                      {selectedId === item.id && <div className="absolute top-1 right-1 bg-primary rounded-full p-0.5"><Check className="h-3 w-3 text-primary-foreground" /></div>}
+                    <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} onDoubleClick={() => { onSelect(item); onClose() }}
+                      aria-pressed={selectedId === item.id}
+                      aria-label={item.altText || item.fileName}
+                      className={cn("relative aspect-square overflow-hidden rounded-md bg-raised ring-1 transition-shadow", selectedId === item.id ? "ring-2 ring-brand" : "ring-border hover:ring-input")}>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- tenant media at arbitrary URLs */}
+                      {item.fileUrl ? <img src={item.fileUrl} alt="" className="size-full object-cover" /> : <div className="flex size-full items-center justify-center"><ImageIcon className="size-6 text-faint" /></div>}
+                      {selectedId === item.id && <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-[4px] bg-brand text-brand-foreground"><Check className="size-3.5" /></span>}
                     </button>
                   ))}
                 </div>
@@ -139,26 +138,28 @@ export function MediaPicker({ isOpen, onClose, onSelect, folder }: MediaPickerPr
           )}
 
           {activeTab === "upload" && (
-            <div className="space-y-4 py-4">
-              <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground mb-3">Enter image URL to add</p>
-                <Input value={uploadUrl} onChange={(e) => setUploadUrl(e.target.value)} placeholder="https://..." className="text-sm mb-2" />
-                <Input value={uploadName} onChange={(e) => setUploadName(e.target.value)} placeholder="File name (optional)" className="text-sm mb-3" />
-                <Button onClick={handleUpload} disabled={!uploadUrl || isUploading} className="gap-1">
-                  {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}Add Image
-                </Button>
+            <form onSubmit={(e) => { e.preventDefault(); if (uploadUrl && !isUploading) handleUpload() }} className="mx-auto grid max-w-md gap-4 py-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="picker-url">Image URL</Label>
+                <Input id="picker-url" value={uploadUrl} onChange={(e) => setUploadUrl(e.target.value)} placeholder="https://..." inputMode="url" />
               </div>
-            </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="picker-name">File name <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                <Input id="picker-name" value={uploadName} onChange={(e) => setUploadName(e.target.value)} placeholder="File name" />
+              </div>
+              <Button type="submit" variant="outline" disabled={!uploadUrl || isUploading} className="justify-self-start">
+                {isUploading ? <Loader2 className="animate-spin" /> : <Upload />}Add image
+              </Button>
+            </form>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t flex justify-end gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" onClick={handleSelect} disabled={!selectedId}>Select</Button>
-        </div>
-      </motion.div>
-    </div>
+        <DialogFooter className="border-t border-rule px-5 py-3">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSelect} disabled={!selectedId}>Select</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

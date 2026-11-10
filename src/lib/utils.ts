@@ -28,11 +28,21 @@ export function generateId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+/**
+ * "Tech-Fest 2026: Day_1!" -> "tech-fest-2026-day-1". Keeps the hyphens already in the text
+ * (the old version stripped them: "Tech-Fest" became "techfest"), turns spaces and
+ * underscores into hyphens, drops accents and anything else outside a-z0-9, and never
+ * leaves a leading, trailing or doubled hyphen.
+ */
 export function slugify(text: string): string {
   return text
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .replace(/[^\w ]+/g, "")
-    .replace(/ +/g, "-")
+    .replace(/[/\\.,:;&+|]+/g, " ")
+    .replace(/[^a-z0-9\s_-]+/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
 }
 
 export function truncate(text: string, length: number): string {

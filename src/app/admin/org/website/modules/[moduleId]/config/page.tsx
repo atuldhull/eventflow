@@ -2,19 +2,33 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Loader2, Save, RotateCcw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { ChevronRight, Loader2, Puzzle, RotateCcw, Save } from "lucide-react"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Pill } from "@/components/ui/pill"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { toast } from "sonner"
 import { useRBAC } from "@/hooks/useRBAC"
 import { FieldRenderer } from "@/components/website/editor/fields/FieldRenderer"
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- module schemas are loosely typed by the API */
 interface ModuleData {
   moduleId: string; name: string; description: string; icon: string; category: string
   configSchema: any; defaultConfig: any; supportedPlacements: string[]; hasAdminPanel: boolean
-  setupGuide: string | null
+  setupGuide: string | null; requiredPlan: string
 }
+
+const PLAN_LABEL: Record<string, string> = { FREE: "Free", STARTER: "Starter", PRO: "Pro", ENTERPRISE: "Enterprise" }
+const planLabel = (plan: string | null | undefined) => PLAN_LABEL[plan ?? "FREE"] ?? plan ?? PLAN_LABEL.FREE
+
+const breadcrumbs = (name?: string) => [
+  { label: "Website", href: "/admin/org/website" },
+  { label: "Modules", href: "/admin/org/website/modules" },
+  ...(name ? [{ label: name }] : []),
+]
 
 export default function ModuleConfigPage({ params }: { params: Promise<{ moduleId: string }> }) {
   const { currentOrganizationId } = useRBAC()
@@ -64,89 +78,121 @@ export default function ModuleConfigPage({ params }: { params: Promise<{ moduleI
     if (mod?.defaultConfig) { setConfig({ ...mod.defaultConfig }); toast.info("Reset to defaults") }
   }
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-  if (!mod) return <div className="text-center py-20 text-muted-foreground">Module not found</div>
-
-  const schemaProps = mod.configSchema?.properties || {}
-
-  return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/admin/org/website/modules"><Button variant="ghost" size="icon-sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
-          <div>
-            <h1 className="text-xl font-bold flex items-center gap-2">{mod.name}<Badge className="text-[10px] bg-green-500 text-white border-0">Enabled</Badge></h1>
-            <p className="text-sm text-muted-foreground">{mod.category}</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-1" onClick={handleReset}><RotateCcw className="h-3.5 w-3.5" />Reset</Button>
-          <Button size="sm" className="gap-1" onClick={handleSave} disabled={isSaving}>
-            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}Save
-          </Button>
+  if (isLoading) {
+    return (
+      <div className="space-y-6" aria-busy="true">
+        <PageHeader title="Module" breadcrumbs={breadcrumbs()} />
+        <div className="grid gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <Skeleton className="h-80 rounded-lg" />
+          <Skeleton className="h-40 rounded-lg" />
         </div>
       </div>
+    )
+  }
+  if (!mod) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Module" breadcrumbs={breadcrumbs()} />
+        <EmptyState icon={Puzzle} title="Module not found" />
+      </div>
+    )
+  }
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        {/* Config Form */}
-        <div className="md:col-span-3 space-y-4">
-          <Card className="p-5 space-y-5">
-            <h2 className="font-semibold">Module Settings</h2>
-            {Object.entries(schemaProps).map(([key, fieldDef]: [string, any]) => (
-              <FieldRenderer
-                key={key}
-                fieldKey={key}
-                fieldDef={{
-                  type: fieldDef.type === "string" && fieldDef.enum ? "select" : fieldDef.type === "integer" ? "number" : fieldDef.type,
-                  label: fieldDef.title || key.replace(/([A-Z])/g, " $1").replace(/^./, (s: string) => s.toUpperCase()),
-                  description: fieldDef.description,
-                  options: fieldDef.enum,
-                  min: fieldDef.minimum,
-                  max: fieldDef.maximum,
-                  default: fieldDef.default,
-                }}
-                value={config[key] ?? fieldDef.default}
-                onChange={(val) => setConfig({ ...config, [key]: val })}
-              />
-            ))}
-          </Card>
+  const schemaProps = mod.configSchema?.properties || {}
+  const placementLabel = (p: string) => p.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
 
-          {/* Placements */}
-          <Card className="p-5 space-y-3">
-            <h2 className="font-semibold">Placements</h2>
-            <p className="text-xs text-muted-foreground">Where should this module appear on your website?</p>
-            {mod.supportedPlacements.map((p) => (
-              <label key={p} className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={placements.includes(p)}
-                  onChange={(e) => setPlacements(e.target.checked ? [...placements, p] : placements.filter((x) => x !== p))} />
-                {p.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-              </label>
-            ))}
-          </Card>
-        </div>
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="space-y-2">
+        <PageHeader
+          title={mod.name}
+          description={mod.category ? `${mod.category.charAt(0).toUpperCase()}${mod.category.slice(1).toLowerCase().replace(/_/g, " ")} module` : undefined}
+          breadcrumbs={breadcrumbs(mod.name)}
+          actions={
+            <>
+              <Button variant="outline" onClick={handleReset}><RotateCcw />Reset</Button>
+              <Button onClick={handleSave} disabled={isSaving || !isEnabled} title={isEnabled ? undefined : "Enable this module first"}>
+                {isSaving ? <Loader2 className="animate-spin" /> : <Save />}Save
+              </Button>
+            </>
+          }
+        />
+        {isEnabled ? (
+          <Pill tone="positive" dot>Enabled</Pill>
+        ) : (
+          <Pill tone="neutral" dot>Not enabled</Pill>
+        )}
+      </div>
 
-        {/* Info sidebar */}
-        <div className="md:col-span-2 space-y-4">
-          <Card className="p-4 space-y-3 text-sm">
-            <h3 className="font-semibold">About</h3>
-            <p className="text-muted-foreground text-xs">{mod.description}</p>
-            <div className="text-xs space-y-1">
-              <p><strong>Plan:</strong> {mod.category}</p>
-              <p><strong>Admin Panel:</strong> {mod.hasAdminPanel ? "Yes" : "No"}</p>
+      <div className="grid gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="space-y-6">
+          <Card className="gap-0 p-0">
+            <h2 className="border-b border-rule px-5 py-3 text-[15px] font-semibold">Module settings</h2>
+            <div className="space-y-5 p-5">
+              {Object.entries(schemaProps).map(([key, fieldDef]: [string, any]) => (
+                <FieldRenderer
+                  key={key}
+                  fieldKey={key}
+                  fieldDef={{
+                    type: fieldDef.type === "string" && fieldDef.enum ? "select" : fieldDef.type === "integer" ? "number" : fieldDef.type,
+                    label: fieldDef.title || key.replace(/([A-Z])/g, " $1").replace(/^./, (s: string) => s.toUpperCase()),
+                    description: fieldDef.description,
+                    options: fieldDef.enum,
+                    min: fieldDef.minimum,
+                    max: fieldDef.maximum,
+                    default: fieldDef.default,
+                  }}
+                  value={config[key] ?? fieldDef.default}
+                  onChange={(val) => setConfig({ ...config, [key]: val })}
+                />
+              ))}
+              {Object.keys(schemaProps).length === 0 && <p className="text-[13px] text-muted-foreground">This module has no settings.</p>}
             </div>
           </Card>
 
+          <Card className="gap-0 p-0">
+            <div className="border-b border-rule px-5 py-3">
+              <h2 className="text-[15px] font-semibold">Placements</h2>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">Where should this module appear on your website?</p>
+            </div>
+            <ul className="divide-y divide-rule">
+              {mod.supportedPlacements.map((p) => (
+                <li key={p}>
+                  <label className="flex min-h-11 cursor-pointer items-center gap-3 px-5 py-2 text-sm">
+                    <Checkbox
+                      checked={placements.includes(p)}
+                      onCheckedChange={(checked) => setPlacements(checked ? [...placements, p] : placements.filter((x) => x !== p))}
+                    />
+                    {placementLabel(p)}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Card className="gap-0 p-0">
+            <div className="space-y-1.5 px-4 py-3.5">
+              <h3 className="text-sm font-semibold">About</h3>
+              <p className="text-[13px] text-muted-foreground">{mod.description}</p>
+            </div>
+            <dl className="divide-y divide-rule border-t border-rule text-[13px]">
+              <div className="flex justify-between gap-3 px-4 py-2"><dt className="text-muted-foreground">Plan</dt><dd>{planLabel(mod.requiredPlan)}</dd></div>
+              <div className="flex justify-between gap-3 px-4 py-2"><dt className="text-muted-foreground">Admin panel</dt><dd>{mod.hasAdminPanel ? "Yes" : "No"}</dd></div>
+            </dl>
+          </Card>
+
           {mod.hasAdminPanel && (
-            <Link href={`/admin/org/website/modules/${moduleId}/manage`}>
-              <Button variant="outline" className="w-full gap-1">Manage Content</Button>
+            <Link href={`/admin/org/website/modules/${moduleId}/manage`} className={buttonVariants({ variant: "outline", className: "w-full justify-between" })}>
+              Manage content <ChevronRight />
             </Link>
           )}
 
           {mod.setupGuide && (
-            <Card className="p-4 space-y-2">
-              <h3 className="font-semibold text-sm">Setup Guide</h3>
-              <div className="text-xs text-muted-foreground whitespace-pre-wrap">{mod.setupGuide}</div>
+            <Card className="gap-0 p-0">
+              <h3 className="border-b border-rule px-4 py-2.5 text-sm font-semibold">Setup guide</h3>
+              <div className="px-4 py-3 text-[13px] whitespace-pre-wrap text-muted-foreground">{mod.setupGuide}</div>
             </Card>
           )}
         </div>
@@ -154,3 +200,4 @@ export default function ModuleConfigPage({ params }: { params: Promise<{ moduleI
     </div>
   )
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */

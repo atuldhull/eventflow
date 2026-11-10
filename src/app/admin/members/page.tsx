@@ -2,12 +2,13 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Plus, UserPlus, Users, Loader2 } from "lucide-react"
+import { Plus, Search, UserPlus, Users, Loader2 } from "lucide-react"
 
+import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogTrigger,
@@ -33,15 +34,11 @@ import {
   getManageableRoles,
   getRoleLabel,
   getRoleDescription,
-  getRoleColor,
 } from "@/lib/permissions"
-import { useDebounce } from "@/hooks/useDebounce"
-import type { Role } from "@/lib/constants"
 
 export default function MembersPage() {
-  const { role, currentEnterpriseId, currentOrganizationId, can } = useRBAC()
+  const { isSuperAdmin, enterpriseRole, organizationRole, currentEnterpriseId, currentOrganizationId } = useRBAC()
   const [search, setSearch] = useState("")
-  const debouncedSearch = useDebounce(search)
 
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteRole, setInviteRole] = useState<string>("")
@@ -49,7 +46,9 @@ export default function MembersPage() {
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
 
-  const manageableRoles = getManageableRoles(role)
+  // the role held in the workspace being managed, never the global role
+  const contextRole = isSuperAdmin ? "SUPER_ADMIN" : (currentEnterpriseId ? enterpriseRole : organizationRole)
+  const manageableRoles = contextRole ? getManageableRoles(contextRole) : []
   const entityType = currentEnterpriseId ? "ENTERPRISE" : "ORGANIZATION"
   const entityId = currentEnterpriseId || currentOrganizationId
 
@@ -93,113 +92,116 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Team Members</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your team members and their roles
-          </p>
-        </div>
+      <PageHeader
+        title="Team members"
+        description="Manage your team members and their roles"
+        actions={
+          <PermissionGate permission={PERMISSIONS.MEMBER_INVITE}>
+            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+              <DialogTrigger render={<Button />}>
+                <Plus /> Invite member
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[460px]">
+                <DialogHeader>
+                  <DialogTitle>Invite a team member</DialogTitle>
+                  <DialogDescription>
+                    Send an invitation to join your team. They&apos;ll be added with the selected role.
+                  </DialogDescription>
+                </DialogHeader>
 
-        <PermissionGate permission={PERMISSIONS.MEMBER_INVITE}>
-          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-            <DialogTrigger
-              render={<Button className="gap-2" />}
-            >
-              <Plus className="h-4 w-4" />
-              Invite Member
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Invite a Team Member</DialogTitle>
-                <DialogDescription>
-                  Send an invitation to join your team. They&apos;ll be added with the selected role.
-                </DialogDescription>
-              </DialogHeader>
+                <form
+                  id="invite-member-form"
+                  noValidate
+                  className="space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    void handleInvite()
+                  }}
+                >
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invite-email">Email address</Label>
+                    <Input
+                      id="invite-email"
+                      type="email"
+                      placeholder="colleague@example.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                    />
+                  </div>
 
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="invite-email">Email Address</Label>
-                  <Input
-                    id="invite-email"
-                    type="email"
-                    placeholder="colleague@example.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invite-role">Role</Label>
+                    <Select
+                      items={manageableRoles.map((r) => ({ value: r, label: getRoleLabel(r) }))}
+                      value={inviteRole}
+                      onValueChange={(value) => setInviteRole(value || "")}
+                    >
+                      <SelectTrigger id="invite-role" className="w-full">
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {manageableRoles.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            <div>
+                              <span className="font-medium">{getRoleLabel(r)}</span>
+                              <p className="text-xs text-muted-foreground">{getRoleDescription(r)}</p>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>Role</Label>
-                  <Select value={inviteRole} onValueChange={(value) => setInviteRole(value || "")}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {manageableRoles.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          <div>
-                            <span className="font-medium">{getRoleLabel(r)}</span>
-                            <p className="text-xs text-muted-foreground">{getRoleDescription(r)}</p>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invite-message">Message (optional)</Label>
+                    <Textarea
+                      id="invite-message"
+                      placeholder="Add a personal message..."
+                      value={inviteMessage}
+                      onChange={(e) => setInviteMessage(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                </form>
 
-                <div className="space-y-2">
-                  <Label htmlFor="invite-message">Message (optional)</Label>
-                  <Textarea
-                    id="invite-message"
-                    placeholder="Add a personal message..."
-                    value={inviteMessage}
-                    onChange={(e) => setInviteMessage(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <DialogClose render={<Button variant="outline" />}>
-                  Cancel
-                </DialogClose>
-                <Button onClick={handleInvite} disabled={inviteLoading} className="gap-2">
-                  {inviteLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="h-4 w-4" />
-                  )}
-                  Send Invitation
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </PermissionGate>
-      </div>
+                <DialogFooter>
+                  <DialogClose render={<Button variant="outline" />}>
+                    Cancel
+                  </DialogClose>
+                  <Button type="submit" form="invite-member-form" disabled={inviteLoading}>
+                    {inviteLoading ? <Loader2 className="animate-spin" /> : <UserPlus />}
+                    Send invitation
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </PermissionGate>
+        }
+      />
 
       {/* Search */}
-      <div className="flex gap-4">
+      <div className="relative sm:max-w-sm">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" aria-hidden />
         <Input
+          type="search"
+          aria-label="Search members"
           placeholder="Search by name or email..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
+          className="pl-9"
         />
       </div>
 
       {/* Members list placeholder */}
-      <div className="rounded-lg border">
-        <div className="p-8 text-center text-muted-foreground">
-          <Users className="mx-auto h-12 w-12 mb-4 opacity-30" />
-          <p className="text-lg font-medium">Member Management</p>
-          <p className="text-sm mt-1">
-            {entityId
-              ? "Members will appear here once the database is connected."
-              : "Select an enterprise or organization to manage members."}
-          </p>
-        </div>
-      </div>
+      <EmptyState
+        icon={Users}
+        title="Member Management"
+        description={
+          entityId
+            ? "Members will appear here once the database is connected."
+            : "Select an enterprise or organization to manage members."
+        }
+      />
     </div>
   )
 }

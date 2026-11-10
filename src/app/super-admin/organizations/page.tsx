@@ -2,24 +2,49 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
-import { Building2, CheckCircle } from "lucide-react"
+import { BadgeCheck } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { DataTable } from "@/components/tables/DataTable"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import { Pill } from "@/components/ui/pill"
 import { useDebounce } from "@/hooks/useDebounce"
+import { statusLabel } from "@/lib/status-tone"
+import { SearchField, TableEmpty, Initial, num } from "@/app/admin/enterprise/_components/admin-ui"
 
 interface OrgRow { id: string; name: string; slug: string; category: string | null; email: string; isActive: boolean; isVerified: boolean; enterprise: string; _count: { events: number; members: number }; createdAt: string }
 
 const columns: ColumnDef<OrgRow, unknown>[] = [
-  { accessorKey: "name", header: "Organization", cell: ({ row }) => (<div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10"><Building2 className="h-4 w-4 text-primary" /></div><div><p className="font-medium">{row.original.name}</p><p className="text-xs text-muted-foreground">{row.original.slug}</p></div>{row.original.isVerified && <CheckCircle className="h-3.5 w-3.5 text-green-500" />}</div>) },
-  { accessorKey: "enterprise", header: "Enterprise", cell: ({ getValue }) => <span className="text-sm">{getValue() as string}</span> },
-  { accessorKey: "category", header: "Category", cell: ({ getValue }) => { const c = getValue() as string | null; return c ? <Badge variant="secondary">{c}</Badge> : <span className="text-muted-foreground">—</span> } },
-  { id: "events", header: "Events", cell: ({ row }) => <span className="text-sm">{row.original._count?.events ?? 0}</span> },
-  { id: "members", header: "Members", cell: ({ row }) => <span className="text-sm">{row.original._count?.members ?? 0}</span> },
-  { accessorKey: "isActive", header: "Status", cell: ({ row }) => <Badge variant={row.original.isActive ? "default" : "secondary"}>{row.original.isActive ? "Active" : "Inactive"}</Badge> },
+  {
+    accessorKey: "name",
+    header: "Organization",
+    cell: ({ row }) => (
+      <div className="flex min-w-0 items-center gap-3">
+        <Initial name={row.original.name} className="rounded-md" />
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 font-medium">
+            <span className="truncate">{row.original.name}</span>
+            {row.original.isVerified && <BadgeCheck className="size-4 shrink-0 text-brand" aria-label="Verified" />}
+          </p>
+          <p className="truncate font-mono text-xs text-muted-foreground">{row.original.slug}</p>
+        </div>
+      </div>
+    ),
+    meta: { className: "min-w-[220px]" },
+  },
+  { accessorKey: "enterprise", header: "Enterprise", cell: ({ getValue }) => <span>{(getValue() as string) || "—"}</span> },
+  {
+    accessorKey: "category",
+    header: "Category",
+    cell: ({ getValue }) => { const c = getValue() as string | null; return c ? <span className="text-muted-foreground">{statusLabel(c)}</span> : <span className="text-faint">—</span> },
+  },
+  { id: "events", header: "Events", cell: ({ row }) => num(row.original._count?.events), meta: { align: "right" } },
+  { id: "members", header: "Members", cell: ({ row }) => num(row.original._count?.members), meta: { align: "right" } },
+  {
+    accessorKey: "isActive",
+    header: "Status",
+    cell: ({ row }) => <Pill tone={row.original.isActive ? "positive" : "neutral"}>{row.original.isActive ? "Active" : "Inactive"}</Pill>,
+  },
 ]
 
 export default function SuperAdminOrganizationsPage() {
@@ -45,10 +70,18 @@ export default function SuperAdminOrganizationsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="All Organizations" description="Organizations across the entire platform" breadcrumbs={[{ label: "Super Admin", href: "/super-admin" }, { label: "Organizations" }]} />
-      <Input placeholder="Search organizations..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
-      <DataTable columns={columns} data={data} isLoading={isLoading} pagination={{ page, pageSize: 20, total }} onPaginationChange={(p) => setPage(p)}
-        emptyState={<div className="text-center py-4"><Building2 className="mx-auto h-10 w-10 text-muted-foreground/30 mb-2" /><p className="font-medium">No organizations yet</p></div>}
+      <PageHeader
+        title="Organizations"
+        description={isLoading && total === 0 ? "Organizations across the entire platform" : `${num(total)} organization${total === 1 ? "" : "s"} across the platform`}
+      />
+      <SearchField value={search} onChange={setSearch} placeholder="Search organizations…" />
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        pagination={{ page, pageSize: 20, total }}
+        onPaginationChange={(p) => setPage(p)}
+        emptyState={<TableEmpty title={debouncedSearch ? "No matching organizations" : "No organizations yet"} description={debouncedSearch ? "Try a different search." : undefined} />}
       />
     </div>
   )

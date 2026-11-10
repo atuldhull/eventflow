@@ -1,11 +1,12 @@
 "use client"
 
-import { motion, AnimatePresence } from "framer-motion"
-import { X, AlertTriangle, Copy, Loader2 } from "lucide-react"
+import { AlertTriangle, Copy, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { nativeSelectClass } from "./UploadZone"
 import { formatSize, type MediaItem } from "./types"
 
 interface Props {
@@ -25,73 +26,75 @@ interface Props {
 
 export function MediaDetailDrawer({ item, folders, editAlt, editFolder, editTags, isSaving, onClose, setEditAlt, setEditFolder, setEditTags, onSave, onDelete }: Props) {
   return (
-    <AnimatePresence>
-      {item && (
-        <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-          <div className="absolute inset-0 bg-black/50" />
-          <motion.div className="relative w-full max-w-md bg-background shadow-xl overflow-y-auto"
-            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25 }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="p-5 space-y-4">
-              <div className="flex justify-between items-start">
-                <h3 className="font-semibold text-sm">{item.fileName}</h3>
-                <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
-              </div>
+    <Sheet open={!!item} onOpenChange={(open) => { if (!open) onClose() }}>
+      <SheetContent side="right" className="gap-0 overflow-y-auto p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
+        {item && (
+          <>
+            <SheetHeader className="border-b border-rule px-5 py-4 pr-12">
+              <SheetTitle className="truncate">{item.fileName}</SheetTitle>
+              <SheetDescription className="font-mono text-xs">{item.fileType}</SheetDescription>
+            </SheetHeader>
 
-              {/* Preview */}
+            <div className="space-y-5 px-5 py-5">
               {item.fileType.startsWith("image") && item.fileUrl && (
-                <div className="rounded-lg overflow-hidden border bg-muted"><img src={item.fileUrl} alt={item.altText || ""} className="w-full object-contain max-h-64" /></div>
+                <div className="overflow-hidden rounded-lg bg-raised ring-1 ring-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- tenant media at arbitrary URLs */}
+                  <img src={item.fileUrl} alt={item.altText || ""} className="max-h-64 w-full object-contain" />
+                </div>
               )}
 
-              {/* Edit fields */}
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Alt Text</Label>
-                  <Input value={editAlt} onChange={(e) => setEditAlt(e.target.value)} placeholder="Describe what this image shows" className="text-sm" />
-                  {!editAlt && <p className="text-[10px] text-amber-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />Missing alt text &mdash; needed for accessibility</p>}
+              <div className="space-y-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="media-alt">Alt text</Label>
+                  <Input id="media-alt" value={editAlt} onChange={(e) => setEditAlt(e.target.value)} placeholder="Describe what this image shows" aria-describedby={!editAlt ? "media-alt-warn" : undefined} />
+                  {!editAlt && (
+                    <p id="media-alt-warn" className="flex items-center gap-1.5 text-xs text-warning">
+                      <AlertTriangle className="size-3.5" aria-hidden />Missing alt text — needed for accessibility
+                    </p>
+                  )}
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Folder</Label>
-                  <select value={editFolder} onChange={(e) => setEditFolder(e.target.value)} className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="media-folder">Folder</Label>
+                  <select id="media-folder" value={editFolder} onChange={(e) => setEditFolder(e.target.value)} className={`${nativeSelectClass} w-full`}>
                     {folders.map((f) => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Tags (comma-separated)</Label>
-                  <Input value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder="hero, banner, outdoor" className="text-sm" />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="media-tags">Tags</Label>
+                  <Input id="media-tags" value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder="hero, banner, outdoor" aria-describedby="media-tags-hint" />
+                  <p id="media-tags-hint" className="text-xs text-muted-foreground">Separate tags with commas.</p>
                 </div>
               </div>
 
-              {/* File info */}
-              <div className="text-xs text-muted-foreground space-y-1 border-t pt-3">
-                <p>Type: {item.fileType}</p>
-                {item.width && <p>Dimensions: {item.width} &times; {item.height} px</p>}
-                <p>Size: {formatSize(item.fileSize)}</p>
-                <p>Uploaded: {new Date(item.createdAt).toLocaleDateString()}</p>
-              </div>
+              <dl className="divide-y divide-rule rounded-lg border text-[13px]">
+                <div className="flex justify-between gap-4 px-3 py-2"><dt className="text-muted-foreground">Type</dt><dd className="font-mono">{item.fileType}</dd></div>
+                {item.width && (
+                  <div className="flex justify-between gap-4 px-3 py-2"><dt className="text-muted-foreground">Dimensions</dt><dd className="tabular-nums">{item.width} × {item.height} px</dd></div>
+                )}
+                <div className="flex justify-between gap-4 px-3 py-2"><dt className="text-muted-foreground">Size</dt><dd className="tabular-nums">{formatSize(item.fileSize)}</dd></div>
+                <div className="flex justify-between gap-4 px-3 py-2"><dt className="text-muted-foreground">Uploaded</dt><dd className="tabular-nums">{new Date(item.createdAt).toLocaleDateString()}</dd></div>
+              </dl>
 
-              {/* URL */}
-              <div className="space-y-1">
-                <Label className="text-xs">File URL</Label>
-                <div className="flex gap-1">
-                  <Input value={item.fileUrl} readOnly className="text-xs h-8 font-mono" />
-                  <Button variant="outline" size="icon-sm" className="h-8 w-8 shrink-0" onClick={() => { navigator.clipboard.writeText(item.fileUrl); toast.success("Copied!") }}>
-                    <Copy className="h-3 w-3" />
+              <div className="grid gap-1.5">
+                <Label htmlFor="media-url">File URL</Label>
+                <div className="flex gap-1.5">
+                  <Input id="media-url" value={item.fileUrl} readOnly className="font-mono text-xs" />
+                  <Button variant="outline" size="icon" className="shrink-0" aria-label="Copy file URL" onClick={() => { navigator.clipboard.writeText(item.fileUrl); toast.success("Copied!") }}>
+                    <Copy />
                   </Button>
                 </div>
               </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-2">
-                <Button size="sm" onClick={onSave} disabled={isSaving} className="flex-1">
-                  {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}Save
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => onDelete(item.id)}>Delete</Button>
-              </div>
             </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+
+            <div className="mt-auto flex gap-2 border-t border-rule px-5 py-4">
+              <Button variant="destructive" onClick={() => onDelete(item.id)}>Delete</Button>
+              <Button onClick={onSave} disabled={isSaving} className="flex-1">
+                {isSaving && <Loader2 className="animate-spin" />}Save
+              </Button>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
   )
 }

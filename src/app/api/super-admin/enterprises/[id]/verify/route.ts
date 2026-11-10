@@ -4,8 +4,8 @@ import prisma from "@/lib/prisma"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
 
 export const PATCH = withSuperAdmin(async (req, { user, params }) => {
-  const enterprise = await prisma.enterprise.findUnique({
-    where: { id: params.id },
+  const enterprise = await prisma.enterprise.findFirst({
+    where: { id: params.id, deletedAt: null },
     select: { isVerified: true, name: true },
   })
 

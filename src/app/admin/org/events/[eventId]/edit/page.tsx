@@ -1,17 +1,19 @@
 "use client"
 
 import { use, useState, useEffect } from "react"
-import { Loader2 } from "lucide-react"
+import Link from "next/link"
 import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/EmptyState"
+import { buttonVariants } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { EventWizard } from "@/components/events/EventWizard"
 import { useRBAC } from "@/hooks/useRBAC"
+import { toZonedInputValue } from "@/lib/event-time"
 
-function formatDatetimeLocal(dateStr: string | null | undefined): string {
-  if (!dateStr) return ""
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return ""
-  return d.toISOString().slice(0, 16)
-}
+// The wizard's datetime-local inputs hold the event zone's wall clock and are read back in
+// that zone (fromZonedInputValue), so they are filled in the same zone. Formatting in UTC
+// (toISOString) or in the viewer's zone shifted the event on every save.
+const formatDatetimeLocal = toZonedInputValue
 
 export default function EditEventPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = use(params)
@@ -28,8 +30,26 @@ export default function EditEventPage({ params }: { params: Promise<{ eventId: s
         const json = await res.json()
         if (json.success) {
           const e = json.data
+          // Wizard settings that live in event.settings (JSON); see src/lib/event-update.ts.
+          const s = (e.settings && typeof e.settings === "object" ? e.settings : {}) as Record<string, any>
+          const str = (v: unknown) => (v === null || v === undefined ? "" : String(v))
           setEventData({
             id: e.id,
+            status: e.status,
+            allowedEmailDomains: str(s.allowedEmailDomains),
+            recurrencePattern: str(s.recurrencePattern),
+            recurrenceCount: str(s.recurrenceCount),
+            budgetAmount: str(s.budgetAmount),
+            budgetNotes: str(s.budgetNotes),
+            maxGuestsPerRegistration: str(s.maxGuestsPerRegistration),
+            enableDynamicPricing: !!s.enableDynamicPricing,
+            dynamicPricingTiers: str(s.dynamicPricingTiers),
+            collectPhone: e.registrationFields?.phone ?? true,
+            collectOrganization: e.registrationFields?.organization ?? false,
+            collectDepartment: e.registrationFields?.department ?? false,
+            addons: Array.isArray(s.addons) ? s.addons : [],
+            faqs: e.faqs?.map((f: any) => ({ question: f.question, answer: f.answer })) || [],
+            sponsors: e.sponsors?.map((sp: any) => ({ name: sp.name, tier: sp.tier || "", website: sp.website || "" })) || [],
             title: e.title,
             slug: e.slug,
             shortDescription: e.shortDescription || "",
@@ -38,11 +58,11 @@ export default function EditEventPage({ params }: { params: Promise<{ eventId: s
             category: e.category || "",
             tags: e.tags || [],
             visibility: e.visibility,
-            startDate: formatDatetimeLocal(e.startDate),
-            endDate: formatDatetimeLocal(e.endDate),
+            startDate: formatDatetimeLocal(e.startDate, e.timezone),
+            endDate: formatDatetimeLocal(e.endDate, e.timezone),
             timezone: e.timezone || "Asia/Kolkata",
-            registrationStartDate: formatDatetimeLocal(e.registrationStartDate),
-            registrationEndDate: formatDatetimeLocal(e.registrationEndDate),
+            registrationStartDate: formatDatetimeLocal(e.registrationStartDate, e.timezone),
+            registrationEndDate: formatDatetimeLocal(e.registrationEndDate, e.timezone),
             isOnline: e.isOnline || false,
             venue: e.venue || "",
             venueAddress: e.venueAddress || "",
@@ -67,9 +87,11 @@ export default function EditEventPage({ params }: { params: Promise<{ eventId: s
             seoTitle: e.seoTitle || "",
             seoDescription: e.seoDescription || "",
             ticketTypes: e.ticketTypes?.map((tt: any) => ({
+              // Kept so a save updates this ticket type in place (its sold count and registrations stay).
+              id: tt.id,
               name: tt.name,
               description: tt.description || "",
-              price: tt.price || 0,
+              price: Number(tt.price) || 0,
               currency: tt.currency || "INR",
               quantity: tt.quantity,
               maxPerUser: tt.maxPerUser || 1,
@@ -100,21 +122,31 @@ export default function EditEventPage({ params }: { params: Promise<{ eventId: s
   }, [currentOrganizationId, eventId])
 
   if (!currentOrganizationId) {
-    return <div className="text-center py-12"><p className="text-muted-foreground">Please select an organization first.</p></div>
+    return <EmptyState variant="page" title="Please select an organization first." />
   }
 
   if (isLoading) {
-    return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+    return (
+      <div className="space-y-6" aria-busy="true" aria-label="Loading event">
+        <div className="space-y-2"><Skeleton className="h-4 w-48" /><Skeleton className="h-7 w-40" /><Skeleton className="h-4 w-64" /></div>
+        <Skeleton className="h-10 w-full max-w-4xl" />
+        <Skeleton className="h-80 w-full max-w-4xl rounded-lg" />
+      </div>
+    )
   }
 
   if (error) {
-    return <div className="text-center py-12"><p className="text-destructive">{error}</p></div>
+    return (
+      <EmptyState variant="page" title={error}>
+        <Link href="/admin/org/events" className={buttonVariants({ variant: "outline" })}>Back to events</Link>
+      </EmptyState>
+    )
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Edit Event"
+        title="Edit event"
         description={`Editing: ${eventData?.title || "Event"}`}
         breadcrumbs={[
           { label: "Admin", href: "/admin" },

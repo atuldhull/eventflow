@@ -13,8 +13,12 @@ export async function PATCH(
   }
 
   const { notificationId } = await params
-  await markAsRead(notificationId, session.user.id)
-  return NextResponse.json({ success: true })
+  // scoped to the signed-in user: someone else's notification is "not found"
+  const { count } = await markAsRead(notificationId, session.user.id)
+  if (count === 0) {
+    return NextResponse.json({ success: false, message: "Notification not found" }, { status: 404 })
+  }
+  return NextResponse.json({ success: true, message: "Notification marked as read" })
 }
 
 export async function DELETE(
@@ -27,6 +31,9 @@ export async function DELETE(
   }
 
   const { notificationId } = await params
-  await deleteNotification(notificationId, session.user.id)
-  return NextResponse.json({ success: true })
+  const { count } = await deleteNotification(notificationId, session.user.id)
+  if (count === 0) {
+    return NextResponse.json({ success: false, message: "Notification not found" }, { status: 404 })
+  }
+  return NextResponse.json({ success: true, message: "Notification deleted" })
 }

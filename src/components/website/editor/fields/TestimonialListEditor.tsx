@@ -39,7 +39,7 @@ export function TestimonialListEditor({ label, value, onChange, description }: P
                 <span className="text-xs text-muted-foreground mr-1">Rating:</span>
                 {[1, 2, 3, 4, 5].map((r) => (
                   <button key={r} onClick={() => update(idx, "rating", r)} className="p-0">
-                    <Star className={`h-4 w-4 ${r <= (t.rating || 0) ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`} />
+                    <Star className={`h-4 w-4 ${r <= (t.rating || 0) ? "fill-chart-3 text-chart-3" : "text-muted-foreground"}`} />
                   </button>
                 ))}
               </div>

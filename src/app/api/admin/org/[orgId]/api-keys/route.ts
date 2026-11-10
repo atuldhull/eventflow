@@ -14,6 +14,10 @@ export async function GET(
   if (!session?.user?.id) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
 
   const { orgId } = await params
+  // Listing keys needs the same permission as creating one (it had none)
+  const authResult = await authorize(session.user.id, PERMISSIONS.ORG_MANAGE_SETTINGS, { organizationId: orgId })
+  if (!authResult.authorized) return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
+
   const keys = await listApiKeys(orgId)
   return NextResponse.json({ success: true, data: keys })
 }

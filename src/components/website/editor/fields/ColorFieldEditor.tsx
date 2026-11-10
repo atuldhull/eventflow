@@ -8,7 +8,7 @@ interface Props { label: string; value: string; onChange: (v: string) => void; r
 export function ColorFieldEditor({ label, value, onChange, required, description }: Props) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <Label className="text-xs font-medium">{label}{required && <span className="ml-0.5 text-destructive">*</span>}</Label>
       {description && <p className="text-[11px] text-muted-foreground">{description}</p>}
       <div className="flex items-center gap-2">
         <div className="relative">

@@ -18,6 +18,10 @@ interface AuthState {
   accessibleEnterprises: EntityInfo[]
   accessibleOrganizations: (EntityInfo & { enterpriseId?: string | null })[]
   isInitialized: boolean
+  /** the role held IN the current enterprise / organization (from /api/auth/permissions), null with no access */
+  enterpriseRole: Role | null
+  organizationRole: Role | null
+  isEnterpriseOwner: boolean
 
   setPermissions: (permissions: Permission[]) => void
   setCurrentEnterprise: (enterpriseId: string | null) => void
@@ -32,6 +36,9 @@ interface AuthState {
     organizations: (EntityInfo & { enterpriseId?: string | null })[]
     currentEnterpriseId?: string | null
     currentOrganizationId?: string | null
+    enterpriseRole?: Role | null
+    organizationRole?: Role | null
+    isEnterpriseOwner?: boolean
   }) => void
   reset: () => void
 }
@@ -45,6 +52,9 @@ export const useAuthStore = create<AuthState>()(
       accessibleEnterprises: [],
       accessibleOrganizations: [],
       isInitialized: false,
+      enterpriseRole: null,
+      organizationRole: null,
+      isEnterpriseOwner: false,
 
       setPermissions: (permissions) => set({ permissions }),
       setCurrentEnterprise: (currentEnterpriseId) =>
@@ -59,6 +69,9 @@ export const useAuthStore = create<AuthState>()(
           accessibleOrganizations: data.organizations,
           currentEnterpriseId: data.currentEnterpriseId || null,
           currentOrganizationId: data.currentOrganizationId || null,
+          enterpriseRole: data.enterpriseRole ?? null,
+          organizationRole: data.organizationRole ?? null,
+          isEnterpriseOwner: !!data.isEnterpriseOwner,
           isInitialized: true,
         }),
       reset: () =>
@@ -69,6 +82,9 @@ export const useAuthStore = create<AuthState>()(
           accessibleEnterprises: [],
           accessibleOrganizations: [],
           isInitialized: false,
+          enterpriseRole: null,
+          organizationRole: null,
+          isEnterpriseOwner: false,
         }),
     }),
     {

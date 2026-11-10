@@ -1,50 +1,80 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Calendar, MapPin, Monitor, Ticket, CheckCircle2 } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
+import { Pill } from "@/components/ui/pill"
 import { cn } from "@/lib/utils"
-import { AddToCalendar } from "@/components/events/AddToCalendar"
-import { ShareModal } from "@/components/events/ShareModal"
-import { fmtShort, fmtTime, type EventData } from "./types"
+import { fmtShort, fmtTime, inr, type EventData } from "./types"
 
 interface Props {
   event: EventData
-  eventUrl: string
   canRegister: boolean
   lowestPrice: number
+  /** id of the register card's action; the bar shows while that is off screen */
+  watchId: string
 }
 
-export function EventStickyBar({ event, eventUrl, canRegister, lowestPrice }: Props) {
+/**
+ * Phones only: a bottom bar that keeps Register (or View my ticket) in reach
+ * once the register card has scrolled away. It steps aside at the footer.
+ */
+export function EventStickyBar({ event, canRegister, lowestPrice, watchId }: Props) {
   const isRegistered = !!event.myRegistration && event.myRegistration.status !== "CANCELLED"
+  const [ctaVisible, setCtaVisible] = useState(true)
+  const [footerVisible, setFooterVisible] = useState(false)
+
+  useEffect(() => {
+    const cta = document.getElementById(watchId)
+    const footer = document.querySelector("footer")
+    const observers: IntersectionObserver[] = []
+    if (cta) {
+      const io = new IntersectionObserver(([entry]) => setCtaVisible(entry.isIntersecting))
+      io.observe(cta)
+      observers.push(io)
+    }
+    if (footer) {
+      const io = new IntersectionObserver(([entry]) => setFooterVisible(entry.isIntersecting))
+      io.observe(footer)
+      observers.push(io)
+    }
+    return () => observers.forEach((io) => io.disconnect())
+  }, [watchId])
+
+  if (!isRegistered && !canRegister) return null
+  const show = !ctaVisible && !footerVisible
+
   return (
-    <div className="border-b bg-background/95 backdrop-blur-sm sticky top-16 z-40">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-          <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{fmtShort(event.startDate)} · {fmtTime(event.startDate)}</span>
-          <span className="flex items-center gap-1.5">
-            {event.isOnline ? <Monitor className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
-            {event.isOnline ? (event.onlinePlatform || "Online") : (event.venue || event.venueCity || "Venue TBA")}
-          </span>
-          {event.isPaid
-            ? <span className="flex items-center gap-1.5"><Ticket className="h-4 w-4" />From &#8377;{lowestPrice}</span>
-            : <span className="flex items-center gap-1.5"><Ticket className="h-4 w-4" />Free</span>}
-        </div>
-        <div className="flex items-center gap-2">
-          <AddToCalendar title={event.title} description={event.shortDescription} startDate={event.startDate} endDate={event.endDate} venue={event.isOnline ? undefined : event.venue} isOnline={event.isOnline} onlinePlatform={event.onlinePlatform} slug={event.slug} />
-          <ShareModal url={eventUrl} title={event.title} description={event.shortDescription} />
+    <div
+      // lifts toasts above the bar (globals.css :root:has([data-bottombar]))
+      data-bottombar=""
+      inert={!show}
+      aria-hidden={!show}
+      className={cn(
+        "pb-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background transition-transform duration-200 ease-out lg:hidden",
+        show ? "translate-y-0" : "translate-y-full"
+      )}
+    >
+      <div className="mx-auto flex max-w-[1240px] items-center gap-3 px-5 py-3 sm:px-8">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] text-muted-foreground tabular-nums">
+            {fmtShort(event.startDate, event.timezone)} · {fmtTime(event.startDate, event.timezone)}
+          </p>
           {isRegistered ? (
-            <Link href="/dashboard/tickets" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <span className="hidden sm:inline">You&apos;re registered</span>
-              <span className="sm:hidden">Registered</span>
-            </Link>
-          ) : canRegister && (
-            <Link href={`/events/${event.slug}/register`} className={cn(buttonVariants(), "gap-2")}>
-              Register Now
-            </Link>
+            <Pill tone="positive" dot className="mt-1">Registered</Pill>
+          ) : (
+            <p className="text-[15px] font-semibold tabular-nums">{event.isPaid ? `From ${lowestPrice === 0 ? "Free" : inr(lowestPrice)}` : "Free"}</p>
           )}
         </div>
+        {isRegistered ? (
+          <Link href="/dashboard/tickets" className={cn(buttonVariants({ variant: "outline" }), "h-11 shrink-0 px-5")}>
+            View my ticket
+          </Link>
+        ) : (
+          <Link href={`/events/${event.slug}/register`} className={cn(buttonVariants(), "h-11 shrink-0 px-6 text-[15px]")}>
+            Register
+          </Link>
+        )}
       </div>
     </div>
   )

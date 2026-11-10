@@ -1,14 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { cn } from "@/lib/utils"
 
 interface CountdownTimerProps {
   targetDate: string
   label?: string
+  className?: string
 }
 
-export function CountdownTimer({ targetDate, label = "Event starts in" }: CountdownTimerProps) {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+const pad = (n: number) => String(n).padStart(2, "0")
+
+/**
+ * A quiet one-line countdown ("Event starts in 5d 04h 12m 09s"). Figures are
+ * tabular so the line doesn't jitter as seconds tick.
+ */
+export function CountdownTimer({ targetDate, label = "Event starts in", className }: CountdownTimerProps) {
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null)
   const [isExpired, setIsExpired] = useState(false)
 
   useEffect(() => {
@@ -37,21 +45,14 @@ export function CountdownTimer({ targetDate, label = "Event starts in" }: Countd
   if (isExpired) return null
 
   return (
-    <div className="rounded-lg border bg-muted/30 p-4 text-center">
-      <p className="text-xs text-muted-foreground mb-2">{label}</p>
-      <div className="flex justify-center gap-3">
-        {[
-          { value: timeLeft.days, label: "Days" },
-          { value: timeLeft.hours, label: "Hours" },
-          { value: timeLeft.minutes, label: "Min" },
-          { value: timeLeft.seconds, label: "Sec" },
-        ].map((unit) => (
-          <div key={unit.label} className="flex flex-col items-center">
-            <span className="text-2xl font-bold tabular-nums">{String(unit.value).padStart(2, "0")}</span>
-            <span className="text-[10px] text-muted-foreground">{unit.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <span className={cn("inline-flex flex-wrap items-baseline gap-x-1.5", className)}>
+      <span>{label}</span>
+      {/* the first tick lands after a second; hold the line's width until then */}
+      <span className="font-medium text-foreground tabular-nums" aria-live="off">
+        {timeLeft
+          ? `${timeLeft.days}d ${pad(timeLeft.hours)}h ${pad(timeLeft.minutes)}m ${pad(timeLeft.seconds)}s`
+          : "        "}
+      </span>
+    </span>
   )
 }

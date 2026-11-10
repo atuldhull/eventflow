@@ -1,16 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, Calendar, Building2, IndianRupee, Loader2 } from "lucide-react"
-import Link from "next/link"
 import { PageHeader } from "@/components/shared/PageHeader"
-import { StatCard } from "@/components/shared/StatCard"
+import { KpiStrip } from "@/components/shared/StatCard"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Pill, type Tone } from "@/components/ui/pill"
+import { statusLabel } from "@/lib/status-tone"
+import { BlockHeading, LinkRow, inr, num } from "@/app/admin/enterprise/_components/admin-ui"
+
+interface Health {
+  status?: string
+  checks?: { database?: { status?: string }; email?: { status?: string } }
+}
 
 export default function SuperAdminDashboard() {
   const [stats, setStats] = useState({ totalUsers: 0, totalEvents: 0, activeEnterprises: 0, totalRevenue: 0 })
-  const [health, setHealth] = useState<any>(null)
+  const [health, setHealth] = useState<Health | null>(null)
+  const [healthChecked, setHealthChecked] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -22,46 +28,61 @@ export default function SuperAdminDashboard() {
       } catch {} finally { setIsLoading(false) }
     }
     async function fetchHealth() {
-      try { const res = await fetch("/api/health"); const json = await res.json(); setHealth(json) } catch {}
+      try { const res = await fetch("/api/health"); const json = await res.json(); setHealth(json) } catch {} finally { setHealthChecked(true) }
     }
     fetchStats()
     fetchHealth()
   }, [])
 
+  const checking = !healthChecked
+  const dbUp = health?.checks?.database?.status === "up"
+  const emailStatus = health?.checks?.email?.status
+  const rows: { label: string; tone: Tone; value: string }[] = [
+    { label: "Database", tone: checking ? "neutral" : dbUp ? "positive" : "negative", value: checking ? "Checking…" : dbUp ? "Connected" : "Down" },
+    { label: "Email service", tone: emailStatus === "configured" ? "positive" : emailStatus ? "warning" : "neutral", value: emailStatus ? statusLabel(emailStatus) : "Checking…" },
+    { label: "Overall", tone: health?.status === "healthy" ? "positive" : health?.status ? "warning" : "neutral", value: health?.status ? statusLabel(health.status) : "Checking…" },
+  ]
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Platform Dashboard" description="Overview of the EventFlow platform" breadcrumbs={[{ label: "Super Admin" }]} />
+      <PageHeader title="Platform" description="Overview of the EventFlow platform" />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Users" value={isLoading ? "—" : stats.totalUsers.toLocaleString()} icon={Users} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-        <StatCard title="Total Events" value={isLoading ? "—" : stats.totalEvents.toLocaleString()} icon={Calendar} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
-        <StatCard title="Enterprises" value={isLoading ? "—" : stats.activeEnterprises.toLocaleString()} icon={Building2} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
-        <StatCard title="Revenue" value={isLoading ? "—" : `₹${stats.totalRevenue.toLocaleString("en-IN")}`} icon={IndianRupee} iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" />
-      </div>
+      <KpiStrip
+        isLoading={isLoading}
+        items={[
+          { label: "Users", value: num(stats.totalUsers) },
+          { label: "Events", value: num(stats.totalEvents) },
+          { label: "Enterprises", value: num(stats.activeEnterprises), caption: "Active" },
+          { label: "Revenue", value: inr(stats.totalRevenue), caption: "All time" },
+        ]}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium">Quick Links</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Link href="/super-admin/enterprises" className="rounded-lg border p-3 text-center hover:bg-accent transition-colors"><Building2 className="mx-auto h-5 w-5 text-muted-foreground mb-1" /><p className="text-xs font-medium">Enterprises</p></Link>
-            <Link href="/super-admin/users" className="rounded-lg border p-3 text-center hover:bg-accent transition-colors"><Users className="mx-auto h-5 w-5 text-muted-foreground mb-1" /><p className="text-xs font-medium">Users</p></Link>
-            <Link href="/super-admin/analytics" className="rounded-lg border p-3 text-center hover:bg-accent transition-colors"><Calendar className="mx-auto h-5 w-5 text-muted-foreground mb-1" /><p className="text-xs font-medium">Analytics</p></Link>
-            <Link href="/super-admin/audit" className="rounded-lg border p-3 text-center hover:bg-accent transition-colors"><Calendar className="mx-auto h-5 w-5 text-muted-foreground mb-1" /><p className="text-xs font-medium">Audit Logs</p></Link>
-          </div>
-        </Card>
+        <section aria-labelledby="links-heading" className="min-w-0">
+          <BlockHeading id="links-heading" title="Go to" />
+          <Card className="gap-0 overflow-hidden p-0">
+            <ul className="divide-y divide-rule">
+              <LinkRow href="/super-admin/enterprises" label="Enterprises" description="Universities, companies and other tenants" />
+              <LinkRow href="/super-admin/users" label="Users" description="Every account on the platform" />
+              <LinkRow href="/super-admin/analytics" label="Analytics" description="Platform-wide performance" />
+              <LinkRow href="/super-admin/audit" label="Audit log" description="Every action, everywhere" />
+            </ul>
+          </Card>
+        </section>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium">System Health</h3>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Database</span><Badge variant="default" className={health?.checks?.database?.status === "up" ? "bg-green-500" : "bg-red-500"}>{health?.checks?.database?.status === "up" ? "Connected" : "Down"}</Badge></div>
-            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Email Service</span><Badge variant="default" className={health?.checks?.email?.status === "configured" ? "bg-green-500" : "bg-amber-500"}>{health?.checks?.email?.status || "Checking..."}</Badge></div>
-            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Overall</span><Badge variant="default" className={health?.status === "healthy" ? "bg-green-500" : "bg-amber-500"}>{health?.status || "Checking..."}</Badge></div>
-          </div>
-        </Card>
+        <section aria-labelledby="health-heading" className="min-w-0">
+          <BlockHeading id="health-heading" title="System health" />
+          <Card className="gap-0 p-0">
+            <dl className="divide-y divide-rule">
+              {rows.map((r) => (
+                <div key={r.label} className="flex min-h-12 items-center justify-between gap-4 px-4 py-2.5">
+                  <dt className="text-sm text-muted-foreground">{r.label}</dt>
+                  <dd><Pill tone={r.tone} dot>{r.value}</Pill></dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+        </section>
       </div>
     </div>
   )

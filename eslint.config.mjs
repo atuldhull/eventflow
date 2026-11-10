@@ -22,6 +22,14 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-explicit-any": "warn",
     },
   },
+  {
+    // Plain Node scripts (browser tests, ops helpers) are CommonJS on purpose: they run with
+    // `node file.cjs`, outside the Next.js build.
+    files: ["**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

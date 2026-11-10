@@ -2,29 +2,63 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
-import { CreditCard, Download, IndianRupee, TrendingUp, ArrowDownRight } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
-import { StatCard } from "@/components/shared/StatCard"
+import { KpiStrip } from "@/components/shared/StatCard"
 import { DataTable } from "@/components/tables/DataTable"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import { Pill } from "@/components/ui/pill"
 import { useRBAC } from "@/hooks/useRBAC"
 import { useDebounce } from "@/hooks/useDebounce"
+import { PermissionGate } from "@/components/auth/PermissionGate"
+import { PERMISSIONS } from "@/lib/permissions"
+import { statusLabel, statusTone } from "@/lib/status-tone"
+import { SearchField, TableEmpty, PrimaryCell, fmtDate, inr, num } from "../_components/admin-ui"
+import { ExportButton } from "../_components/export-button"
 
 interface PaymentRow { id: string; paymentNumber: string; participantName: string; eventTitle: string; organization: string; amount: number; status: string; method: string; createdAt: string }
-const statusColors: Record<string, string> = { COMPLETED: "bg-green-100 text-green-700", PENDING: "bg-amber-100 text-amber-700", FAILED: "bg-red-100 text-red-700", REFUNDED: "bg-purple-100 text-purple-700" }
+
+/** A completed payment is money received, so it reads positive (events use "completed" as neutral). */
+const paymentTone = (s: string) => statusTone(s === "COMPLETED" ? "completed_payment" : s)
 
 const columns: ColumnDef<PaymentRow, unknown>[] = [
-  { accessorKey: "paymentNumber", header: "Payment #", cell: ({ getValue }) => <span className="text-sm font-mono">{getValue() as string}</span> },
-  { accessorKey: "participantName", header: "Participant", cell: ({ getValue }) => <span className="text-sm">{getValue() as string}</span> },
-  { accessorKey: "eventTitle", header: "Event", cell: ({ row }) => (<div><p className="text-sm">{row.original.eventTitle}</p><p className="text-xs text-muted-foreground">{row.original.organization}</p></div>) },
-  { accessorKey: "amount", header: "Amount", cell: ({ getValue }) => <span className="text-sm font-medium">₹{(getValue() as number).toLocaleString("en-IN")}</span> },
-  { accessorKey: "status", header: "Status", cell: ({ getValue }) => { const s = getValue() as string; return <Badge variant="secondary" className={statusColors[s] || ""}>{s}</Badge> } },
-  { accessorKey: "method", header: "Method", cell: ({ getValue }) => <Badge variant="outline">{getValue() as string}</Badge> },
-  { accessorKey: "createdAt", header: "Date", cell: ({ getValue }) => <span className="text-sm text-muted-foreground">{new Date(getValue() as string).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span> },
+  {
+    accessorKey: "paymentNumber",
+    header: "Payment",
+    cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span>,
+  },
+  {
+    accessorKey: "participantName",
+    header: "Participant",
+    cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span>,
+  },
+  {
+    accessorKey: "eventTitle",
+    header: "Event",
+    cell: ({ row }) => <PrimaryCell title={<span className="font-normal">{row.original.eventTitle}</span>} meta={row.original.organization} />,
+    meta: { className: "min-w-[200px] max-w-[320px]" },
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ getValue }) => { const s = getValue() as string; return <Pill tone={paymentTone(s)}>{statusLabel(s)}</Pill> },
+  },
+  {
+    accessorKey: "method",
+    header: "Method",
+    cell: ({ getValue }) => <span className="text-muted-foreground">{(getValue() as string) || "—"}</span>,
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Date",
+    cell: ({ getValue }) => <span className="text-muted-foreground">{fmtDate(getValue() as string)}</span>,
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    cell: ({ getValue }) => <span className="font-medium">{inr(getValue() as number)}</span>,
+    meta: { align: "right" },
+  },
 ]
 
 export default function EnterprisePaymentsPage() {
@@ -42,28 +76,52 @@ export default function EnterprisePaymentsPage() {
     setIsLoading(true)
     try {
       const params = new URLSearchParams({ page: String(page), limit: "20" })
+      if (debouncedSearch) params.set("search", debouncedSearch)
       const res = await fetch(`/api/admin/enterprise/${currentEnterpriseId}/payments?${params}`)
       const json = await res.json()
       if (json.success) { setData(json.data); setTotal(json.pagination.total); setStats(json.stats) }
     } catch { toast.error("Failed to load") } finally { setIsLoading(false) }
-  }, [currentEnterpriseId, page])
+  }, [currentEnterpriseId, page, debouncedSearch])
+
+  const exportUrl = currentEnterpriseId
+    ? `/api/admin/enterprise/${currentEnterpriseId}/payments/export${debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : ""}`
+    : ""
 
   useEffect(() => { fetchData() }, [fetchData])
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Payments & Finance" description="Financial overview across your enterprise" breadcrumbs={[{ label: "Admin" }, { label: "Enterprise", href: "/admin/enterprise" }, { label: "Payments" }]}
-        actions={<Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> Export</Button>}
+      <PageHeader
+        title="Payments"
+        description="Money in and out across your enterprise"
+        actions={
+          exportUrl ? (
+            <PermissionGate permission={PERMISSIONS.PAYMENT_EXPORT}>
+              <ExportButton url={exportUrl} fallbackName="payments.csv" />
+            </PermissionGate>
+          ) : null
+        }
       />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Revenue" value={`₹${stats.totalRevenue.toLocaleString("en-IN")}`} icon={IndianRupee} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
-        <StatCard title="Net Revenue" value={`₹${(stats.totalRevenue - stats.refunds).toLocaleString("en-IN")}`} icon={TrendingUp} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-        <StatCard title="Refunds" value={`₹${stats.refunds.toLocaleString("en-IN")}`} icon={ArrowDownRight} iconColor="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" />
-        <StatCard title="Pending" value={String(stats.pending)} icon={CreditCard} iconColor="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
-      </div>
-      <Input placeholder="Search payments..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
-      <DataTable columns={columns} data={data} isLoading={isLoading} pagination={{ page, pageSize: 20, total }} onPaginationChange={(p) => setPage(p)}
-        emptyState={<div className="text-center py-4"><CreditCard className="mx-auto h-10 w-10 text-muted-foreground/30 mb-2" /><p className="font-medium">No payments yet</p></div>}
+      <KpiStrip
+        items={[
+          { label: "Total revenue", value: inr(stats.totalRevenue) },
+          { label: "Net revenue", value: inr(stats.totalRevenue - stats.refunds), caption: "After refunds" },
+          { label: "Refunds", value: inr(stats.refunds) },
+          { label: "Pending", value: num(stats.pending), caption: "Payments" },
+        ]}
+      />
+      <SearchField value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search by payment #, participant or event…" className="sm:max-w-sm" />
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        pagination={{ page, pageSize: 20, total }}
+        onPaginationChange={(p) => setPage(p)}
+        emptyState={
+          debouncedSearch
+            ? <TableEmpty title="No matching payments" description="Try a different search." />
+            : <TableEmpty title="No payments yet" description="Payments for paid events across your organizations will show here." />
+        }
       />
     </div>
   )

@@ -1,37 +1,26 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { PUBLIC_EVENT_CARD_SELECT, UPCOMING_EVENT_STATUSES, publicListingWhere, serializeEventCard } from "@/lib/public-events"
 
+/** Featured upcoming events for the landing page: PUBLIC only, like every listing. */
 export async function GET() {
   const events = await prisma.event.findMany({
     where: {
+      ...publicListingWhere(UPCOMING_EVENT_STATUSES),
       isFeatured: true,
-      deletedAt: null,
-      status: { in: ["PUBLISHED", "REGISTRATION_OPEN", "ONGOING"] },
-      visibility: { in: ["PUBLIC", "UNLISTED"] },
       startDate: { gte: new Date() },
     },
     orderBy: { startDate: "asc" },
     take: 6,
-    select: {
-      id: true, title: true, slug: true, shortDescription: true, coverImage: true,
-      category: true, startDate: true, venue: true, venueCity: true, isOnline: true,
-      isPaid: true, currentRegistrations: true, maxCapacity: true, status: true, isFeatured: true,
-      organization: { select: { name: true } },
-      ticketTypes: {
-        where: { isActive: true },
-        orderBy: { price: "asc" },
-        take: 1,
-        select: { price: true },
-      },
-    },
+    // includes the visible ticket prices, summarised as `price` by serializeEventCard
+    select: PUBLIC_EVENT_CARD_SELECT,
   })
 
   return NextResponse.json({
     success: true,
-    data: events.map((e) => ({
-      ...e,
-      startDate: e.startDate.toISOString(),
-      minPrice: e.ticketTypes[0]?.price || 0,
-    })),
+    data: events.map((e) => {
+      const card = serializeEventCard(e)
+      return { ...card, minPrice: card.price?.min ?? 0 }
+    }),
   })
 }

@@ -1,23 +1,29 @@
 "use client"
 
-import { FileText } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { ChevronRight, FileText } from "lucide-react"
+import { Pill } from "@/components/ui/pill"
 import { formatSize, type MediaItem } from "./types"
 
 export function MediaListRow({ item, onOpen }: { item: MediaItem; onOpen: () => void }) {
   return (
-    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer" onClick={onOpen}>
-      <div className="w-10 h-10 rounded bg-muted overflow-hidden shrink-0">
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/50"
+    >
+      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-raised ring-1 ring-border">
         {item.fileType.startsWith("image") && item.fileUrl
-          ? <img src={item.fileUrl} alt="" className="w-full h-full object-cover" />
-          : <FileText className="h-5 w-5 m-auto text-muted-foreground/20" />}
+          // eslint-disable-next-line @next/next/no-img-element -- tenant media at arbitrary URLs
+          ? <img src={item.fileUrl} alt="" className="size-full object-cover" />
+          : <FileText className="size-4 text-faint" aria-hidden />}
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium truncate">{item.fileName}</p>
-        <p className="text-[10px] text-muted-foreground">{formatSize(item.fileSize)} &bull; {item.folder}</p>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{item.fileName}</p>
+        <p className="text-[13px] text-muted-foreground tabular-nums">{formatSize(item.fileSize)} · {item.folder}</p>
       </div>
-      {!item.altText && <Badge variant="outline" className="text-[9px] text-amber-600">No alt</Badge>}
-      <Badge variant="secondary" className="text-[9px]">{item.folder}</Badge>
-    </div>
+      {!item.altText && <Pill tone="warning">No alt</Pill>}
+      <Pill className="max-sm:hidden">{item.folder}</Pill>
+      <ChevronRight className="size-4 shrink-0 text-faint group-hover:text-foreground" aria-hidden />
+    </button>
   )
 }

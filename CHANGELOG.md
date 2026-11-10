@@ -1,5 +1,41 @@
 # EventFlow — Complete Development Changelog
 
+## November 2026: production readiness, v3 design, deploy prep
+
+The tables further down describe the April 2026 build and are kept for history. Current
+numbers: 199 API routes, 94 pages, 44 Prisma models, 71 permissions, 788 unit tests.
+
+**Design**
+- New brand: charcoal `#171717`, lemon `#FFF21A`, lavender `#A66BFF`. Bricolage Grotesque for headings.
+- Rebuilt landing page with scroll reveals, count-up stats, tilting sample tickets, marquee bands and spotlight cards. Motion switches off for people who ask their system for reduced motion.
+- New navbar and footer (the footer wordmark no longer gets cut off).
+- Both PDF guides redesigned and rewritten against the current code. The permission grid is now generated from `src/lib/permissions.ts` when the PDFs are built.
+
+**Attendees**
+- 15-minute seat hold during paid checkout, with *Complete payment* and *Release seat*; unpaid holds are released by a timed job.
+- Ticket transfer, PDF tickets, calendar files, tickets saved on the device for offline use.
+- Download my data and Delete my account.
+- Refund policy page at `/refunds`.
+
+**Organizers and admins**
+- Refund all for cancelled events, partial refunds, cash refunds recorded.
+- Enterprise event approval, one at a time or in bulk.
+- Org invites that work for people who haven't signed up yet.
+- CSV exports for registrations, payments and audit logs.
+
+**Security and reliability**
+- Plan limits and billing checked on the server; billing IDOR closed; blog HTML sanitized.
+- Permission tests for tenant boundaries; CI on GitHub Actions.
+- Real Prisma migrations, startup check for required settings, health endpoint, error reporting hook.
+
+**Deploying**
+- Dockerfile fixed (Node 22, pnpm workspace file, `NEXT_PUBLIC_*` passed as build arguments) and made to listen on Zoho Catalyst's port.
+- `DEPLOY.md` (own server with Docker Compose, HTTPS, backups) and `ZOHO-DEPLOY.md` (Zoho Catalyst AppSail).
+- Production image tested the way AppSail runs it: 512 MB limit, about 135 MB used, all smoke checks passing.
+
+---
+
+
 ## Project Overview
 
 **EventFlow** is a production-grade, multi-tenant Event Management SaaS platform built from scratch. It targets universities, colleges, companies, and organizations of every size.

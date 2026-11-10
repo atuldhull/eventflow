@@ -82,8 +82,8 @@ export function NavigationPanel() {
                   Open in new tab
                 </label>
                 <div className="flex gap-1">
-                  <Button size="sm" className="h-6 text-[10px] gap-0.5" onClick={saveEdit}><Check className="h-3 w-3" />Save</Button>
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setEditingIdx(null)}>Cancel</Button>
+                  <Button size="sm" className="h-6 text-[11px] gap-0.5" onClick={saveEdit}><Check className="h-3 w-3" />Save</Button>
+                  <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={() => setEditingIdx(null)}>Cancel</Button>
                 </div>
               </div>
             ) : (
@@ -91,7 +91,7 @@ export function NavigationPanel() {
                 <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0 cursor-grab" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium">{item.label}</p>
-                  <p className="text-[10px] text-muted-foreground truncate flex items-center gap-0.5">
+                  <p className="text-[11px] text-muted-foreground truncate flex items-center gap-0.5">
                     {item.href}{item.external && <ExternalLink className="h-2.5 w-2.5" />}
                   </p>
                 </div>
@@ -114,19 +114,19 @@ export function NavigationPanel() {
             <div className="flex flex-wrap gap-1">
               {sectionAnchors.slice(0, 5).map((a) => (
                 <button key={a.href} onClick={() => { setNewLabel(a.label.split(" ")[0]); setNewHref(a.href) }}
-                  className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80">{a.href}</button>
+                  className="text-[11px] px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80">{a.href}</button>
               ))}
             </div>
             <div className="flex gap-1">
-              <Button size="sm" className="h-6 text-[10px]" onClick={handleAdd}>Add</Button>
-              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setShowAdd(false)}>Cancel</Button>
+              <Button size="sm" className="h-6 text-[11px]" onClick={handleAdd}>Add</Button>
+              <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={() => setShowAdd(false)}>Cancel</Button>
             </div>
           </div>
         )}
 
         {/* Nav preview */}
         <div className="mt-4 p-2 rounded-lg border bg-muted/30">
-          <p className="text-[10px] text-muted-foreground mb-1">Preview</p>
+          <p className="text-[11px] text-muted-foreground mb-1">Preview</p>
           <div className="flex items-center gap-3 text-xs font-medium overflow-x-auto">
             {nav.map((item, i) => (
               <span key={i} className="whitespace-nowrap" style={{ color: i === 0 ? siteConfig.styles.primaryColor : undefined }}>

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { stripQuizAnswers } from "@/lib/live-modules"
 
 // GET — List quizzes for an org
 export async function GET(req: NextRequest) {
@@ -30,6 +31,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, message: "This feature is not available" }, { status: 404 })
   }
 
+  // Org admins managing quizzes get drafts and the answer key; nobody else does.
+  const session = await auth()
+  const canManage = session?.user?.id
+    ? (await authorize(session.user.id, PERMISSIONS.ORG_EDIT, { organizationId: org.id })).authorized
+    : false
+  if (status === "all" && !canManage) {
+    return NextResponse.json(
+      { success: false, message: session?.user?.id ? "You don't have permission to perform this action." : "Unauthorized" },
+      { status: session?.user?.id ? 403 : 401 }
+    )
+  }
+
   const where: any = {
     moduleId: "live-quiz",
     organizationId: org.id,
@@ -55,7 +68,10 @@ export async function GET(req: NextRequest) {
     },
   })
 
-  return NextResponse.json({ success: true, data: quizzes })
+  return NextResponse.json({
+    success: true,
+    data: canManage ? quizzes : quizzes.map((q) => ({ ...q, data: stripQuizAnswers(q.data) })),
+  })
 }
 
 // POST — Create a quiz (admin only)

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { checkEventLimit } from "@/lib/subscription"
 
 function addInterval(date: Date, pattern: string): Date {
   const d = new Date(date)
@@ -30,7 +31,7 @@ export async function POST(
   if (!authResult.authorized) return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
 
   const parent = await prisma.event.findFirst({
-    where: { id: eventId, organizationId: orgId },
+    where: { id: eventId, organizationId: orgId, deletedAt: null },
     select: {
       id: true, title: true, slug: true, description: true, shortDescription: true,
       type: true, visibility: true, category: true, tags: true, timezone: true,
@@ -47,7 +48,19 @@ export async function POST(
 
   const settings = parent.settings as any || {}
   const pattern = settings.recurrencePattern || "WEEKLY"
-  const count = settings.recurrenceCount || 4
+  // At most a year of weekly instances, whatever the stored setting says.
+  const count = Math.min(52, Math.max(1, Math.trunc(Number(settings.recurrenceCount) || 4)))
+
+  // Every occurrence is a new event created this month: all of them must fit in the plan's
+  // monthly limit, or none is created (no partial series).
+  const limit = await checkEventLimit(orgId, count - 1)
+  if (count > 1 && !limit.allowed) {
+    return NextResponse.json({
+      success: false,
+      message: `Couldn't create the ${count - 1} repeat${count - 1 === 1 ? "" : "s"} of this event; none were created. ${limit.message}`,
+      data: { used: limit.used, limit: limit.limit, plan: limit.plan, requested: count - 1, resetsAt: limit.resetsAt.toISOString() },
+    }, { status: 403 })
+  }
 
   const duration = parent.endDate.getTime() - parent.startDate.getTime()
   const created: string[] = []

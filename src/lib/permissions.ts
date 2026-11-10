@@ -248,6 +248,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
 
   ORG_ADMIN: [
+    // an ORG_ADMIN role held on an enterprise membership opens the enterprise hub read-only
+    PERMISSIONS.ENTERPRISE_VIEW,
     PERMISSIONS.ORG_VIEW,
     PERMISSIONS.ORG_EDIT,
     PERMISSIONS.ORG_MANAGE_SETTINGS,
@@ -265,6 +267,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
 
   EVENT_MANAGER: [
+    // to open the workspace (enterprise hub, organization) it works in, read-only
+    PERMISSIONS.ENTERPRISE_VIEW,
+    PERMISSIONS.ORG_VIEW,
     PERMISSIONS.EVENT_CREATE,
     PERMISSIONS.EVENT_VIEW,
     PERMISSIONS.EVENT_EDIT,
@@ -283,6 +288,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.REGISTRATION_REJECT,
     PERMISSIONS.REGISTRATION_EXPORT,
     PERMISSIONS.REGISTRATION_ADD_MANUAL,
+    // event staff run the door too: scan, manual check-in and its undo
+    PERMISSIONS.CHECKIN_PERFORM,
     PERMISSIONS.CHECKIN_VIEW,
     PERMISSIONS.COMMUNICATION_SEND_EMAIL,
     PERMISSIONS.COMMUNICATION_SEND_ANNOUNCEMENT,
@@ -294,7 +301,12 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.ANALYTICS_VIEW_BASIC,
   ],
 
+  // The read-mostly roles also get the workspace read permissions their names imply, so an
+  // enterprise (or organization) COORDINATOR, FINANCE_MANAGER or VIEWER can open the hub
+  // and its lists read-only. Every write stays with the roles above.
   COORDINATOR: [
+    PERMISSIONS.ENTERPRISE_VIEW,
+    PERMISSIONS.ORG_VIEW,
     PERMISSIONS.EVENT_VIEW,
     PERMISSIONS.REGISTRATION_VIEW,
     PERMISSIONS.CHECKIN_PERFORM,
@@ -303,6 +315,11 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
 
   FINANCE_MANAGER: [
+    PERMISSIONS.ENTERPRISE_VIEW,
+    PERMISSIONS.ENTERPRISE_VIEW_ANALYTICS,
+    PERMISSIONS.ORG_VIEW,
+    PERMISSIONS.ORG_VIEW_ANALYTICS,
+    PERMISSIONS.EVENT_VIEW_ANALYTICS,
     PERMISSIONS.EVENT_VIEW,
     PERMISSIONS.REGISTRATION_VIEW,
     ...PAYMENT_FULL_PERMISSIONS,
@@ -315,7 +332,13 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
 
   VIEWER: [
+    PERMISSIONS.ENTERPRISE_VIEW,
+    PERMISSIONS.ENTERPRISE_VIEW_ANALYTICS,
+    PERMISSIONS.ORG_VIEW,
+    PERMISSIONS.ORG_VIEW_ANALYTICS,
+    PERMISSIONS.MEMBER_VIEW,
     PERMISSIONS.EVENT_VIEW,
+    PERMISSIONS.EVENT_VIEW_ANALYTICS,
     PERMISSIONS.REGISTRATION_VIEW,
     PERMISSIONS.PAYMENT_VIEW,
     PERMISSIONS.CHECKIN_VIEW,
@@ -394,6 +417,26 @@ export function canManageRole(managerRole: Role, targetRole: Role): boolean {
 
 export function getManageableRoles(role: Role): Role[] {
   return MANAGEABLE_ROLES[role] || []
+}
+
+/**
+ * The role-rank rule for ENTERPRISE memberships: canManageRole, plus one exception: the
+ * enterprise's owner (an ENTERPRISE_ADMIN) may invite, re-role and remove co-admins
+ * (other ENTERPRISE_ADMINs). Nobody else can grant or manage a role equal to their own.
+ */
+export function canManageEnterpriseRole(managerRole: Role, targetRole: Role, managerIsOwner: boolean): boolean {
+  if (canManageRole(managerRole, targetRole)) return true
+  return managerIsOwner && managerRole === "ENTERPRISE_ADMIN" && targetRole === "ENTERPRISE_ADMIN"
+}
+
+/** Roles an enterprise member may hand out (invite or role change); the owner can add co-admins. */
+export function getAssignableEnterpriseRoles(role: Role | null | undefined, isOwner: boolean): Role[] {
+  if (!role) return []
+  const roles = getManageableRoles(role).filter((r) => r !== "SUPER_ADMIN" && r !== "USER")
+  if (role === "SUPER_ADMIN" || (isOwner && role === "ENTERPRISE_ADMIN")) {
+    return ["ENTERPRISE_ADMIN", ...roles.filter((r) => r !== "ENTERPRISE_ADMIN")]
+  }
+  return roles
 }
 
 export function getRoleLabel(role: Role): string {

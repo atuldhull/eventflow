@@ -45,8 +45,9 @@ next-env.d.ts
 .env.local
 .env*.local
 
-# uploads
-uploads/
+# uploads (runtime user files; anchored so src/app/uploads/ route code is not ignored)
+/uploads/
+/public/uploads/
 
 # prisma
 prisma/*.db
@@ -59,3 +60,8 @@ prisma/*.db
 CLAUDE.md
 AGENTS.md
 .claude/
+/backups
+
+# local dev logs
+.build.log
+.dev.log

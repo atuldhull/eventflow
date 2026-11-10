@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Calendar, MapPin, Monitor, ArrowRight } from "lucide-react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { ArrowRight } from "lucide-react"
+import { EventCard } from "@/components/events/EventCard"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -12,86 +11,61 @@ interface FeaturedEvent {
   id: string; title: string; slug: string; shortDescription: string; coverImage: string | null
   category: string; startDate: string; venue: string | null; venueCity: string | null
   isOnline: boolean; isPaid: boolean; currentRegistrations: number
+  maxCapacity: number | null; status: string; isFeatured: boolean
   organization: { name: string }
 }
 
 export function FeaturedEvents() {
   const [events, setEvents] = useState<FeaturedEvent[]>([])
 
+  // Featured upcoming events first, topped up with the next public events that haven't
+  // ended. Both endpoints list PUBLIC events only.
   useEffect(() => {
-    async function fetchFeatured() {
+    let cancelled = false
+    const load = async (url: string): Promise<FeaturedEvent[]> => {
       try {
-        const res = await fetch("/api/events/featured")
-        const json = await res.json()
-        if (json.success && json.data?.length > 0) setEvents(json.data.slice(0, 3))
-      } catch {}
+        const json = await (await fetch(url)).json()
+        return json.success && Array.isArray(json.data) ? json.data : []
+      } catch {
+        return []
+      }
     }
-    fetchFeatured()
+    ;(async () => {
+      const featured = await load("/api/events/featured")
+      let list = featured.slice(0, 3)
+      if (list.length < 3) {
+        const upcoming = await load("/api/events?limit=6&upcoming=1")
+        const seen = new Set(list.map((e) => e.id))
+        list = [...list, ...upcoming.filter((e) => !seen.has(e.id))].slice(0, 3)
+      }
+      if (!cancelled) setEvents(list)
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
-
-  // Also try the regular events endpoint if featured returns empty
-  useEffect(() => {
-    if (events.length > 0) return
-    async function fetchRecent() {
-      try {
-        const res = await fetch("/api/events?limit=3")
-        const json = await res.json()
-        if (json.success && json.data?.length > 0) setEvents(json.data.slice(0, 3))
-      } catch {}
-    }
-    const timer = setTimeout(fetchRecent, 500)
-    return () => clearTimeout(timer)
-  }, [events.length])
 
   if (events.length === 0) return null
 
   return (
-    <section className="py-16 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold">Upcoming Events</h2>
-          <p className="text-muted-foreground mt-2">Discover what&apos;s happening soon</p>
-        </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
-          {events.map((event) => {
-            const date = new Date(event.startDate)
-            return (
-              <Link key={event.id} href={`/events/${event.slug}`}>
-                <Card className="group overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
-                  <div className="relative h-36 bg-linear-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                    {event.coverImage ? (
-                      <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <Calendar className="h-10 w-10 text-primary/20" />
-                    )}
-                    <div className="absolute top-2 left-2 bg-white dark:bg-zinc-900 rounded-lg px-2 py-0.5 text-center shadow-sm">
-                      <p className="text-[10px] font-bold text-primary leading-none">{date.toLocaleString("en-IN", { month: "short" }).toUpperCase()}</p>
-                      <p className="text-base font-bold leading-tight">{date.getDate()}</p>
-                    </div>
-                  </div>
-                  <div className="p-4 flex-1 flex flex-col space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{event.organization.name}</span>
-                      <span>·</span>
-                      <Badge variant="secondary" className="text-[10px] px-1.5">{event.category}</Badge>
-                    </div>
-                    <h3 className="font-semibold text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2">{event.title}</h3>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-auto pt-2">
-                      {event.isOnline ? <Monitor className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
-                      <span>{event.isOnline ? "Online" : (event.venue || event.venueCity || "TBA")}</span>
-                      <span className="ml-auto">{event.isPaid ? "Paid" : "Free"}</span>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            )
-          })}
-        </div>
-        <div className="text-center mt-8">
-          <Link href="/events" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
-            Browse All Events <ArrowRight className="h-4 w-4" />
+    <section aria-labelledby="featured-events-heading" className="py-16 sm:py-20">
+      <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 id="featured-events-heading" className="text-[22px] leading-7 font-semibold tracking-[-0.015em] sm:text-[28px] sm:leading-9">Upcoming events</h2>
+            <p className="mt-1.5 text-[15px] text-muted-foreground">Discover what&apos;s happening soon</p>
+          </div>
+          <Link href="/events" className={cn(buttonVariants({ variant: "outline" }), "gap-2 max-sm:w-full")}>
+            Browse all events <ArrowRight className="size-4" aria-hidden />
           </Link>
         </div>
+        <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+          {events.map((event) => (
+            <li key={event.id}>
+              <EventCard event={event} variant="compact" />
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   )

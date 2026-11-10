@@ -1,17 +1,19 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Search, CheckCircle, Undo2, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Pill } from "@/components/ui/pill"
 import { toast } from "sonner"
 import { useDebounce } from "@/hooks/useDebounce"
-import { cn } from "@/lib/utils"
+import { UndoCheckInDialog } from "./UndoCheckInDialog"
 
 interface SearchResult {
   registrationId: string
   registrationNumber: string
+  /** the "TKT-…" number printed under the QR, when the registration has a ticket */
+  ticketNumber: string | null
   participant: { name: string; email: string; avatar?: string | null }
   ticketType: string
   isCheckedIn: boolean
@@ -21,8 +23,10 @@ interface SearchResult {
 
 interface CheckInSearchProps {
   eventId: string
-  onCheckIn: (registrationId: string) => Promise<void>
-  onUndo: (checkInId: string) => Promise<void>
+  /** Resolves to the new check-in's id, or null when the check-in failed. */
+  onCheckIn: (registrationId: string) => Promise<string | null>
+  /** Resolves to whether the check-in was reversed. */
+  onUndo: (checkInId: string) => Promise<boolean>
 }
 
 export function CheckInSearch({ eventId, onCheckIn, onUndo }: CheckInSearchProps) {
@@ -30,6 +34,8 @@ export function CheckInSearch({ eventId, onCheckIn, onUndo }: CheckInSearchProps
   const [results, setResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  // the row whose Undo was tapped, waiting for the confirm
+  const [confirming, setConfirming] = useState<SearchResult | null>(null)
   const debouncedQuery = useDebounce(query, 200)
 
   useEffect(() => {
@@ -56,12 +62,13 @@ export function CheckInSearch({ eventId, onCheckIn, onUndo }: CheckInSearchProps
   const handleCheckIn = async (registrationId: string) => {
     setLoadingId(registrationId)
     try {
-      await onCheckIn(registrationId)
-      // Update local state
+      // Only a successful check-in changes the row; its id is kept so Undo works right away.
+      const checkInId = await onCheckIn(registrationId)
+      if (!checkInId) return
       setResults((prev) =>
         prev.map((r) =>
           r.registrationId === registrationId
-            ? { ...r, isCheckedIn: true, checkedInAt: new Date().toISOString() }
+            ? { ...r, isCheckedIn: true, checkedInAt: new Date().toISOString(), checkInId }
             : r
         )
       )
@@ -73,7 +80,7 @@ export function CheckInSearch({ eventId, onCheckIn, onUndo }: CheckInSearchProps
   const handleUndo = async (checkInId: string, registrationId: string) => {
     setLoadingId(registrationId)
     try {
-      await onUndo(checkInId)
+      if (!(await onUndo(checkInId))) return
       setResults((prev) =>
         prev.map((r) =>
           r.registrationId === registrationId
@@ -87,74 +94,95 @@ export function CheckInSearch({ eventId, onCheckIn, onUndo }: CheckInSearchProps
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-faint" aria-hidden />
         <Input
-          placeholder="Search by name, email, or registration #"
+          type="search"
+          aria-label="Search participants"
+          placeholder="Name, email, ticket or registration #"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="pl-10 h-12 text-base"
+          className="h-12 pr-10 pl-10 text-base md:text-base pointer-coarse:h-12"
           autoFocus
         />
-        {isSearching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+        {isSearching && <Loader2 className="absolute top-1/2 right-3.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-label="Searching" />}
       </div>
 
-      <div className="space-y-2">
-        {results.map((r) => (
-          <div
-            key={r.registrationId}
-            className={cn(
-              "flex items-center justify-between rounded-lg border p-3",
-              r.isCheckedIn && "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900"
-            )}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-medium shrink-0">
+      {results.length > 0 && (
+        <ul className="divide-y divide-rule rounded-lg border">
+          {results.map((r) => (
+            <li key={r.registrationId} className="flex items-center gap-3 px-3 py-3 sm:px-4">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium" aria-hidden>
                 {r.participant.name[0]?.toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{r.participant.name}</p>
+                <p className="truncate text-[13px] text-muted-foreground">{r.participant.email}</p>
+                <p className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                  <span className="truncate">{r.ticketType}</span>
+                  {r.ticketNumber && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span className="shrink-0 font-mono">{r.ticketNumber}</span>
+                    </>
+                  )}
+                  <span aria-hidden className={r.ticketNumber ? "max-sm:hidden" : undefined}>·</span>
+                  <span className={r.ticketNumber ? "shrink-0 font-mono max-sm:hidden" : "shrink-0 font-mono"}>{r.registrationNumber}</span>
+                </p>
               </div>
-              <div className="min-w-0">
-                <p className="font-medium truncate">{r.participant.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{r.participant.email}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <Badge variant="secondary" className="text-[10px]">{r.ticketType}</Badge>
-                  <span className="text-[10px] text-muted-foreground font-mono">{r.registrationNumber}</span>
-                </div>
-              </div>
-            </div>
 
-            <div className="shrink-0 ml-3">
-              {r.isCheckedIn ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+              <div className="flex shrink-0 items-center gap-1.5">
+                {r.isCheckedIn ? (
+                  <>
+                    <Pill tone="positive" dot className="max-sm:hidden">Checked in</Pill>
+                    <CheckCircle className="size-5 text-positive sm:hidden" aria-label="Checked in" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground"
+                      aria-label={`Undo check-in for ${r.participant.name}`}
+                      onClick={() => r.checkInId && setConfirming(r)}
+                      disabled={loadingId === r.registrationId}
+                    >
+                      {loadingId === r.registrationId ? <Loader2 className="animate-spin" /> : <Undo2 />}
+                      <span className="max-sm:sr-only">Undo</span>
+                    </Button>
+                  </>
+                ) : (
                   <Button
-                    variant="ghost"
                     size="sm"
-                    className="text-xs"
-                    onClick={() => r.checkInId && handleUndo(r.checkInId, r.registrationId)}
+                    onClick={() => handleCheckIn(r.registrationId)}
                     disabled={loadingId === r.registrationId}
+                    className="min-w-[92px]"
                   >
-                    {loadingId === r.registrationId ? <Loader2 className="h-3 w-3 animate-spin" /> : <Undo2 className="h-3 w-3" />}
+                    {loadingId === r.registrationId ? <Loader2 className="animate-spin" /> : "Check in"}
                   </Button>
-                </div>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() => handleCheckIn(r.registrationId)}
-                  disabled={loadingId === r.registrationId}
-                  className="gap-1"
-                >
-                  {loadingId === r.registrationId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Check In"}
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
-        {query.length >= 2 && !isSearching && results.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground py-8">No participants found</p>
-        )}
-      </div>
+      {query.length >= 2 && !isSearching && results.length === 0 && (
+        <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">No participants found</p>
+      )}
+      {query.length < 2 && (
+        <p className="px-1 text-[13px] text-muted-foreground">Type at least two characters to search.</p>
+      )}
+
+      <UndoCheckInDialog
+        open={!!confirming}
+        name={confirming?.participant.name}
+        pending={!!confirming && loadingId === confirming.registrationId}
+        onCancel={() => setConfirming(null)}
+        onConfirm={async () => {
+          const target = confirming
+          if (target?.checkInId) await handleUndo(target.checkInId, target.registrationId)
+          setConfirming(null)
+        }}
+      />
     </div>
   )
 }

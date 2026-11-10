@@ -8,7 +8,28 @@ import { Card } from "@/components/ui/card"
 import type { ModuleProps } from "@/lib/site-builder/module-renderer"
 
 interface Quiz { id: string; title: string; data: any; participantCount: number }
-interface Question { id: string; question: string; options: string[]; correctAnswer: number; points: number; timeLimit?: number }
+// correctAnswer is only present for the preview sample and for org admins; the API strips it for participants.
+interface Question { id: string; question: string; options: string[]; correctAnswer?: number; points: number; timeLimit?: number }
+interface AnswerCheck { correct: boolean; points: number; correctAnswer: number | null }
+
+// Score one answer. Without the answer key, ask the server (it reveals the right option
+// only after this question has been answered, and only if the quiz shows correct answers).
+async function checkAnswer(quizId: string | undefined, question: Question, optionIndex: number): Promise<AnswerCheck> {
+  if (typeof question.correctAnswer === "number") {
+    const correct = optionIndex === question.correctAnswer
+    return { correct, points: correct ? question.points || 10 : 0, correctAnswer: question.correctAnswer }
+  }
+  try {
+    const res = await fetch(`/api/modules/live-quiz/quizzes/${quizId}/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ questionId: question.id, selectedOption: optionIndex }),
+    })
+    const json = await res.json()
+    if (json.success) return json.data as AnswerCheck
+  } catch {}
+  return { correct: false, points: 0, correctAnswer: null }
+}
 
 const SAMPLE_QUIZ: Quiz = {
   id: "sample", title: "Sample Quiz", participantCount: 42,
@@ -30,6 +51,7 @@ export function LiveQuizModule({ config, orgSlug, isPreview }: ModuleProps) {
   const [timeLeft, setTimeLeft] = useState(0)
   const [selected, setSelected] = useState<number | null>(null)
   const [showResult, setShowResult] = useState(false)
+  const [revealed, setRevealed] = useState<AnswerCheck | null>(null)
   const [score, setScore] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const startTime = useRef(Date.now())
@@ -64,22 +86,26 @@ export function LiveQuizModule({ config, orgSlug, isPreview }: ModuleProps) {
     return () => clearInterval(timer)
   }, [state, currentQ, showResult, timePerQ])
 
-  const handleAnswer = useCallback((optionIndex: number) => {
-    if (selected !== null) return
+  const handleAnswer = useCallback(async (optionIndex: number) => {
+    if (selected !== null || !currentQuestion) return
     setSelected(optionIndex)
     const timeSpent = Math.floor((Date.now() - startTime.current) / 1000)
-    const correct = optionIndex === currentQuestion?.correctAnswer
-    const pts = correct ? (currentQuestion?.points || 10) : 0
-    setScore((s) => s + pts)
-    setAnswers((a) => [...a, { questionId: currentQuestion?.id || "", selected: optionIndex, correct, time: timeSpent }])
-    setShowResult(true)
+    setShowResult(true) // stops the timer while the answer is checked
+    const result = await checkAnswer(activeQuiz?.id, currentQuestion, optionIndex)
+    setRevealed(result)
+    setScore((s) => s + result.points)
+    setAnswers((a) => [...a, { questionId: currentQuestion.id, selected: optionIndex, correct: result.correct, time: timeSpent }])
     setTimeout(() => {
       setShowResult(false)
       setSelected(null)
+      setRevealed(null)
       if (currentQ + 1 < questions.length) setCurrentQ((q) => q + 1)
       else setState("complete")
     }, 1500)
-  }, [selected, currentQuestion, currentQ, questions.length])
+  }, [selected, currentQuestion, currentQ, questions.length, activeQuiz?.id])
+
+  // Index of the right option once the current answer has been checked (null until then).
+  const correctIndex = revealed ? (revealed.correctAnswer ?? (revealed.correct ? selected : null)) : null
 
   const startQuiz = (quiz: Quiz) => { setActiveQuiz(quiz); setCurrentQ(0); setAnswers([]); setScore(0); setSelected(null); setState("intro") }
 
@@ -148,8 +174,8 @@ export function LiveQuizModule({ config, orgSlug, isPreview }: ModuleProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {currentQuestion.options.map((opt: string, i: number) => {
                   const isSelected = selected === i
-                  const isCorrect = i === currentQuestion.correctAnswer
-                  const showCorrectState = showResult && config.showCorrectAnswer
+                  const isCorrect = i === correctIndex
+                  const showCorrectState = showResult && revealed !== null && config.showCorrectAnswer
                   let cardClass = "border-2 border-transparent hover:border-primary/30"
                   if (showCorrectState && isCorrect) cardClass = "border-2 border-green-500 bg-green-50 dark:bg-green-950/30"
                   else if (showCorrectState && isSelected && !isCorrect) cardClass = "border-2 border-red-500 bg-red-50 dark:bg-red-950/30"
@@ -167,7 +193,7 @@ export function LiveQuizModule({ config, orgSlug, isPreview }: ModuleProps) {
                   )
                 })}
               </div>
-              {showResult && selected === currentQuestion.correctAnswer && (
+              {showResult && revealed?.correct && (
                 <motion.p className="text-center text-green-600 font-bold" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>+{currentQuestion.points} points!</motion.p>
               )}
             </motion.div>

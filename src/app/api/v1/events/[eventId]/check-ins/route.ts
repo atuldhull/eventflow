@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { withApiAuth } from "@/lib/api-auth"
+import { EVENT_NOT_FOUND, findApiKeyEvent, withApiAuth } from "@/lib/api-auth"
 import prisma from "@/lib/prisma"
 
 export const GET = withApiAuth("checkins:read", async (req, ctx, routeCtx) => {
@@ -8,7 +8,10 @@ export const GET = withApiAuth("checkins:read", async (req, ctx, routeCtx) => {
   const page = parseInt(sp.get("page") || "1")
   const limit = Math.min(parseInt(sp.get("limit") || "20"), 100)
 
-  const where: any = { eventId, event: { organizationId: ctx.organizationId || undefined } }
+  // Only the key's own events (its organization's, or its enterprise's).
+  if (!(await findApiKeyEvent(ctx, eventId))) return NextResponse.json(EVENT_NOT_FOUND, { status: 404 })
+
+  const where: any = { eventId }
 
   const [checkIns, total] = await Promise.all([
     prisma.checkIn.findMany({
@@ -31,6 +34,8 @@ export const GET = withApiAuth("checkins:read", async (req, ctx, routeCtx) => {
 
 export const POST = withApiAuth("checkins:write", async (req, ctx, routeCtx) => {
   const { eventId } = await routeCtx.params
+  // Only the key's own events (its organization's, or its enterprise's).
+  if (!(await findApiKeyEvent(ctx, eventId))) return NextResponse.json(EVENT_NOT_FOUND, { status: 404 })
   const { registrationId, ticketNumber } = await req.json()
 
   if (!registrationId && !ticketNumber) {

@@ -2,11 +2,17 @@
 // Primary goal: make /dashboard/tickets usable offline so attendees can show
 // their QR at a venue with no signal.
 //
+// What is cached here: page shells (HTML) and static assets (JS/CSS/fonts/images).
+// What is NOT cached here: API responses. The tickets themselves are kept by the
+// tickets page on the device (src/lib/offline-tickets.ts), keyed to the signed-in
+// user and cleared on sign-out, so a shared device never shows the previous
+// user's tickets from this cache.
+//
 // DEV SAFETY: on localhost/127.0.0.1, the SW unregisters itself and clears
 // its caches on activate. This prevents a previously-registered prod SW from
 // intercepting requests during `next dev` and serving the offline fallback
 // instead of the live page.
-const CACHE_NAME = "eventflow-v3"
+const CACHE_NAME = "eventflow-v4"
 const OFFLINE_URL = "/offline"
 const IS_DEV_HOST = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1"
 
@@ -19,27 +25,39 @@ const PRECACHE_URLS = [
   "/offline",
 ]
 
-// APIs whose JSON response we want available offline (stale-while-revalidate).
-// Keep this list tight — we don't want to leak stale data for things users
-// expect to be live (payments, notifications).
-const OFFLINE_CACHEABLE_API_PREFIXES = [
-  "/api/users/me/tickets",
-]
+// Signed-in pages whose last good HTML is kept for offline use
+const OFFLINE_PAGE_PREFIXES = ["/dashboard/tickets"]
 
-function shouldCacheApi(pathname) {
-  return OFFLINE_CACHEABLE_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+// On a slow venue network ("lie-fi"), serve the cached ticket page after this long
+const NAVIGATION_TIMEOUT_MS = 5000
+
+function isStaticAsset(url) {
+  return url.pathname.startsWith("/_next/static/") || /\.(js|css|png|jpg|jpeg|webp|svg|ico|woff2?)$/.test(url.pathname)
+}
+
+// Next.js client-side navigation fetches (RSC payloads) for a page URL
+function isRscRequest(request, url) {
+  return request.headers.get("RSC") === "1" || url.searchParams.has("_rsc")
 }
 
 // Install: pre-cache core assets
 self.addEventListener("install", (event) => {
+  // One by one, skipping failures: a signed-out visitor is redirected from /dashboard to
+  // /login, and that redirected page must not be stored as the dashboard.
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+    caches.open(CACHE_NAME).then((cache) => Promise.all(PRECACHE_URLS.map(async (u) => {
+      try {
+        const response = await fetch(u, { credentials: "same-origin" })
+        if (response.ok && !response.redirected) await cache.put(u, response)
+      } catch {}
+    })))
   )
   self.skipWaiting()
 })
 
-// Activate: clean up old caches. On dev hosts, go further — blow away every
-// cache and unregister ourselves so the tab reloads into the normal flow.
+// Activate: clean up old caches (v3 also held API responses). On dev hosts, go
+// further — blow away every cache and unregister ourselves so the tab reloads
+// into the normal flow.
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     if (IS_DEV_HOST) {
@@ -56,6 +74,26 @@ self.addEventListener("activate", (event) => {
   self.clients.claim()
 })
 
+// The page that registered us lists the scripts/styles it already loaded (before this
+// worker controlled it), so they are cached too and the page opens offline next time.
+self.addEventListener("message", (event) => {
+  const data = event.data
+  if (IS_DEV_HOST || !data || data.type !== "CACHE_URLS" || !Array.isArray(data.urls)) return
+  const urls = data.urls
+    .map((u) => { try { return new URL(u, self.location.origin) } catch { return null } })
+    .filter((u) => u && u.origin === self.location.origin && isStaticAsset(u))
+    .slice(0, 300)
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => Promise.all(urls.map(async (u) => {
+      if (await cache.match(u.href)) return
+      try {
+        const response = await fetch(u.href)
+        if (response && response.ok) await cache.put(u.href, response)
+      } catch {}
+    })))
+  )
+})
+
 // Fetch handler
 self.addEventListener("fetch", (event) => {
   // Dev: never intercept. The browser goes direct to the server.
@@ -67,51 +105,32 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return
   if (url.origin !== self.location.origin) return
 
-  // Allowlisted APIs: stale-while-revalidate
-  if (url.pathname.startsWith("/api/")) {
-    if (!shouldCacheApi(url.pathname)) return  // Default: network-only (no caching)
+  // APIs: network-only, never cached here (personal data; see the note at the top)
+  if (url.pathname.startsWith("/api/")) return
 
+  // Ticket page: network-first; the last good HTML is kept so the page opens offline
+  // (and the session check in middleware is never reached without a network).
+  if (OFFLINE_PAGE_PREFIXES.some((p) => url.pathname.startsWith(p))) {
+    // RSC payloads: network-only. If they fail, Next.js falls back to a full page
+    // load, which lands in the branch below and is served from the cache.
+    if (isRscRequest(event.request, url)) return
     event.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match(event.request)
-        const networkPromise = fetch(event.request)
-          .then((response) => {
-            // Only cache successful JSON responses to avoid storing 401/500 bodies
-            if (response && response.ok) {
-              cache.put(event.request, response.clone()).catch(() => {})
-            }
-            return response
-          })
-          .catch(() => null)
-
-        if (cached) {
-          // Fire and forget the network update
-          networkPromise.catch(() => {})
-          return cached
-        }
-        const network = await networkPromise
-        if (network) return network
-        return new Response(
-          JSON.stringify({ success: false, message: "Offline and no cached response available" }),
-          { status: 503, headers: { "Content-Type": "application/json" } }
-        )
-      })
-    )
-    return
-  }
-
-  // Ticket page: stale-while-revalidate against the cache so the HTML shell
-  // is still available offline.
-  if (url.pathname.startsWith("/dashboard/tickets")) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then(async (cache) => {
-        try {
-          const response = await fetch(event.request)
-          if (response && response.ok) cache.put(event.request, response.clone()).catch(() => {})
+        const cached = await cache.match(url.pathname, { ignoreVary: true })
+        const network = fetch(event.request).then((response) => {
+          // response.ok: a redirect to /login (signed out) or an error page is never cached
+          if (response && response.ok && response.type === "basic") cache.put(url.pathname, response.clone()).catch(() => {})
           return response
+        })
+        try {
+          if (!cached) return await network
+          const timeout = new Promise((resolve) => setTimeout(() => resolve(null), NAVIGATION_TIMEOUT_MS))
+          const winner = await Promise.race([network, timeout])
+          if (winner) return winner
+          network.catch(() => {})
+          return cached
         } catch {
-          const cached = await cache.match(event.request)
-          return cached || cache.match(OFFLINE_URL) || new Response("Offline", { status: 503 })
+          return cached || (await cache.match(OFFLINE_URL)) || new Response("Offline", { status: 503 })
         }
       })
     )
@@ -119,10 +138,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Static assets: cache-first
-  if (
-    url.pathname.match(/\.(js|css|png|jpg|jpeg|webp|svg|ico|woff2?)$/) ||
-    url.pathname.startsWith("/_next/static/")
-  ) {
+  if (isStaticAsset(url)) {
     event.respondWith(
       caches.match(event.request).then((cached) =>
         cached || fetch(event.request).then((response) => {

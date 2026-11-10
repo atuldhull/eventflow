@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server"
+import type { Prisma } from "@prisma/client"
 import { withSuperAdmin } from "@/lib/guards"
 import prisma from "@/lib/prisma"
+import { cleanSearch, parsePaging, startOfMonth } from "@/lib/enterprise-admin"
+
+const ROLES = ["SUPER_ADMIN", "ENTERPRISE_ADMIN", "ENTERPRISE_MANAGER", "ORG_ADMIN", "EVENT_MANAGER", "COORDINATOR", "FINANCE_MANAGER", "VIEWER", "USER"] as const
 
 export const GET = withSuperAdmin(async (req) => {
-  const searchParams = req.nextUrl.searchParams
-  const page = parseInt(searchParams.get("page") || "1")
-  const limit = parseInt(searchParams.get("limit") || "10")
-  const search = searchParams.get("search") || ""
-  const role = searchParams.get("role") || ""
-  const status = searchParams.get("status") || ""
+  const sp = req.nextUrl.searchParams
+  const { page, limit, skip } = parsePaging(sp, 10)
+  const search = cleanSearch(sp.get("search"))
+  const role = ROLES.find((r) => r === sp.get("role"))
+  const status = sp.get("status") || ""
 
-  const where: Record<string, unknown> = { deletedAt: null }
+  const where: Prisma.UserWhereInput = { deletedAt: null }
   if (search) {
     where.OR = [
       { name: { contains: search, mode: "insensitive" } },
@@ -22,11 +25,13 @@ export const GET = withSuperAdmin(async (req) => {
   if (status === "active") { where.isActive = true; where.isBanned = false }
   if (status === "banned") where.isBanned = true
 
-  const [users, total] = await Promise.all([
+  // KPIs are platform-wide; the search/filter only narrows the list.
+  const base: Prisma.UserWhereInput = { deletedAt: null }
+  const [users, total, allUsers, active, banned, newThisMonth] = await Promise.all([
     prisma.user.findMany({
-      where: where as any,
+      where,
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
+      skip,
       take: limit,
       select: {
         id: true,
@@ -36,16 +41,23 @@ export const GET = withSuperAdmin(async (req) => {
         role: true,
         isActive: true,
         isBanned: true,
+        banReason: true,
+        emailVerified: true,
         lastLoginAt: true,
         createdAt: true,
       },
     }),
-    prisma.user.count({ where: where as any }),
+    prisma.user.count({ where }),
+    prisma.user.count({ where: base }),
+    prisma.user.count({ where: { ...base, isActive: true, isBanned: false } }),
+    prisma.user.count({ where: { ...base, isBanned: true } }),
+    prisma.user.count({ where: { ...base, createdAt: { gte: startOfMonth() } } }),
   ])
 
   return NextResponse.json({
     success: true,
     data: users,
+    stats: { total: allUsers, active, banned, newThisMonth },
     pagination: { page, pageSize: limit, total, totalPages: Math.ceil(total / limit) },
   })
 })

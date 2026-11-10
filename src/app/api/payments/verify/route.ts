@@ -2,8 +2,30 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import crypto from "crypto"
-import { generateTicket } from "@/lib/ticket"
+import { verifyPaymentSignature } from "@/lib/razorpay-signature"
+import { completeRegistrationPayment, ensureTicketForRegistration } from "@/lib/payment-completion"
+import { registrationMeta } from "@/lib/registration-capacity"
+
+// What the register page needs to show after a payment: the registration's final state
+// and, once confirmed, the ticket.
+async function paymentResult(registrationId: string) {
+  const registration = await prisma.registration.findUnique({
+    where: { id: registrationId },
+    select: {
+      status: true, metadata: true,
+      ticket: { select: { id: true, ticketNumber: true, qrCode: true, status: true } },
+    },
+  })
+  return {
+    registrationId,
+    registrationStatus: registration?.status ?? null,
+    refundRequired: registrationMeta(registration?.metadata).refundRequired === true,
+    ticket: registration?.ticket ?? null,
+  }
+}
+
+const SEAT_LOST_MESSAGE =
+  "Payment received, but no seat was left for this registration. The organizer has been asked to refund you."
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -22,21 +44,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: "Payment gateway not configured" }, { status: 503 })
   }
 
-  const expectedSignature = crypto
-    .createHmac("sha256", secret)
-    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-    .digest("hex")
-
-  const expectedBuf = Buffer.from(expectedSignature, "hex")
-  let signatureBuf: Buffer
-  try {
-    signatureBuf = Buffer.from(String(razorpay_signature), "hex")
-  } catch {
-    return NextResponse.json({ success: false, message: "Invalid signature" }, { status: 400 })
-  }
-  const signatureValid =
-    expectedBuf.length === signatureBuf.length &&
-    crypto.timingSafeEqual(expectedBuf, signatureBuf)
+  const signatureValid = verifyPaymentSignature({
+    orderId: String(razorpay_order_id),
+    paymentId: String(razorpay_payment_id),
+    signature: razorpay_signature,
+    secret,
+  })
 
   if (!signatureValid) {
     return NextResponse.json({ success: false, message: "Payment verification failed — invalid signature" }, { status: 400 })
@@ -54,51 +67,36 @@ export async function POST(request: NextRequest) {
 
   if (payment.status === "COMPLETED") {
     // If a prior verify succeeded but ticket generation failed, recover here.
-    if (payment.registrationId) {
-      const hasTicket = await prisma.ticket.findFirst({
-        where: { registrationId: payment.registrationId },
-        select: { id: true },
-      })
-      if (!hasTicket) {
-        try { await generateTicket(payment.registrationId) } catch (err) { console.error("Ticket retry failed:", err) }
-      }
-    }
-    return NextResponse.json({ success: true, message: "Payment already verified" })
+    if (payment.registrationId) await ensureTicketForRegistration(payment.registrationId)
+    const data = await paymentResult(payment.registrationId)
+    return NextResponse.json({ success: true, message: data.refundRequired ? SEAT_LOST_MESSAGE : "Payment already verified", data })
   }
 
   if (!payment.registrationId) {
     return NextResponse.json({ success: false, message: "Payment is not linked to a registration" }, { status: 400 })
   }
 
-  // Mark payment complete, confirm registration, increment event capacity in one tx.
-  // (registrations/route.ts does not increment for PENDING, so we count it here on success.)
-  await prisma.$transaction([
-    prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: "COMPLETED",
-        gatewayPaymentId: razorpay_payment_id,
-        gatewaySignature: razorpay_signature,
-        paidAt: new Date(),
-      },
-    }),
-    prisma.registration.update({
-      where: { id: payment.registrationId },
-      data: { status: "CONFIRMED" },
-    }),
-    prisma.event.update({
-      where: { id: payment.eventId },
-      data: { currentRegistrations: { increment: 1 } },
-    }),
-  ])
+  // Mark the payment complete and confirm the registration (using its seat hold, or
+  // re-claiming the seat if the hold was released) and issue the ticket. Guarded so a
+  // concurrent Razorpay webhook can't apply it twice.
+  const completion = await completeRegistrationPayment(payment.id, {
+    gatewayPaymentId: String(razorpay_payment_id),
+    gatewaySignature: String(razorpay_signature),
+  })
 
-  // Generate ticket (unique number + valid dates + signed QR)
-  try {
-    await generateTicket(payment.registrationId)
-  } catch (err) {
-    console.error("Ticket generation failed after successful payment:", err)
-    // Don't fail the request — payment succeeded. Ticket can be generated by a retry job.
+  if (!completion.completed) {
+    const current = await prisma.payment.findUnique({ where: { id: payment.id }, select: { status: true } })
+    if (current?.status === "COMPLETED") {
+      const data = await paymentResult(payment.registrationId)
+      return NextResponse.json({ success: true, message: data.refundRequired ? SEAT_LOST_MESSAGE : "Payment already verified", data })
+    }
+    return NextResponse.json({ success: false, message: "This payment can no longer be completed" }, { status: 409 })
   }
 
-  return NextResponse.json({ success: true, message: "Payment verified successfully" })
+  const data = await paymentResult(payment.registrationId)
+  return NextResponse.json({
+    success: true,
+    message: completion.refundRequired ? SEAT_LOST_MESSAGE : "Payment verified successfully",
+    data,
+  })
 }

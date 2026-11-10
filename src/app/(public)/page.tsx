@@ -1,40 +1,92 @@
 "use client"
 
-import { useRef, useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { motion, useScroll, useTransform, useInView } from "framer-motion"
-import { ArrowRight, Calendar, ClipboardCheck, PartyPopper, Layout, FormInput, CreditCard, ScanLine, BarChart3, Award, Code, Palette, Trophy, GraduationCap, Users, BookOpen, Monitor, Braces, CheckCircle, Sparkles, Zap, Shield } from "lucide-react"
-import { buttonVariants } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { MotionConfig, motion } from "framer-motion"
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Award,
+  BarChart3,
+  BookOpen,
+  Braces,
+  Calendar,
+  Check,
+  CheckCircle2,
+  Code,
+  CreditCard,
+  FormInput,
+  GraduationCap,
+  LayoutTemplate,
+  Monitor,
+  Palette,
+  ScanLine,
+  ShieldCheck,
+  Sparkles,
+  Trophy,
+  Undo2,
+  Users,
+  type LucideIcon,
+} from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { FeaturedEvents } from "@/components/events/FeaturedEvents"
-import { MeshGradient } from "@/components/motion/MeshGradient"
+import { SampleTicket, type SampleTicketData } from "@/components/marketing/SampleTicket"
+import { Container } from "@/components/marketing/layout"
+import { CountUp, Marquee, Reveal, Spotlight, Tilt, WordReveal } from "@/components/marketing/fx"
+import { cn } from "@/lib/utils"
 
-// Reusable animated section wrapper
-function AnimatedSection({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: "-80px" })
-  return (
-    <motion.div ref={ref} initial={{ opacity: 0, y: 40 }} animate={isInView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.7, delay, ease: [0.25, 0.4, 0.25, 1] }} className={className}>
-      {children}
-    </motion.div>
-  )
-}
+// Each links to /events filtered by that category; the last tile opens the full list.
+const CATEGORIES: { icon: LucideIcon; label: string; href?: string }[] = [
+  { icon: Code, label: "Tech" },
+  { icon: Palette, label: "Cultural" },
+  { icon: Trophy, label: "Sports" },
+  { icon: GraduationCap, label: "Workshop" },
+  { icon: Braces, label: "Hackathon" },
+  { icon: Users, label: "Conference" },
+  { icon: BookOpen, label: "Seminar" },
+  { icon: Monitor, label: "Webinar" },
+  { icon: Award, label: "Competition" },
+  { icon: Calendar, label: "All events", href: "/events" },
+]
 
-// Animated counter
-function Counter({ target, suffix = "" }: { target: string; suffix?: string }) {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true })
-  return (
-    <motion.span ref={ref} initial={{ opacity: 0, scale: 0.5 }} animate={isInView ? { opacity: 1, scale: 1 } : {}} transition={{ type: "spring", stiffness: 100, delay: 0.2 }}>
-      {target}{suffix}
-    </motion.span>
-  )
-}
+const STEPS = [
+  { title: "Find an event", desc: "Browse by college, category or date. Save the ones you like." },
+  { title: "Register", desc: "Pick a ticket, apply a coupon if you have one, and confirm in seconds." },
+  { title: "Show your ticket", desc: "Open it on your phone at the door. It works offline once opened." },
+]
+
+const FEATURES = [
+  { icon: LayoutTemplate, title: "Event builder", desc: "A 6-step wizard for single, multi-day, virtual, hybrid and recurring events." },
+  { icon: FormInput, title: "Smart registration", desc: "12 custom field types, team registration, guest checkout, email domain rules and approvals." },
+  { icon: CreditCard, title: "Payments and tickets", desc: "Razorpay, coupons, dynamic pricing, ticket transfer, add-ons and GST-compliant invoices." },
+  { icon: ScanLine, title: "QR check-in", desc: "Scan from any phone with offline support, undo, manual search and multiple devices." },
+  { icon: BarChart3, title: "Analytics", desc: "Registration funnels, revenue, attendance, geography and exportable reports." },
+  { icon: ShieldCheck, title: "Enterprise grade", desc: "Multi-tenant hierarchy, 9-role access control, audit logs, custom domains, white-label and SSO." },
+]
+
+const PLANS = [
+  { name: "Free", price: "₹0", period: "/month", features: ["5 events/month", "100 participants", "Basic analytics", "Email support"], cta: "Get started", href: "/signup" },
+  { name: "Pro", price: "₹999", period: "/month", features: ["Unlimited events", "5,000 participants", "Advanced analytics", "Custom branding", "Priority support"], cta: "Start free trial", href: "/signup?plan=pro", popular: true },
+  { name: "Enterprise", price: "Custom", period: "", features: ["Unlimited everything", "White-label", "SSO integration", "Dedicated support", "API access"], cta: "Contact sales", href: "/contact" },
+]
+
+const HERO_TICKETS: SampleTicketData[] = [
+  { month: "Nov", day: 13, weekday: "Fri", title: "Winter Hackathon 2026", venue: "Main auditorium", status: "confirmed", ticketType: "General", code: "TKT-8F3K2" },
+  { month: "Nov", day: 6, weekday: "Fri", title: "Design Sprint: Campus App", venue: "Studio B", status: "checked_in", ticketType: "Student", code: "TKT-2M9QA" },
+  { month: "Nov", day: 20, weekday: "Fri", title: "Classical Night", venue: "Open-air theatre", status: "confirmed", ticketType: "VIP", code: "TKT-7XC4D" },
+]
+
+const EASE = [0.22, 1, 0.36, 1] as const
+
+/** Lemon fill for CTAs; stays charcoal-on-lemon in both themes. */
+const ctaLemon =
+  "group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lemon px-6 text-[15px] font-semibold text-lemon-ink transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_40px_-8px_var(--lemon)] active:translate-y-0 active:scale-[0.98]"
+const ctaGhost =
+  "inline-flex h-12 items-center justify-center gap-2 rounded-full border border-foreground/15 px-6 text-[15px] font-medium transition-colors duration-300 hover:border-lavender hover:bg-lavender/10"
 
 export default function LandingPage() {
   const [stats, setStats] = useState({ events: 0, registrations: 0, organizations: 0 })
+  const [statsLoaded, setStatsLoaded] = useState(false)
 
   useEffect(() => {
     async function fetchStats() {
@@ -42,284 +94,414 @@ export default function LandingPage() {
         const res = await fetch("/api/stats")
         const json = await res.json()
         if (json.success) setStats(json.data)
-      } catch {}
+      } catch {} finally {
+        setStatsLoaded(true)
+      }
     }
     fetchStats()
   }, [])
 
-  const heroRef = useRef(null)
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] })
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 200])
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0])
-
   return (
-    <div className="-mt-16">
+    <MotionConfig reducedMotion="user">
       {/* ========== HERO ========== */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-zinc-950">
-        {/* WebGL mesh-gradient background — replaces the framer-motion orbs for lower CPU + richer colour transitions. */}
-        <MeshGradient palette="night" opacity={0.85} className="mix-blend-screen" />
+      <section className="relative -mt-16 overflow-hidden pt-16">
+        {/* moving aurora: lavender, lemon and violet light drifting behind a fading grid */}
+        <div aria-hidden className="fx-aurora pointer-events-none absolute inset-0 -z-10">
+          <span className="top-[-10%] left-[-5%] size-[520px] bg-lavender/45 dark:bg-lavender/35" />
+          <span className="top-[20%] right-[-8%] size-[440px] bg-lemon/35 dark:bg-lemon/15" />
+          <span className="bottom-[-20%] left-[30%] size-[480px] bg-[#6d28d9]/25" />
+        </div>
+        <div aria-hidden className="fx-grid pointer-events-none absolute inset-0 -z-10" />
 
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
-
-        {/* Floating particles */}
-        {[...Array(6)].map((_, i) => (
-          <motion.div key={i} className="absolute w-1 h-1 rounded-full bg-white/20"
-            style={{ left: `${15 + i * 15}%`, top: `${20 + (i % 3) * 25}%` }}
-            animate={{ y: [0, -30, 0], opacity: [0.2, 0.6, 0.2] }}
-            transition={{ duration: 4 + i, repeat: Infinity, delay: i * 0.5 }}
-          />
-        ))}
-
-        <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative container mx-auto px-4 py-20 text-center z-10">
-          {/* Badge */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.6 }}>
-            <Badge className="bg-white/5 text-white/80 border-white/10 backdrop-blur-sm gap-1.5 px-4 py-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" /> Open-source Event Management Platform
-            </Badge>
-          </motion.div>
-
-          {/* Main heading */}
-          <motion.h1 className="mt-8 text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight max-w-5xl mx-auto leading-[1.1] text-white"
-            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.8, ease: [0.25, 0.4, 0.25, 1] }}>
-            Events Made{" "}
-            <span className="relative">
-              <span className="bg-linear-to-r from-violet-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">
-                Effortless
+        <Container className="grid items-center gap-14 pt-10 pb-20 sm:pt-14 lg:min-h-[calc(100svh-64px)] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-12 lg:pt-6 lg:pb-16">
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 12, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.6, ease: EASE }}
+              className="inline-flex items-center gap-2 rounded-full border border-lavender/40 bg-lavender/10 py-1.5 pr-3.5 pl-2 text-[13px] font-medium"
+            >
+              <span className="relative flex size-2.5">
+                <span className="fx-ping absolute inline-flex size-full rounded-full bg-lavender" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-lavender" />
               </span>
-              <motion.span className="absolute -bottom-2 left-0 right-0 h-1 bg-linear-to-r from-violet-400 via-blue-400 to-emerald-400 rounded-full"
-                initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 1.2, duration: 0.8, ease: "easeOut" }}
-                style={{ originX: 0 }}
-              />
-            </span>
-          </motion.h1>
+              New: offline tickets and one-tap refunds
+            </motion.div>
 
-          {/* Subtitle */}
-          <motion.p className="mt-6 text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed"
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.7 }}>
-            The all-in-one platform to create, manage, and discover professional events.
-            Built for universities, companies, and organizations of every size.
-          </motion.p>
+            <h1 className="font-display mt-6 text-[42px] leading-[1.02] font-extrabold tracking-[-0.045em] sm:text-[60px] lg:text-[64px] xl:text-[76px]">
+              <WordReveal text="Events people actually" delay={0.1} />{" "}
+              <span className="relative z-0 inline-block px-[0.06em] whitespace-nowrap">
+                <motion.span
+                  aria-hidden
+                  className="absolute -inset-x-[0.04em] top-[0.02em] bottom-[0.04em] -z-10 origin-left -rotate-[1.5deg] rounded-[0.16em] bg-lemon"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.7, delay: 0.75, ease: EASE }}
+                />
+                <WordReveal text="show up" delay={0.4} className="relative text-lemon-ink" />
+              </span>{" "}
+              <WordReveal text="for." delay={0.55} className="fx-gradient-text fx-on-light" />
+            </h1>
 
-          {/* CTA Buttons */}
-          <motion.div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.6 }}>
-            <Link href="/events" className={cn(buttonVariants({ size: "lg" }), "gap-2 text-base px-8 h-12 rounded-xl shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow")}>
-              Explore Events <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/signup" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "text-base px-8 h-12 rounded-xl border-white/20 text-white hover:bg-white/10 backdrop-blur-sm")}>
-              Start Organizing
-            </Link>
-          </motion.div>
+            <Reveal delay={0.7} y={16}>
+              <p className="mt-7 max-w-[50ch] text-[17px] leading-relaxed text-muted-foreground">
+                Find what&apos;s on at your college, register in a minute and carry your ticket on your phone. Organizers get registrations,
+                payments, QR check-in and certificates in one place.
+              </p>
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                <Link href="/events" className={ctaLemon}>
+                  Browse events
+                  <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden />
+                </Link>
+                <Link href="/signup" className={ctaGhost}>
+                  Host an event
+                </Link>
+              </div>
+            </Reveal>
 
-          {/* Social proof */}
-          <motion.div className="mt-12 flex items-center justify-center gap-3"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2, duration: 0.8 }}>
-            <div className="flex -space-x-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="w-9 h-9 rounded-full border-2 border-zinc-950 bg-linear-to-br from-violet-500 to-blue-500 flex items-center justify-center text-[10px] font-bold text-white">
-                  {String.fromCharCode(65 + i)}
-                </div>
-              ))}
-            </div>
-            <p className="text-sm text-zinc-500">
-              Start creating events today
-            </p>
-          </motion.div>
-        </motion.div>
-
-        {/* Scroll indicator */}
-        <motion.div className="absolute bottom-8 left-1/2 -translate-x-1/2"
-          animate={{ y: [0, 8, 0] }} transition={{ duration: 2, repeat: Infinity }}>
-          <div className="w-6 h-10 rounded-full border-2 border-white/20 flex items-start justify-center p-1.5">
-            <motion.div className="w-1.5 h-1.5 rounded-full bg-white/60"
-              animate={{ y: [0, 16, 0] }} transition={{ duration: 2, repeat: Infinity }} />
+            <Reveal delay={0.85} y={16}>
+              <dl className="mt-12 flex flex-wrap gap-x-12 gap-y-6" aria-busy={!statsLoaded}>
+                {[
+                  { label: "events created", value: stats.events },
+                  { label: "registrations", value: stats.registrations },
+                  { label: "organizations", value: stats.organizations },
+                ].map((s) => (
+                  <div key={s.label} className="flex flex-col-reverse">
+                    <dt className="mt-1 text-[13px] text-muted-foreground">{s.label}</dt>
+                    <dd className="font-display text-[34px] leading-none font-bold tracking-[-0.03em]">
+                      {statsLoaded ? <CountUp value={s.value} /> : <Skeleton className="h-9 w-20" />}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </Reveal>
           </div>
-        </motion.div>
+
+          {/* tickets floating in 3D, tilting toward the pointer */}
+          <motion.div
+            aria-hidden
+            initial={{ opacity: 0, y: 60, rotate: -4 }}
+            animate={{ opacity: 1, y: 0, rotate: 0 }}
+            transition={{ duration: 1.1, delay: 0.3, ease: EASE }}
+            className="relative mx-auto w-full max-w-[540px]"
+          >
+            <div className="absolute inset-[8%] -z-10 rounded-full bg-lavender/40 blur-[90px]" />
+            {/* a gentle tilt and no depth offsets, so the ticket text stays sharp */}
+            <Tilt max={5}>
+              <div className="flex flex-col gap-4">
+                {HERO_TICKETS.map((t, i) => (
+                  <motion.div
+                    key={t.code}
+                    initial={{ opacity: 0, x: i % 2 ? 80 : -80, rotate: i % 2 ? 5 : -5 }}
+                    animate={{ opacity: 1, x: 0, rotate: [-1.5, 1, -0.5][i] }}
+                    transition={{ duration: 1, delay: 0.5 + i * 0.15, ease: EASE }}
+                    className={cn("drop-shadow-[0_24px_40px_rgb(0_0_0/0.35)]", i === 1 && "sm:ml-10", i === 2 && "max-sm:hidden sm:ml-4")}
+                  >
+                    <div className="fx-float" style={{ animationDelay: `${i * -2}s` }}>
+                      <SampleTicket ticket={t} />
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </Tilt>
+
+            {/* floating status chips */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 1.3, type: "spring", bounce: 0.5 }}
+              className="absolute -top-12 left-1/3 sm:-top-14"
+            >
+              <div className="fx-float flex items-center gap-2 rounded-full bg-lemon px-4 py-2 text-[13px] font-semibold text-lemon-ink shadow-xl" style={{ animationDelay: "-1s" }}>
+                <CheckCircle2 className="size-4" /> Checked in · 412
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 1.5, type: "spring", bounce: 0.5 }}
+              className="absolute -bottom-6 -left-2 sm:-left-8"
+            >
+              <div className="fx-float flex items-center gap-2 rounded-full bg-lavender px-4 py-2 text-[13px] font-semibold text-charcoal shadow-xl" style={{ animationDelay: "-3s" }}>
+                <Undo2 className="size-4" /> ₹499 refunded instantly
+              </div>
+            </motion.div>
+          </motion.div>
+        </Container>
+      </section>
+
+      {/* ========== MARQUEE BAND ========== */}
+      <section aria-hidden className="relative z-10 -mt-8 overflow-hidden py-12">
+        <div className="-rotate-2 bg-lemon py-4 text-lemon-ink shadow-[0_20px_60px_-20px_var(--lemon)]">
+          <Marquee speed={36}>
+            {["Hackathons", "Fests", "Workshops", "Concerts", "Seminars", "Sports meets", "Conferences", "Webinars", "Competitions", "Club nights"].map((w) => (
+              <span key={w} className="font-display flex items-center gap-8 px-4 text-[26px] font-extrabold tracking-[-0.03em] sm:text-[34px]">
+                {w}
+                <Sparkles className="size-6 shrink-0" />
+              </span>
+            ))}
+          </Marquee>
+        </div>
+        <div className="mt-[-12px] rotate-1 bg-lavender py-3 text-charcoal">
+          <Marquee speed={44} className="[&_.fx-marquee]:[animation-direction:reverse]">
+            {["QR check-in", "Razorpay payments", "Certificates", "Offline tickets", "Analytics", "Team registration", "Coupons", "Refunds"].map((w) => (
+              <span key={w} className="flex items-center gap-6 px-3 text-[15px] font-semibold">
+                {w}
+                <span className="size-1.5 rounded-full bg-charcoal" />
+              </span>
+            ))}
+          </Marquee>
+        </div>
       </section>
 
       {/* ========== CATEGORIES ========== */}
-      <section className="container mx-auto px-4 py-24">
-        <AnimatedSection className="text-center mb-14">
-          <p className="text-sm font-medium text-primary mb-2 tracking-wider uppercase">Explore</p>
-          <h2 className="text-3xl sm:text-4xl font-bold">Find Events by Category</h2>
-          <p className="text-muted-foreground mt-3 max-w-md mx-auto">Discover events that match your interests across every domain</p>
-        </AnimatedSection>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          {[
-            { icon: Code, label: "Tech", color: "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 hover:border-blue-300 dark:hover:border-blue-700" },
-            { icon: Palette, label: "Cultural", color: "bg-pink-50 text-pink-600 dark:bg-pink-950/50 dark:text-pink-400 hover:border-pink-300" },
-            { icon: Trophy, label: "Sports", color: "bg-green-50 text-green-600 dark:bg-green-950/50 dark:text-green-400 hover:border-green-300" },
-            { icon: GraduationCap, label: "Workshop", color: "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400 hover:border-amber-300" },
-            { icon: Braces, label: "Hackathon", color: "bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400 hover:border-purple-300" },
-            { icon: Users, label: "Conference", color: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 hover:border-indigo-300" },
-            { icon: BookOpen, label: "Seminar", color: "bg-teal-50 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400 hover:border-teal-300" },
-            { icon: Monitor, label: "Webinar", color: "bg-cyan-50 text-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-400 hover:border-cyan-300" },
-            { icon: Award, label: "Competition", color: "bg-orange-50 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400 hover:border-orange-300" },
-            { icon: Calendar, label: "More", color: "bg-zinc-50 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 hover:border-zinc-400" },
-          ].map(({ icon: Icon, label, color }, i) => (
-            <AnimatedSection key={label} delay={i * 0.05}>
-              <Link href={`/events?category=${label.toUpperCase()}`}>
-                <Card className={cn("p-6 text-center transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer border-2 border-transparent", color)}>
-                  <motion.div whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }} transition={{ duration: 0.4 }}>
-                    <Icon className="h-8 w-8 mx-auto mb-2" />
-                  </motion.div>
-                  <p className="text-sm font-medium">{label}</p>
-                </Card>
-              </Link>
-            </AnimatedSection>
-          ))}
-        </div>
+      <section aria-labelledby="categories-heading">
+        <Container className="py-24 sm:py-28">
+          <Reveal>
+            <SectionTitle id="categories-heading" kicker="Explore" title="Find events by category" description="What's on across tech, culture, sport and more." />
+          </Reveal>
+          <ul className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
+            {CATEGORIES.map(({ icon: Icon, label, href }, i) => (
+              <motion.li
+                key={label}
+                initial={{ opacity: 0, y: 30, scale: 0.9 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true, margin: "0px 0px -10% 0px" }}
+                transition={{ duration: 0.6, delay: (i % 5) * 0.06 + Math.floor(i / 5) * 0.12, ease: EASE }}
+              >
+                <Spotlight className="h-full rounded-2xl">
+                  <Link
+                    href={href ?? `/events?category=${encodeURIComponent(label.toUpperCase())}`}
+                    className={cn(
+                      "group relative flex h-full min-h-[120px] flex-col justify-between gap-6 overflow-hidden rounded-2xl border p-5 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-lavender/60",
+                      href && "border-lemon/50 bg-lemon/[0.06]",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex size-10 items-center justify-center rounded-xl transition-transform duration-500 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:scale-110 group-hover:-rotate-12",
+                        href ? "bg-lemon text-lemon-ink" : "bg-lavender/15 text-brand",
+                      )}
+                    >
+                      <Icon className="size-5" strokeWidth={1.75} aria-hidden />
+                    </span>
+                    <span className="text-[15px] font-semibold">{label}</span>
+                    <ArrowUpRight
+                      className="absolute top-5 right-5 size-4 -translate-x-1 translate-y-1 text-brand opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100"
+                      aria-hidden
+                    />
+                  </Link>
+                </Spotlight>
+              </motion.li>
+            ))}
+          </ul>
+        </Container>
       </section>
 
-      {/* Featured Events */}
-      <FeaturedEvents />
+      {/* Featured events (fetches its own list) */}
+      <Reveal>
+        <FeaturedEvents />
+      </Reveal>
 
       {/* ========== HOW IT WORKS ========== */}
-      <section className="bg-muted/30 py-24">
-        <div className="container mx-auto px-4">
-          <AnimatedSection className="text-center mb-14">
-            <p className="text-sm font-medium text-primary mb-2 tracking-wider uppercase">Simple Process</p>
-            <h2 className="text-3xl sm:text-4xl font-bold">How It Works</h2>
-            <p className="text-muted-foreground mt-3">Get started in three simple steps</p>
-          </AnimatedSection>
-          <div className="grid gap-8 sm:grid-cols-3 max-w-4xl mx-auto">
-            {[
-              { step: 1, icon: Calendar, title: "Discover", desc: "Browse events across categories and locations", gradient: "from-blue-500 to-cyan-500" },
-              { step: 2, icon: ClipboardCheck, title: "Register", desc: "Sign up in seconds with a simple, customizable form", gradient: "from-violet-500 to-purple-500" },
-              { step: 3, icon: PartyPopper, title: "Attend", desc: "Show your QR ticket at the venue and enjoy", gradient: "from-emerald-500 to-teal-500" },
-            ].map(({ step, icon: Icon, title, desc, gradient }, i) => (
-              <AnimatedSection key={step} delay={i * 0.15} className="relative">
-                {i < 2 && <div className="hidden sm:block absolute top-10 left-[60%] w-[80%] h-px bg-linear-to-r from-border to-transparent" />}
-                <div className="text-center space-y-4">
-                  <motion.div className={cn("flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br text-white mx-auto shadow-lg", gradient)}
-                    whileHover={{ scale: 1.1, rotate: 5 }} transition={{ type: "spring", stiffness: 300 }}>
-                    <Icon className="h-6 w-6" />
-                  </motion.div>
-                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Step {step}</div>
-                  <h3 className="text-lg font-semibold">{title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
-                </div>
-              </AnimatedSection>
+      <section aria-labelledby="how-heading">
+        <Container className="py-24 sm:py-28">
+          <Reveal>
+            <SectionTitle id="how-heading" kicker="Three steps" title="How it works" />
+          </Reveal>
+          <ol className="relative mt-14 grid gap-12 sm:grid-cols-3 sm:gap-10">
+            {/* the line that draws itself across the three steps */}
+            <motion.span
+              aria-hidden
+              className="absolute top-[38px] right-0 left-0 hidden h-[2px] origin-left bg-gradient-to-r from-lavender via-lemon to-lavender sm:block"
+              initial={{ scaleX: 0 }}
+              whileInView={{ scaleX: 1 }}
+              viewport={{ once: true, margin: "0px 0px -20% 0px" }}
+              transition={{ duration: 1.4, ease: EASE }}
+            />
+            {STEPS.map((step, i) => (
+              <motion.li
+                key={step.title}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "0px 0px -20% 0px" }}
+                transition={{ duration: 0.8, delay: 0.2 + i * 0.25, ease: EASE }}
+                className="relative"
+              >
+                <span className="font-display relative z-10 inline-flex size-[76px] items-center justify-center rounded-full border-2 border-lavender bg-background text-[30px] font-extrabold tracking-[-0.04em] text-brand">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h3 className="font-display mt-6 text-[22px] font-bold tracking-[-0.02em]">{step.title}</h3>
+                <p className="mt-2 max-w-[34ch] text-[15px] leading-relaxed text-muted-foreground">{step.desc}</p>
+              </motion.li>
             ))}
-          </div>
-        </div>
+          </ol>
+        </Container>
       </section>
 
-      {/* ========== FEATURES ========== */}
-      <section className="container mx-auto px-4 py-24">
-        <AnimatedSection className="text-center mb-14">
-          <p className="text-sm font-medium text-primary mb-2 tracking-wider uppercase">Features</p>
-          <h2 className="text-3xl sm:text-4xl font-bold">Everything You Need</h2>
-          <p className="text-muted-foreground mt-3 max-w-lg mx-auto">Powerful tools for organizers, seamless experience for attendees</p>
-        </AnimatedSection>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            { icon: Layout, title: "Event Builder", desc: "Create beautiful event pages with our intuitive 6-step wizard. Support for single, multi-day, virtual, hybrid, and recurring events.", gradient: "from-blue-500 to-indigo-500" },
-            { icon: FormInput, title: "Smart Registration", desc: "12 custom field types, team registration, guest checkout, email domain restrictions, and approval workflows.", gradient: "from-violet-500 to-purple-500" },
-            { icon: CreditCard, title: "Payments & Tickets", desc: "Razorpay integration, coupons, dynamic pricing, ticket transfer, add-ons, and GST-compliant invoices.", gradient: "from-emerald-500 to-green-500" },
-            { icon: ScanLine, title: "QR Check-in", desc: "Real-time QR scanning with offline support, undo check-in, manual search, and multi-device capability.", gradient: "from-orange-500 to-red-500" },
-            { icon: BarChart3, title: "Analytics", desc: "Registration funnels, revenue breakdown, attendance rates, geographic distribution, and exportable reports.", gradient: "from-cyan-500 to-blue-500" },
-            { icon: Shield, title: "Enterprise Grade", desc: "Multi-tenant hierarchy, 9-role RBAC, audit logging, custom domains, white-labeling, and SSO.", gradient: "from-rose-500 to-pink-500" },
-          ].map(({ icon: Icon, title, desc, gradient }, i) => (
-            <AnimatedSection key={title} delay={i * 0.1}>
-              <motion.div whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
-                <Card className="p-6 space-y-4 h-full hover:shadow-xl transition-shadow duration-300 border-transparent hover:border-primary/20">
-                  <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl bg-linear-to-br text-white shadow-md", gradient)}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="font-semibold text-lg">{title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
-                </Card>
-              </motion.div>
-            </AnimatedSection>
-          ))}
-        </div>
-      </section>
-
-      {/* ========== STATS ========== */}
-      <section className="relative bg-zinc-950 text-white py-20 overflow-hidden">
-        <div className="absolute inset-0">
-          <motion.div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-primary/10 blur-[100px]" animate={{ x: [0, 30, 0] }} transition={{ duration: 8, repeat: Infinity }} />
-        </div>
-        <div className="relative container mx-auto px-4">
-          <div className="grid gap-8 grid-cols-2 lg:grid-cols-4 text-center">
-            {[
-              { value: String(stats.events), label: "Events Created" },
-              { value: String(stats.registrations), label: "Registrations" },
-              { value: String(stats.organizations), label: "Organizations" },
-              { value: "—", label: "Average Rating" },
-            ].map(({ value, label }, i) => (
-              <AnimatedSection key={label} delay={i * 0.1}>
-                <p className="text-4xl sm:text-5xl font-bold"><Counter target={value} /></p>
-                <p className="text-sm text-zinc-400 mt-2">{label}</p>
-              </AnimatedSection>
-            ))}
+      {/* ========== FOR ORGANIZERS: bento of glowing cards ========== */}
+      <section aria-labelledby="organizers-heading" className="relative overflow-hidden bg-[#111111] text-white">
+        <div aria-hidden className="pointer-events-none absolute -top-40 -left-40 size-[600px] rounded-full bg-lavender/25 blur-[140px]" />
+        <div aria-hidden className="pointer-events-none absolute -right-40 -bottom-40 size-[500px] rounded-full bg-lemon/10 blur-[140px]" />
+        <Container className="relative py-24 sm:py-32">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <Reveal>
+              <p className="text-sm font-semibold text-lemon">For organizers</p>
+              <h2 id="organizers-heading" className="font-display mt-3 max-w-[16ch] text-[36px] leading-[1.02] font-extrabold tracking-[-0.04em] sm:text-[56px]">
+                Run the door, <span className="fx-gradient-text">not a spreadsheet</span>
+              </h2>
+              <p className="mt-5 max-w-[48ch] text-[16px] leading-relaxed text-white/65">
+                Registrations, ticket types, payments, QR check-in, certificates and analytics for every event your club, college or company runs.
+              </p>
+            </Reveal>
+            <Reveal delay={0.15} className="flex flex-col gap-3 sm:flex-row">
+              <Link href="/signup" className={ctaLemon}>
+                Start organizing for free
+                <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden />
+              </Link>
+              <Link
+                href="/for-organizers"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/20 px-6 text-[15px] font-medium text-white transition-colors hover:border-lavender hover:bg-lavender/15"
+              >
+                Features for organizers
+              </Link>
+            </Reveal>
           </div>
-        </div>
+
+          <ul className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map(({ icon: Icon, title, desc }, i) => (
+              <motion.li
+                key={title}
+                initial={{ opacity: 0, y: 40, rotateX: 18 }}
+                whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+                viewport={{ once: true, margin: "0px 0px -10% 0px" }}
+                transition={{ duration: 0.8, delay: (i % 3) * 0.1, ease: EASE }}
+                style={{ transformPerspective: 900 }}
+                // zig-zag bento: wide cards at 0, 3, 5 fill three full rows on desktop
+                className={cn((i === 0 || i === 3 || i === 5) && "lg:col-span-2")}
+              >
+                <Spotlight className="group h-full rounded-3xl border border-white/10 bg-white/[0.03] p-7 transition-colors duration-300 hover:border-lavender/50">
+                  <span
+                    className={cn(
+                      "flex size-12 items-center justify-center rounded-2xl transition-transform duration-500 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:scale-110 group-hover:rotate-6",
+                      i % 2 === 0 ? "bg-lavender text-charcoal" : "bg-lemon text-lemon-ink",
+                    )}
+                  >
+                    <Icon className="size-6" strokeWidth={1.75} aria-hidden />
+                  </span>
+                  <h3 className="font-display mt-8 text-[22px] font-bold tracking-[-0.02em]">{title}</h3>
+                  <p className="mt-2 max-w-[44ch] text-[15px] leading-relaxed text-white/60">{desc}</p>
+                </Spotlight>
+              </motion.li>
+            ))}
+          </ul>
+        </Container>
       </section>
 
       {/* ========== PRICING ========== */}
-      <section className="container mx-auto px-4 py-24">
-        <AnimatedSection className="text-center mb-14">
-          <p className="text-sm font-medium text-primary mb-2 tracking-wider uppercase">Pricing</p>
-          <h2 className="text-3xl sm:text-4xl font-bold">Simple, Transparent Pricing</h2>
-          <p className="text-muted-foreground mt-3">Start free, upgrade as you grow. No hidden fees.</p>
-        </AnimatedSection>
-        <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto pt-4">
-          {[
-            { name: "Free", price: "₹0", period: "/month", features: ["5 events/month", "100 participants", "Basic analytics", "Email support"], cta: "Get Started", href: "/signup" },
-            { name: "Pro", price: "₹999", period: "/month", features: ["Unlimited events", "5,000 participants", "Advanced analytics", "Custom branding", "Priority support"], cta: "Start Free Trial", href: "/signup?plan=pro", popular: true },
-            { name: "Enterprise", price: "Custom", period: "", features: ["Unlimited everything", "White-label", "SSO integration", "Dedicated support", "API access"], cta: "Contact Sales", href: "/contact" },
-          ].map((plan, i) => (
-            <AnimatedSection key={plan.name} delay={i * 0.1}>
-              <motion.div whileHover={{ y: -6 }} transition={{ type: "spring", stiffness: 300 }}>
-                <Card className={cn("p-6 space-y-4 relative overflow-visible h-full", plan.popular && "border-primary shadow-xl shadow-primary/10 scale-[1.02]")}>
-                  {plan.popular && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 shadow-md">Most Popular</Badge>}
-                  <div>
-                    <h3 className="font-semibold">{plan.name}</h3>
-                    <p className="text-3xl font-bold mt-1">{plan.price}<span className="text-sm font-normal text-muted-foreground">{plan.period}</span></p>
-                  </div>
-                  <ul className="space-y-2.5">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-sm"><CheckCircle className="h-4 w-4 text-green-500 shrink-0" />{f}</li>
-                    ))}
-                  </ul>
-                  <Link href={plan.href} className={cn(buttonVariants({ variant: plan.popular ? "default" : "outline" }), "w-full rounded-xl")}>
-                    {plan.cta}
-                  </Link>
-                </Card>
+      <section aria-labelledby="pricing-heading">
+        <Container className="py-24 sm:py-28">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <Reveal>
+              <SectionTitle
+                id="pricing-heading"
+                kicker="Pricing"
+                title="Start free, upgrade as you grow"
+                description="No hidden fees. No credit card required, and free forever for basic use."
+              />
+            </Reveal>
+            <Link href="/pricing" className={cn(ctaGhost, "h-11 shrink-0 max-sm:w-full")}>
+              Compare all features
+            </Link>
+          </div>
+
+          <div className="mt-12 grid gap-5 md:grid-cols-3 md:items-stretch">
+            {PLANS.map((plan, i) => (
+              <motion.div
+                key={plan.name}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "0px 0px -10% 0px" }}
+                transition={{ duration: 0.7, delay: i * 0.12, ease: EASE }}
+                whileHover={{ y: -6 }}
+                className={cn("flex flex-col rounded-3xl border bg-card p-7", plan.popular && "fx-run-border border-transparent md:-my-3 md:py-10")}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-display text-[20px] font-bold tracking-[-0.02em]">{plan.name}</h3>
+                  {plan.popular && (
+                    <span className="rounded-full bg-lemon px-3 py-1 text-[12px] font-semibold text-lemon-ink">Most popular</span>
+                  )}
+                </div>
+                <p className="mt-5 flex items-baseline gap-1">
+                  <span className="font-display text-[48px] leading-none font-extrabold tracking-[-0.04em] tabular-nums">{plan.price}</span>
+                  {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
+                </p>
+                <ul className="mt-7 flex-1 space-y-3 text-[15px]">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-3">
+                      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-lavender/20 text-brand">
+                        <Check className="size-3.5" strokeWidth={3} aria-hidden />
+                      </span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link href={plan.href} className={cn(plan.popular ? ctaLemon : ctaGhost, "mt-9 w-full")}>
+                  {plan.cta}
+                </Link>
               </motion.div>
-            </AnimatedSection>
-          ))}
-        </div>
-        <div className="text-center mt-8">
-          <Link href="/pricing" className="text-sm text-primary hover:underline">Compare all features →</Link>
-        </div>
+            ))}
+          </div>
+        </Container>
       </section>
 
-      {/* ========== FINAL CTA ========== */}
-      <section className="relative overflow-hidden py-24">
-        <div className="absolute inset-0 bg-linear-to-br from-primary via-primary/90 to-violet-600" />
-        <motion.div className="absolute inset-0" animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }} transition={{ duration: 20, repeat: Infinity }}
-          style={{ backgroundImage: "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1), transparent 50%), radial-gradient(circle at 80% 50%, rgba(255,255,255,0.05), transparent 50%)" }}
-        />
-        <AnimatedSection className="relative container mx-auto px-4 text-center space-y-6">
-          <motion.div whileHover={{ scale: 1.05 }} className="inline-block">
-            <Zap className="h-10 w-10 text-primary-foreground/80 mx-auto mb-4" />
-          </motion.div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground">Ready to Create Your Next Event?</h2>
-          <p className="text-primary-foreground/70 max-w-md mx-auto text-lg">
-            Create, manage, and grow your events with the most complete platform available.
-          </p>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-            <Link href="/signup" className={cn(buttonVariants({ size: "lg" }), "bg-white text-primary hover:bg-white/90 text-base px-10 h-12 rounded-xl shadow-xl")}>
-              Get Started for Free
-            </Link>
-          </motion.div>
-          <p className="text-xs text-primary-foreground/50">No credit card required · Free forever for basic use</p>
-        </AnimatedSection>
+      {/* ========== FINAL CALL TO ACTION ========== */}
+      <section aria-labelledby="final-cta-heading">
+        <Container className="pb-24 sm:pb-28">
+          <Reveal>
+            <div className="relative overflow-hidden rounded-[32px] bg-lemon px-6 py-16 text-center text-lemon-ink sm:px-12 sm:py-24">
+              <div aria-hidden className="absolute -top-24 -right-24 size-72 rounded-full bg-lavender/60 blur-[80px]" />
+              <div aria-hidden className="absolute -bottom-24 -left-24 size-72 rounded-full bg-white/60 blur-[80px]" />
+              <h2 id="final-cta-heading" className="font-display relative mx-auto max-w-[14ch] text-[40px] leading-[0.98] font-extrabold tracking-[-0.045em] sm:text-[72px]">
+                Your next event starts here.
+              </h2>
+              <p className="relative mx-auto mt-5 max-w-[44ch] text-[17px] leading-relaxed text-lemon-ink/75">
+                Set up registration in minutes. Free for your first events, no card needed.
+              </p>
+              <div className="relative mt-9 flex flex-col justify-center gap-3 sm:flex-row">
+                <Link
+                  href="/signup"
+                  className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-charcoal px-7 text-[15px] font-semibold text-lemon transition-transform duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
+                >
+                  Create a free account
+                  <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden />
+                </Link>
+                <Link
+                  href="/events"
+                  className="inline-flex h-12 items-center justify-center rounded-full border-2 border-charcoal/80 px-7 text-[15px] font-semibold transition-colors hover:bg-charcoal/10"
+                >
+                  Browse events
+                </Link>
+              </div>
+            </div>
+          </Reveal>
+        </Container>
       </section>
+    </MotionConfig>
+  )
+}
+
+function SectionTitle({ id, kicker, title, description }: { id: string; kicker: string; title: string; description?: string }) {
+  return (
+    <div>
+      <p className="flex items-center gap-2 text-sm font-semibold text-brand">
+        <span className="h-[2px] w-6 rounded-full bg-lemon" aria-hidden />
+        {kicker}
+      </p>
+      <h2 id={id} className="font-display mt-3 text-[32px] leading-[1.02] font-extrabold tracking-[-0.04em] sm:text-[48px]">
+        {title}
+      </h2>
+      {description && <p className="mt-4 max-w-[56ch] text-[16px] leading-relaxed text-muted-foreground">{description}</p>}
     </div>
   )
 }

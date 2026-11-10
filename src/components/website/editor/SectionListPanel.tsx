@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, Eye, EyeOff, MoreVertical, Plus, Pencil, Copy, Trash2, ChevronUp, ChevronDown, Search, X } from "lucide-react"
+import { GripVertical, Eye, EyeOff, MoreVertical, Plus, Pencil, Copy, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DataTableSearch } from "@/components/tables/DataTableToolbar"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useEditorStore } from "@/stores/useEditorStore"
 import { SECTION_REGISTRY, getAllSectionCategories } from "@/lib/site-builder/sections"
@@ -26,14 +26,14 @@ function SortableSectionItem({ section, isSelected }: { section: SectionConfig; 
   const contentPreview = section.content?.title || section.content?.heading || section.content?.missionText || ""
 
   return (
-    <div ref={setNodeRef} style={style} className={`group relative flex items-center gap-1.5 px-2 py-2 rounded-lg border transition-colors cursor-pointer ${isSelected ? "border-primary bg-primary/5" : "border-transparent hover:border-muted-foreground/20 hover:bg-muted/50"} ${!section.enabled ? "opacity-50" : ""}`}
+    <div ref={setNodeRef} style={style} className={`group relative flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md border px-1.5 py-1.5 transition-colors ${isSelected ? "border-brand/40 bg-brand/[0.06]" : "border-transparent hover:bg-muted/60"} ${!section.enabled ? "opacity-55" : ""}`}
       onClick={() => selectSection(section.id)}
     >
       {/* Drag handle */}
       <button
         {...attributes}
         {...listeners}
-        className="shrink-0 cursor-grab active:cursor-grabbing touch-none p-0.5 text-muted-foreground hover:text-foreground"
+        className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-sm text-faint hover:text-foreground active:cursor-grabbing"
         onClick={(e) => e.stopPropagation()}
         aria-label={`Drag to reorder ${def?.name || section.type} section`}
         title="Drag to reorder"
@@ -43,54 +43,47 @@ function SortableSectionItem({ section, isSelected }: { section: SectionConfig; 
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium truncate">{def?.name || section.type}{!section.enabled && <span className="text-muted-foreground ml-1">(hidden)</span>}</p>
-        {contentPreview && <p className="text-[10px] text-muted-foreground truncate">{String(contentPreview).slice(0, 35)}</p>}
+        <p className="truncate text-[13px] font-medium">{def?.name || section.type}{!section.enabled && <span className="text-muted-foreground ml-1">(hidden)</span>}</p>
+        {contentPreview && <p className="truncate text-[11px] text-muted-foreground">{String(contentPreview).slice(0, 35)}</p>}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 has-aria-expanded:opacity-100">
         <button
           onClick={(e) => { e.stopPropagation(); toggleSectionVisibility(section.id) }}
-          className="p-1 rounded hover:bg-muted"
+          className="flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
           title={section.enabled ? "Hide section" : "Show section"}
           aria-label={section.enabled ? "Hide section" : "Show section"}
           aria-pressed={!section.enabled}
         >
-          {section.enabled ? <Eye className="h-3 w-3 text-muted-foreground" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
+          {section.enabled ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
         </button>
-        <div className="relative">
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu) }}
-            className="p-1 rounded hover:bg-muted"
+        <DropdownMenu open={showMenu} onOpenChange={setShowMenu}>
+          <DropdownMenuTrigger
+            onClick={(e) => e.stopPropagation()}
+            className="flex size-7 items-center justify-center rounded-sm text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
             title="More actions"
             aria-label="More actions"
-            aria-haspopup="menu"
-            aria-expanded={showMenu}
           >
-            <MoreVertical className="h-3 w-3 text-muted-foreground" />
-          </button>
-          {showMenu && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg py-1 w-36">
-                <button className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted" onClick={(e) => { e.stopPropagation(); selectSection(section.id); setShowMenu(false) }}>
-                  <Pencil className="h-3 w-3" />Edit
-                </button>
-                <button className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted" onClick={(e) => { e.stopPropagation(); duplicateSection(section.id); setShowMenu(false) }}>
-                  <Copy className="h-3 w-3" />Duplicate
-                </button>
-                <div className="h-px bg-border my-1" />
-                <button className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-muted" onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true) }}>
-                  <Trash2 className="h-3 w-3" />Delete
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+            <MoreVertical className="size-3.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => { selectSection(section.id); setShowMenu(false) }}>
+              <Pencil />Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { duplicateSection(section.id); setShowMenu(false) }}>
+              <Copy />Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={() => { setShowMenu(false); setShowDeleteConfirm(true) }}>
+              <Trash2 />Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
             <DialogTitle>Delete this section?</DialogTitle>
             <DialogDescription>
@@ -98,10 +91,10 @@ function SortableSectionItem({ section, isSelected }: { section: SectionConfig; 
               You can undo this action with Ctrl/Cmd+Z while the editor is open.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
             <Button variant="destructive" onClick={() => { removeSection(section.id); setShowDeleteConfirm(false) }}>
-              <Trash2 className="h-4 w-4" />
+              <Trash2 />
               Delete section
             </Button>
           </DialogFooter>
@@ -149,39 +142,39 @@ function SectionPicker({ onClose }: { onClose: () => void }) {
   }, [sections])
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <motion.div className="bg-background rounded-xl max-w-lg w-full max-h-[80vh] flex flex-col shadow-xl" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={(e) => e.stopPropagation()}>
-        <div className="p-4 border-b flex items-center justify-between">
-          <h3 className="font-semibold">Add Section</h3>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}><X className="h-4 w-4" /></Button>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-lg">
+        <DialogHeader className="border-b border-rule px-5 py-4">
+          <DialogTitle>Add a section</DialogTitle>
+          <DialogDescription>Pick a block to add to your page.</DialogDescription>
+        </DialogHeader>
+        <div className="border-b border-rule px-5 py-3">
+          <DataTableSearch value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sections" className="sm:w-full" />
         </div>
-        <div className="px-4 py-2 border-b">
-          <div className="relative"><Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sections..." className="pl-8 h-8 text-sm" /></div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
           {Object.entries(groupedSections).map(([category, items]) => {
             const cat = categories.find((c) => c.id === category)
             return (
               <div key={category}>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{cat?.name || category}</h4>
-                <div className="space-y-1.5">
+                <h4 className="mb-2 text-[13px] font-medium text-muted-foreground">{cat?.name || category}</h4>
+                <div className="divide-y divide-rule overflow-hidden rounded-lg border">
                   {items.map((section) => (
-                    <button key={section.id} onClick={() => handleAdd(section.id)} className="w-full flex items-center gap-3 p-2.5 rounded-lg border hover:border-primary/30 hover:bg-muted/50 transition-colors text-left">
-                      <div className="flex-1 min-w-0">
+                    <button key={section.id} type="button" onClick={() => handleAdd(section.id)} className="flex min-h-12 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{section.name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">{section.description}</p>
+                        <p className="truncate text-xs text-muted-foreground">{section.description}</p>
                       </div>
-                      <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Plus className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                     </button>
                   ))}
                 </div>
               </div>
             )
           })}
-          {sections.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">No sections match your search</p>}
+          {sections.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No sections match your search</p>}
         </div>
-      </motion.div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -210,10 +203,10 @@ export function SectionListPanel() {
   return (
     <>
       <div className="flex flex-col h-full">
-        <div className="p-3 border-b flex items-center justify-between shrink-0">
-          <h3 className="font-semibold text-sm">Sections</h3>
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setShowPicker(true)}>
-            <Plus className="h-3 w-3" />Add
+        <div className="flex shrink-0 items-center justify-between border-b px-3 py-2.5">
+          <h3 className="text-sm font-semibold">Sections</h3>
+          <Button variant="outline" size="sm" onClick={() => setShowPicker(true)}>
+            <Plus />Add
           </Button>
         </div>
 
@@ -221,7 +214,7 @@ export function SectionListPanel() {
           {sections.length === 0 ? (
             <div className="text-center py-12 space-y-2">
               <p className="text-sm text-muted-foreground">No sections yet</p>
-              <Button variant="outline" size="sm" onClick={() => setShowPicker(true)} className="gap-1"><Plus className="h-3.5 w-3.5" />Add Section</Button>
+              <Button variant="outline" size="sm" onClick={() => setShowPicker(true)}><Plus />Add section</Button>
             </div>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -235,7 +228,7 @@ export function SectionListPanel() {
         </div>
       </div>
 
-      <AnimatePresence>{showPicker && <SectionPicker onClose={() => setShowPicker(false)} />}</AnimatePresence>
+      {showPicker && <SectionPicker onClose={() => setShowPicker(false)} />}
     </>
   )
 }

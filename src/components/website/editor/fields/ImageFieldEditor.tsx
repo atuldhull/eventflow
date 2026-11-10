@@ -15,7 +15,7 @@ export function ImageFieldEditor({ label, value, onChange, required, description
 
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <Label className="text-xs font-medium">{label}{required && <span className="ml-0.5 text-destructive">*</span>}</Label>
       {description && <p className="text-[11px] text-muted-foreground">{description}</p>}
       {value ? (
         <div className="space-y-1.5">
@@ -26,8 +26,8 @@ export function ImageFieldEditor({ label, value, onChange, required, description
             </Button>
           </div>
           <div className="flex gap-1">
-            <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => setShowPicker(true)}>Change</Button>
-            <Button variant="outline" size="sm" className="h-6 text-[10px] gap-0.5" onClick={() => setShowPicker(true)}>
+            <Button variant="outline" size="sm" className="h-6 text-[11px]" onClick={() => setShowPicker(true)}>Change</Button>
+            <Button variant="outline" size="sm" className="h-6 text-[11px] gap-0.5" onClick={() => setShowPicker(true)}>
               <FolderOpen className="h-2.5 w-2.5" />Library
             </Button>
           </div>

@@ -8,6 +8,7 @@ const prismaMock = vi.hoisted(() => ({
   enterpriseMember: { findUnique: vi.fn() },
   eventTeamMember: { findUnique: vi.fn() },
   organization: { findUnique: vi.fn(), findFirst: vi.fn() },
+  enterprise: { findUnique: vi.fn() },
   event: { findUnique: vi.fn(), findFirst: vi.fn() },
 }))
 
@@ -16,7 +17,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: prismaMock,
 }))
 
-import { authorize, getUserPermissions, isOrganizationMember } from "@/lib/authorization"
+import { authorize, getEntityRole, getUserPermissions, isEnterpriseMember, isEventTeamMember, isOrganizationMember } from "@/lib/authorization"
 import {
   PERMISSIONS,
   getRolePermissions,
@@ -56,7 +57,7 @@ function seedOrgAdminOfOrgA({ isActive = true } = {}) {
   })
 
   // Neither org belongs to an enterprise, so there is no inherited access path.
-  prismaMock.organization.findUnique.mockResolvedValue({ enterpriseId: null })
+  prismaMock.organization.findUnique.mockResolvedValue({ enterpriseId: null, isActive: true, deletedAt: null, enterprise: null })
   prismaMock.enterpriseMember.findUnique.mockResolvedValue(null)
   prismaMock.eventTeamMember.findUnique.mockResolvedValue(null)
   prismaMock.event.findUnique.mockImplementation(({ where }: EventArgs) =>
@@ -266,5 +267,80 @@ describe("tenant scope helpers", () => {
   it("never treats an organization tenant as owning another organization", async () => {
     await expect(verifyEntityBelongsToTenant("organization", ORG_B, orgTenant)).resolves.toBe(false)
     expect(prismaMock.organization.findFirst).not.toHaveBeenCalled()
+  })
+})
+
+// A deactivated or soft-deleted enterprise or organization grants nothing to its members
+// (former members can't keep using its API by id); SUPER_ADMIN is unaffected.
+describe("deleted or inactive workspaces", () => {
+  const ENT = "ent_live"
+  const ORG = "org_in_ent"
+  const EVENT = "event_in_ent"
+  type Flags = { isActive: boolean; deletedAt: Date | null }
+  const live: Flags = { isActive: true, deletedAt: null }
+
+  function seed({ enterprise = live, org = live, role = "ORG_ADMIN" }: { enterprise?: Flags; org?: Flags; role?: string } = {}) {
+    prismaMock.user.findUnique.mockResolvedValue({ role, isActive: true })
+    prismaMock.enterprise.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve(where.id === ENT ? { ...enterprise } : null)
+    )
+    prismaMock.organization.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve(where.id === ORG ? { ...org, enterpriseId: ENT, enterprise: { ...enterprise } } : null)
+    )
+    prismaMock.event.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve(where.id === EVENT ? { organizationId: ORG, enterpriseId: null } : null)
+    )
+    // an active member of everything: enterprise admin, org admin and event team manager
+    prismaMock.enterpriseMember.findUnique.mockResolvedValue({ role: "ENTERPRISE_ADMIN", isActive: true })
+    prismaMock.organizationMember.findUnique.mockResolvedValue({ role: "ORG_ADMIN", isActive: true })
+    prismaMock.eventTeamMember.findUnique.mockResolvedValue({ role: "MANAGER", isActive: true })
+  }
+
+  it("authorizes members while everything is live", async () => {
+    seed()
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_VIEW, { enterpriseId: ENT })).authorized).toBe(true)
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_EDIT, { organizationId: ORG })).authorized).toBe(true)
+    expect((await authorize(USER_ID, PERMISSIONS.EVENT_VIEW, { eventId: EVENT })).authorized).toBe(true)
+  })
+
+  it.each([
+    ["soft-deleted", { isActive: true, deletedAt: new Date() }],
+    ["deactivated", { isActive: false, deletedAt: null }],
+  ])("denies every context under a %s enterprise", async (_label, enterprise) => {
+    seed({ enterprise })
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_VIEW, { enterpriseId: ENT })).authorized).toBe(false)
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_EDIT, { organizationId: ORG })).authorized).toBe(false)
+    expect((await authorize(USER_ID, PERMISSIONS.EVENT_VIEW, { eventId: EVENT })).authorized).toBe(false)
+    expect(await getUserPermissions(USER_ID, { enterpriseId: ENT })).toEqual([])
+    await expect(isEnterpriseMember(USER_ID, ENT)).resolves.toBe(false)
+    await expect(isOrganizationMember(USER_ID, ORG)).resolves.toBe(false)
+    await expect(isEventTeamMember(USER_ID, EVENT)).resolves.toBe(false)
+    await expect(getEntityRole(USER_ID, "ENTERPRISE", ENT)).resolves.toBeNull()
+  })
+
+  it.each([
+    ["soft-deleted", { isActive: false, deletedAt: new Date() }],
+    ["deactivated", { isActive: false, deletedAt: null }],
+  ])("denies a %s organization and its events, event team included, but not its live enterprise", async (_label, org) => {
+    seed({ org })
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_VIEW, { organizationId: ORG })).authorized).toBe(false)
+    expect((await authorize(USER_ID, PERMISSIONS.CHECKIN_PERFORM, { eventId: EVENT })).authorized).toBe(false)
+    await expect(getEntityRole(USER_ID, "ORGANIZATION", ORG)).resolves.toBeNull()
+    await expect(getEntityRole(USER_ID, "EVENT", EVENT)).resolves.toBeNull()
+    // the enterprise admin can still manage (e.g. reactivate) it from the enterprise
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_EDIT, { enterpriseId: ENT })).authorized).toBe(true)
+  })
+
+  it("denies a context whose enterprise or organization no longer exists", async () => {
+    seed()
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_VIEW, { enterpriseId: "ent_gone" })).authorized).toBe(false)
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_VIEW, { organizationId: "org_gone" })).authorized).toBe(false)
+    expect((await authorize(USER_ID, PERMISSIONS.EVENT_VIEW, { eventId: "event_gone" })).authorized).toBe(false)
+  })
+
+  it("still lets a SUPER_ADMIN in", async () => {
+    seed({ enterprise: { isActive: false, deletedAt: new Date() }, org: { isActive: false, deletedAt: new Date() }, role: "SUPER_ADMIN" })
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_EDIT, { enterpriseId: ENT })).authorized).toBe(true)
+    expect((await authorize(USER_ID, PERMISSIONS.ORG_EDIT, { organizationId: ORG })).authorized).toBe(true)
   })
 })

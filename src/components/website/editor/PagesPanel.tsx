@@ -90,7 +90,7 @@ export function PagesPanel() {
           <Home className="h-3.5 w-3.5 text-primary shrink-0" />
           <div className="flex-1">
             <p className="text-xs font-medium">Homepage</p>
-            <p className="text-[10px] text-muted-foreground">/</p>
+            <p className="text-[11px] text-muted-foreground">/</p>
           </div>
           <Badge variant="secondary" className="text-[9px]">Auto</Badge>
         </div>
@@ -101,7 +101,7 @@ export function PagesPanel() {
             <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium">{page.title}</p>
-              <p className="text-[10px] text-muted-foreground">/{page.slug}</p>
+              <p className="text-[11px] text-muted-foreground">/{page.slug}</p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {page.showInNav && <Badge variant="secondary" className="text-[9px]">Nav</Badge>}

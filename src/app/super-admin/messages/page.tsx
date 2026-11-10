@@ -1,16 +1,22 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Mail, CheckCircle, Loader2 } from "lucide-react"
+import { Mail, Reply } from "lucide-react"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Pill, type Tone } from "@/components/ui/pill"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { statusLabel } from "@/lib/status-tone"
+import { fmtDateTime } from "@/app/admin/enterprise/_components/admin-ui"
 
 interface Message { id: string; name: string; email: string; subject: string; message: string; status: string; createdAt: string }
-const statusColors: Record<string, string> = { NEW: "bg-blue-100 text-blue-700", READ: "bg-zinc-100 text-zinc-700", REPLIED: "bg-green-100 text-green-700", CLOSED: "bg-zinc-50 text-zinc-500" }
+
+/** New mail is the one state worth colour here. */
+const messageTone: Record<string, Tone> = { NEW: "info", READ: "neutral", REPLIED: "positive", CLOSED: "neutral" }
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -41,12 +47,15 @@ export default function MessagesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Contact Messages${unreadCount > 0 ? ` (${unreadCount} new)` : ""}`} description="Messages from the contact form" breadcrumbs={[{ label: "Super Admin", href: "/super-admin" }, { label: "Messages" }]} />
+      <PageHeader
+        title="Messages"
+        description={unreadCount > 0 ? `${unreadCount} new message${unreadCount === 1 ? "" : "s"} from the contact form` : "Messages from the contact form"}
+      />
 
       <Tabs value={filter} onValueChange={setFilter}>
-        <TabsList>
+        <TabsList variant="line">
           <TabsTrigger value="">All</TabsTrigger>
-          <TabsTrigger value="NEW">New {unreadCount > 0 && `(${unreadCount})`}</TabsTrigger>
+          <TabsTrigger value="NEW">New{unreadCount > 0 && <span className="text-muted-foreground tabular-nums">{unreadCount}</span>}</TabsTrigger>
           <TabsTrigger value="READ">Read</TabsTrigger>
           <TabsTrigger value="REPLIED">Replied</TabsTrigger>
           <TabsTrigger value="CLOSED">Closed</TabsTrigger>
@@ -54,35 +63,46 @@ export default function MessagesPage() {
       </Tabs>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-      ) : messages.length > 0 ? (
-        <div className="space-y-3">
-          {messages.map((msg) => (
-            <Card key={msg.id} className="p-4 space-y-2">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-sm">{msg.name}</p>
-                    <Badge variant="secondary" className={statusColors[msg.status] || ""}>{msg.status}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{msg.email} · {new Date(msg.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
-                </div>
-                <div className="flex gap-1">
-                  {msg.status === "NEW" && <Button variant="ghost" size="sm" onClick={() => updateStatus(msg.id, "READ")}>Mark Read</Button>}
-                  {msg.status !== "CLOSED" && <Button variant="ghost" size="sm" onClick={() => updateStatus(msg.id, "CLOSED")}>Close</Button>}
-                  <Button variant="ghost" size="sm" onClick={() => window.open(`mailto:${msg.email}?subject=Re: ${msg.subject}`)}>Reply</Button>
-                </div>
-              </div>
-              <p className="text-xs font-medium text-muted-foreground">Subject: {msg.subject}</p>
-              <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-            </Card>
+        <Card className="gap-0 p-0" aria-busy="true" aria-label="Loading messages">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="space-y-2.5 border-b border-rule px-5 py-4 last:border-0">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3 w-64" />
+              <Skeleton className="h-3.5 w-full max-w-lg" />
+            </div>
           ))}
-        </div>
-      ) : (
-        <Card className="p-8 text-center text-muted-foreground">
-          <Mail className="mx-auto h-10 w-10 mb-2 opacity-30" />
-          <p className="font-medium">No messages</p>
         </Card>
+      ) : messages.length > 0 ? (
+        <Card className="gap-0 p-0">
+          <ul className="divide-y divide-rule">
+            {messages.map((msg) => (
+              <li key={msg.id} className="px-5 py-4">
+                <article aria-labelledby={`msg-${msg.id}-subject`} className="flex flex-col gap-3 md:flex-row md:items-start md:gap-6">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="text-sm font-medium">{msg.name}</p>
+                      <Pill tone={messageTone[msg.status] ?? "neutral"}>{statusLabel(msg.status)}</Pill>
+                    </div>
+                    <p className="mt-0.5 text-[13px] text-muted-foreground tabular-nums">
+                      <span className="break-all">{msg.email}</span> · {fmtDateTime(msg.createdAt)}
+                    </p>
+                    <h2 id={`msg-${msg.id}-subject`} className="mt-3 text-sm font-semibold">{msg.subject}</h2>
+                    <p className="mt-1 max-w-[72ch] text-sm whitespace-pre-wrap text-foreground/85">{msg.message}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-1.5 max-md:[&>*]:flex-1">
+                    {msg.status === "NEW" && <Button variant="ghost" size="sm" onClick={() => updateStatus(msg.id, "READ")}>Mark read</Button>}
+                    {msg.status !== "CLOSED" && <Button variant="ghost" size="sm" onClick={() => updateStatus(msg.id, "CLOSED")}>Close</Button>}
+                    <Button variant="outline" size="sm" onClick={() => window.open(`mailto:${msg.email}?subject=Re: ${msg.subject}`)}>
+                      <Reply /> Reply
+                    </Button>
+                  </div>
+                </article>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : (
+        <EmptyState icon={Mail} title="No messages" description="Messages sent through the contact form will appear here." />
       )}
     </div>
   )

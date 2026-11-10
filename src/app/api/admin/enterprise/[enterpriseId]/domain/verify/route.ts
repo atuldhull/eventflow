@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { Prisma } from "@prisma/client"
+import dns from "dns/promises"
+import { z } from "zod/v4"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
-import dns from "dns/promises"
+import { clearTenantCache } from "@/lib/tenant"
+import { domainSchema, firstIssue } from "@/lib/enterprise-admin"
+
+const bodySchema = z.object({ domain: domainSchema })
+
+/** Where a custom domain's CNAME must point. */
+const CNAME_TARGET = (process.env.CUSTOM_DOMAIN_CNAME_TARGET || "cname.eventflow.com").toLowerCase().replace(/\.$/, "")
+/** Optional: our public IPs, for apex domains that can't use a CNAME (comma-separated). */
+const ALLOWED_IPS = (process.env.CUSTOM_DOMAIN_IPS || "").split(",").map((s) => s.trim()).filter(Boolean)
 
 export async function POST(
   request: NextRequest,
@@ -22,62 +33,74 @@ export async function POST(
     return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
   }
 
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, message: firstIssue(parsed.error) }, { status: 400 })
+  }
+  const { domain } = parsed.data
+
   try {
-    const { domain } = await request.json()
-    if (!domain) {
-      return NextResponse.json({ success: false, message: "Domain required" }, { status: 400 })
+    const enterprise = await prisma.enterprise.findFirst({
+      where: { id: enterpriseId, deletedAt: null },
+      select: { customDomain: true },
+    })
+    if (!enterprise) {
+      return NextResponse.json({ success: false, message: "Enterprise not found" }, { status: 404 })
     }
 
-    // Check DNS
+    // The domain must point at us: a CNAME to our target, or (apex domains) only A records
+    // that are our own IPs. Merely resolving somewhere is not proof of control.
     let verified = false
     let records: string[] = []
     try {
-      const cnameRecords = await dns.resolveCname(domain)
-      records = cnameRecords
-      verified = cnameRecords.some((r) => r.includes("eventflow") || r.includes("cname.eventflow"))
+      records = (await dns.resolveCname(domain)).map((r) => r.toLowerCase().replace(/\.$/, ""))
+      verified = records.includes(CNAME_TARGET)
     } catch {
       try {
-        const aRecords = await dns.resolve4(domain)
-        records = aRecords
-        // In production: check against known EventFlow IPs
-        verified = aRecords.length > 0
+        records = await dns.resolve4(domain)
+        verified = ALLOWED_IPS.length > 0 && records.length > 0 && records.every((ip) => ALLOWED_IPS.includes(ip))
       } catch {
         verified = false
       }
     }
 
-    if (verified) {
-      await prisma.enterprise.update({
-        where: { id: enterpriseId },
-        data: { customDomain: domain },
-      })
-
-      const { ipAddress, userAgent } = getClientInfo(request)
-      await createAuditLog({
-        userId: session.user.id,
-        action: "UPDATE",
-        entityType: "ENTERPRISE",
-        entityId: enterpriseId,
-        description: `Verified custom domain: ${domain}`,
-        ipAddress,
-        userAgent,
-        enterpriseId,
-      })
-
+    if (!verified) {
       return NextResponse.json({
         success: true,
-        data: { verified: true, domain, ssl: "provisioning" },
+        message: `DNS isn't pointing here yet. Add a CNAME record for ${domain} pointing to ${CNAME_TARGET}, then try again.`,
+        data: { verified: false, expected: CNAME_TARGET, found: records },
       })
     }
 
+    try {
+      await prisma.enterprise.update({ where: { id: enterpriseId }, data: { customDomain: domain } })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return NextResponse.json({ success: false, message: "This domain is already connected to another account." }, { status: 409 })
+      }
+      throw error
+    }
+    if (enterprise.customDomain) clearTenantCache(enterprise.customDomain)
+    clearTenantCache(domain)
+
+    const { ipAddress, userAgent } = getClientInfo(request)
+    await createAuditLog({
+      userId: session.user.id,
+      action: "UPDATE",
+      entityType: "ENTERPRISE",
+      entityId: enterpriseId,
+      description: `Verified custom domain: ${domain}`,
+      oldValues: { customDomain: enterprise.customDomain },
+      newValues: { customDomain: domain },
+      ipAddress,
+      userAgent,
+      enterpriseId,
+    })
+
     return NextResponse.json({
       success: true,
-      data: {
-        verified: false,
-        expected: "cname.eventflow.com",
-        found: records,
-        message: "DNS records not yet configured. Please add a CNAME record pointing to cname.eventflow.com",
-      },
+      message: "Domain verified and connected",
+      data: { verified: true, domain, ssl: "provisioning" },
     })
   } catch (error) {
     console.error("Domain verify error:", error)

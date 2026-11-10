@@ -1,89 +1,153 @@
 "use client"
 
 import { use, useState, useEffect } from "react"
-import { Eye, Users, ClipboardList, IndianRupee, QrCode, Star, Download, Loader2 } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft, BarChart3 } from "lucide-react"
 
 import { PageHeader } from "@/components/shared/PageHeader"
-import { StatCard } from "@/components/shared/StatCard"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { PermissionGate } from "@/components/auth/PermissionGate"
-import { PERMISSIONS } from "@/lib/permissions"
+import { KpiStrip } from "@/components/shared/StatCard"
+import { EmptyState } from "@/components/shared/EmptyState"
+import { buttonVariants } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useRBAC } from "@/hooks/useRBAC"
+import { CapacityBar, inr } from "../../_components/event-admin"
+
+/** GET /api/admin/org/:orgId/events/:eventId/analytics (money fields are null without payment access). */
+interface EventAnalytics {
+  title: string
+  overview: { registrations: number; confirmed: number; checkIns: number; revenue: number | null; attendanceRate: number; avgRating: number; feedbackCount: number }
+  statusDistribution: { confirmed: number; pending: number; waitlisted: number; cancelled: number; checkedIn: number }
+  ticketDistribution: { ticketType: string; count: number; revenue: number | null }[]
+  revenueBreakdown: { gross: number; coupons: number; refunds: number; net: number } | null
+  funnel: { registrations: number; confirmed: number; checkedIn: number; feedbackGiven: number }
+}
+
+const n = (v: number | null | undefined) => (v || 0).toLocaleString("en-IN")
 
 export default function EventAnalyticsPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = use(params)
   const { currentOrganizationId } = useRBAC()
-  const [data, setData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [data, setData] = useState<EventAnalytics | null>(null)
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
 
   useEffect(() => {
     if (!currentOrganizationId) return
+    let cancelled = false
     async function fetchAnalytics() {
       try {
         const res = await fetch(`/api/admin/org/${currentOrganizationId}/events/${eventId}/analytics`)
         const json = await res.json()
-        if (json.success) setData(json.data)
-      } catch {} finally { setIsLoading(false) }
+        if (!cancelled) setData(json.success ? json.data : null)
+      } catch {
+        if (!cancelled) setData(null)
+      } finally {
+        if (!cancelled) setLoadedFor(currentOrganizationId)
+      }
     }
     fetchAnalytics()
+    return () => { cancelled = true }
   }, [currentOrganizationId, eventId])
 
-  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+  const isLoading = loadedFor !== currentOrganizationId || !currentOrganizationId
+  const o = data?.overview
 
-  const stats = data || { registrations: 0, confirmed: 0, checkedIn: 0, revenue: 0, rating: 0 }
+  if (!isLoading && !data) {
+    return (
+      <EmptyState variant="page" icon={BarChart3} title="Analytics aren't available." description="The event may have been deleted, or it belongs to another organization.">
+        <Link href="/admin/org/events" className={buttonVariants({ variant: "outline" })}>Back to events</Link>
+      </EmptyState>
+    )
+  }
+
+  const funnel = data
+    ? [
+        { label: "Registrations", count: data.funnel.registrations },
+        { label: "Confirmed", count: data.funnel.confirmed },
+        { label: "Checked in", count: data.funnel.checkedIn },
+        { label: "Gave feedback", count: data.funnel.feedbackGiven },
+      ]
+    : []
+  const funnelMax = Math.max(1, data?.funnel.registrations || 0)
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Event Analytics" description="Detailed performance metrics"
+      <PageHeader
+        title="Event analytics"
+        description={data?.title ? `${data.title} · registrations, attendance and revenue` : "Registrations, attendance and revenue"}
         breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Events", href: "/admin/org/events" }, { label: "Analytics" }]}
+        actions={
+          <Link href={`/admin/org/events/${eventId}`} className={buttonVariants({ variant: "outline" })}>
+            <ArrowLeft /> Back to event
+          </Link>
+        }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard title="Registrations" value={String(stats.registrations || 0)} icon={ClipboardList} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-        <StatCard title="Confirmed" value={String(stats.confirmed || 0)} icon={Users} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
-        <StatCard title="Checked In" value={String(stats.checkedIn || 0)} icon={QrCode} iconColor="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" description={stats.registrations > 0 ? `${Math.round((stats.checkedIn / stats.registrations) * 100)}% attendance` : "0%"} />
-        <StatCard title="Revenue" value={`₹${(stats.revenue || 0).toLocaleString("en-IN")}`} icon={IndianRupee} iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" />
-        <StatCard title="Avg Rating" value={stats.rating ? stats.rating.toFixed(1) : "—"} icon={Star} iconColor="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
+      <KpiStrip
+        isLoading={isLoading}
+        items={[
+          { label: "Registrations", value: n(o?.registrations) },
+          { label: "Confirmed", value: n(o?.confirmed) },
+          { label: "Checked in", value: n(o?.checkIns), caption: `${o?.attendanceRate ?? 0}% attendance` },
+          ...(o?.revenue !== null && o?.revenue !== undefined ? [{ label: "Revenue", value: inr(o.revenue) }] : []),
+          { label: "Avg rating", value: o?.avgRating ? o.avgRating.toFixed(1) : "—", caption: o?.feedbackCount ? `${n(o.feedbackCount)} reviews` : "no feedback yet" },
+        ]}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section aria-labelledby="funnel-heading" className="rounded-lg border px-5 py-5">
+          <h2 id="funnel-heading" className="text-[15px] font-semibold">Registration funnel</h2>
+          {isLoading ? (
+            <div className="mt-4 space-y-5">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-8" />)}</div>
+          ) : (
+            <dl className="mt-4 space-y-5">
+              {funnel.map((step) => (
+                <div key={step.label}>
+                  <div className="flex items-baseline justify-between text-sm">
+                    <dt>{step.label}</dt>
+                    <dd className="tabular-nums">
+                      {n(step.count)} <span className="text-muted-foreground">({Math.round((step.count / funnelMax) * 100)}%)</span>
+                    </dd>
+                  </div>
+                  <CapacityBar value={step.count} max={funnelMax} className="mt-2 h-1.5" />
+                </div>
+              ))}
+            </dl>
+          )}
+        </section>
+
+        <section aria-labelledby="tickets-heading" className="rounded-lg border px-5 py-5">
+          <h2 id="tickets-heading" className="text-[15px] font-semibold">By ticket type</h2>
+          {isLoading ? (
+            <div className="mt-4 space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-6" />)}</div>
+          ) : !data?.ticketDistribution.length ? (
+            <p className="mt-3 text-sm text-muted-foreground">No registrations yet.</p>
+          ) : (
+            <dl className="mt-3 divide-y divide-rule">
+              {data.ticketDistribution.map((t) => (
+                <div key={t.ticketType} className="flex items-baseline justify-between gap-4 py-2.5 text-sm">
+                  <dt className="min-w-0 truncate">{t.ticketType}</dt>
+                  <dd className="shrink-0 tabular-nums">
+                    {n(t.count)} <span className="text-muted-foreground">registered</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </section>
       </div>
 
-      {/* Funnel */}
-      <Card className="p-6">
-        <h3 className="text-sm font-medium mb-4">Registration Funnel</h3>
-        <div className="space-y-3">
-          {[
-            { label: "Registrations", count: stats.registrations || 0, color: "bg-blue-500" },
-            { label: "Confirmed", count: stats.confirmed || 0, color: "bg-green-500" },
-            { label: "Checked In", count: stats.checkedIn || 0, color: "bg-emerald-500" },
-          ].map((step, i) => {
-            const maxCount = stats.registrations || 1
-            const pct = Math.round((step.count / maxCount) * 100)
-            return (
-              <div key={step.label} className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>{step.label}</span>
-                  <span className="text-muted-foreground">{step.count} ({pct}%)</span>
-                </div>
-                <div className="h-3 rounded-full bg-muted overflow-hidden">
-                  <div className={`h-full rounded-full ${step.color} transition-all`} style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </Card>
-
-      {/* Revenue Breakdown */}
-      {stats.revenueBreakdown && (
-        <Card className="p-6">
-          <h3 className="text-sm font-medium mb-4">Revenue Breakdown</h3>
-          <div className="grid gap-4 sm:grid-cols-3 text-center">
-            <div><p className="text-2xl font-bold">₹{(stats.revenueBreakdown?.gross || 0).toLocaleString("en-IN")}</p><p className="text-xs text-muted-foreground">Gross Revenue</p></div>
-            <div><p className="text-2xl font-bold text-red-500">-₹{(stats.revenueBreakdown?.refunds || 0).toLocaleString("en-IN")}</p><p className="text-xs text-muted-foreground">Refunds</p></div>
-            <div><p className="text-2xl font-bold text-green-600">₹{(stats.revenueBreakdown?.net || 0).toLocaleString("en-IN")}</p><p className="text-xs text-muted-foreground">Net Revenue</p></div>
-          </div>
-        </Card>
+      {data?.revenueBreakdown && (
+        <section aria-labelledby="revenue-heading">
+          <h2 id="revenue-heading" className="mb-3 text-[15px] font-semibold">Revenue breakdown</h2>
+          <KpiStrip
+            items={[
+              { label: "Gross revenue", value: inr(data.revenueBreakdown.gross) },
+              { label: "Discounts", value: inr(data.revenueBreakdown.coupons) },
+              { label: "Refunds", value: `−${inr(data.revenueBreakdown.refunds)}` },
+              { label: "Net revenue", value: inr(data.revenueBreakdown.net) },
+            ]}
+          />
+        </section>
       )}
     </div>
   )

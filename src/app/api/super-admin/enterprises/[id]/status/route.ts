@@ -1,36 +1,36 @@
 import { NextResponse } from "next/server"
 import { withSuperAdmin } from "@/lib/guards"
-import prisma from "@/lib/prisma"
-import { createAuditLog, getClientInfo } from "@/lib/audit"
+import { getClientInfo } from "@/lib/audit"
+import { enterpriseStatusSchema } from "@/lib/enterprise-admin"
+import { setEnterpriseActive } from "@/lib/enterprise-lifecycle"
 
+/**
+ * Activate or deactivate an enterprise. Body `{ isActive?, confirm? }`: without isActive it
+ * toggles. Deactivating locks every member out and takes its events off the public site,
+ * so it needs the enterprise's name typed as `confirm` (checked here, not just in the UI).
+ */
 export const PATCH = withSuperAdmin(async (req, { user, params }) => {
-  const enterprise = await prisma.enterprise.findUnique({
-    where: { id: params.id },
-    select: { isActive: true, name: true },
-  })
-
-  if (!enterprise) {
-    return NextResponse.json({ success: false, message: "Enterprise not found" }, { status: 404 })
+  const parsed = enterpriseStatusSchema.safeParse((await req.json().catch(() => ({}))) ?? {})
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, message: parsed.error.issues[0]?.message ?? "Validation failed" }, { status: 400 })
   }
 
-  const updated = await prisma.enterprise.update({
-    where: { id: params.id },
-    data: { isActive: !enterprise.isActive },
-  })
-
   const { ipAddress, userAgent } = getClientInfo(req)
-  await createAuditLog({
-    userId: user.id,
-    action: "UPDATE",
-    entityType: "ENTERPRISE",
-    entityId: params.id,
-    description: `${updated.isActive ? "Activated" : "Deactivated"} enterprise: ${enterprise.name}`,
-    oldValues: { isActive: enterprise.isActive },
-    newValues: { isActive: updated.isActive },
+  const result = await setEnterpriseActive({
+    enterpriseId: params.id,
+    actorId: user.id,
+    isActive: parsed.data.isActive,
+    confirm: parsed.data.confirm,
     ipAddress,
     userAgent,
-    enterpriseId: params.id,
   })
+  if (!result.ok) {
+    return NextResponse.json({ success: false, message: result.message }, { status: result.status })
+  }
 
-  return NextResponse.json({ success: true, data: updated })
+  return NextResponse.json({
+    success: true,
+    message: `${result.enterprise.name} ${result.enterprise.isActive ? "activated" : "deactivated"}`,
+    data: result.enterprise,
+  })
 })

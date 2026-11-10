@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { motion } from "framer-motion"
-import { Globe, Layout, Palette, Paintbrush, ExternalLink, Copy, Check, Loader2, Rocket, Sparkles, Eye } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { ChevronRight, Copy, Check, ExternalLink, Eye, FileText, ImageIcon, Layout, Loader2, Paintbrush, Palette } from "lucide-react"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Pill } from "@/components/ui/pill"
+import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { useRBAC } from "@/hooks/useRBAC"
+import { cn } from "@/lib/utils"
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- site config JSON is loosely typed by the API */
 interface SiteConfigData {
   id: string
   siteName: string
@@ -20,6 +22,7 @@ interface SiteConfigData {
   enabledFeatures: any[]
   styles: any
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 interface TemplateInfo {
   id: string
@@ -84,118 +87,129 @@ export default function MyWebsitePage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-
-  const siteUrl = `${org?.slug || "org"}.eventflow.com`
-  const enabledSections = siteConfig?.sections?.filter((s: any) => s.enabled)?.length || 0
-  const enabledFeatures = siteConfig?.enabledFeatures?.filter((f: any) => f.enabled)?.length || 0
-
-  // ── ONBOARDING (no site config) ──
-  if (!exists) {
+  if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto space-y-10 py-8">
-        <motion.div className="text-center space-y-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <Globe className="h-10 w-10 text-primary" />
-          </div>
-          <h1 className="text-3xl font-bold">Create Your Website</h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Choose a template and build your organization&apos;s website in minutes. It will be live at <strong>{siteUrl}</strong>
-          </p>
-          <Link href="/admin/org/website/templates">
-            <Button size="lg" className="gap-2 mt-2"><Sparkles className="h-4 w-4" />Browse Templates</Button>
-          </Link>
-        </motion.div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { icon: <Palette className="h-6 w-6" />, title: "Choose a Template", desc: "Pick from our curated collection of professional designs" },
-            { icon: <Paintbrush className="h-6 w-6" />, title: "Customize Everything", desc: "Add your content, change colors, enable features" },
-            { icon: <Rocket className="h-6 w-6" />, title: "Go Live Instantly", desc: `Your website is live at ${siteUrl}` },
-          ].map((item, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.1 }}>
-              <Card className="p-6 text-center space-y-2 h-full">
-                <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">{item.icon}</div>
-                <h3 className="font-semibold">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.desc}</p>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
+      <div className="space-y-6" aria-busy="true">
+        <div className="space-y-2"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-80" /></div>
+        <Skeleton className="h-48 rounded-lg" />
+        <Skeleton className="h-24 rounded-lg" />
       </div>
     )
   }
 
-  // ── DASHBOARD (site config exists) ──
+  const siteUrl = `${org?.slug || "org"}.eventflow.com`
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const enabledSections = siteConfig?.sections?.filter((s: any) => s.enabled)?.length || 0
+  const enabledFeatures = siteConfig?.enabledFeatures?.filter((f: any) => f.enabled)?.length || 0
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  // ── Onboarding (no site config) ──
+  if (!exists) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.015em]">Website</h1>
+          <p className="text-sm text-muted-foreground">Your organization doesn&apos;t have a website yet.</p>
+        </div>
+        <Card className="gap-0 p-0">
+          <div className="flex flex-col gap-4 border-b border-rule p-6 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-xl">
+              <h2 className="text-lg font-semibold">Create your website</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Choose a template and build your organization&apos;s website in minutes. It will be live at{" "}
+                <span className="font-mono text-[13px] text-foreground">{siteUrl}</span>
+              </p>
+            </div>
+            <Link href="/admin/org/website/templates" className={cn(buttonVariants(), "max-sm:w-full")}>Browse templates</Link>
+          </div>
+          <ol className="grid divide-y divide-rule sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {[
+              { title: "Choose a template", desc: "Pick from our curated collection of professional designs" },
+              { title: "Customize everything", desc: "Add your content, change colors, enable features" },
+              { title: "Go live instantly", desc: `Your website is live at ${siteUrl}` },
+            ].map((item, i) => (
+              <li key={item.title} className="p-6">
+                <span className="text-[13px] text-muted-foreground tabular-nums">Step {i + 1}</span>
+                <h3 className="mt-1 text-[15px] font-semibold">{item.title}</h3>
+                <p className="mt-1 text-[13px] text-muted-foreground">{item.desc}</p>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      </div>
+    )
+  }
+
+  const actions = [
+    { icon: Paintbrush, label: "Edit content", href: "/admin/org/website/editor", desc: "Customize sections and content" },
+    { icon: Palette, label: "Change template", href: "/admin/org/website/templates", desc: "Browse other designs" },
+    { icon: Layout, label: "Feature modules", href: "/admin/org/website/modules", desc: "Enable interactive features" },
+    { icon: Eye, label: "Preview", href: "/admin/org/website/templates/" + (template?.slug || ""), desc: "See how it looks" },
+    { icon: FileText, label: "Content overview", href: "/admin/org/website/content", desc: "Everything on your website at a glance" },
+    { icon: ImageIcon, label: "Media library", href: "/admin/org/website/media", desc: "Images and files used on your site" },
+  ]
+
+  // ── Dashboard (site config exists) ──
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            {siteConfig?.siteName || "My Website"}
-            <Badge variant={siteConfig?.isPublished ? "default" : "secondary"}>
-              {siteConfig?.isPublished ? "Published" : "Draft"}
-            </Badge>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Template: {template?.name || "Unknown"} &bull; {enabledSections} sections &bull; {enabledFeatures} features
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.015em]">{siteConfig?.siteName || "My Website"}</h1>
+            <Pill tone={siteConfig?.isPublished ? "positive" : "neutral"} dot>{siteConfig?.isPublished ? "Published" : "Draft"}</Pill>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {template?.name || "Unknown"} template · {enabledSections} sections · {enabledFeatures} features
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-1" onClick={copyUrl}>
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}{siteUrl}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={copyUrl} className="min-w-0 max-sm:flex-1" aria-label={`Copy ${siteUrl}`}>
+            {copied ? <Check /> : <Copy />}
+            <span className="truncate font-mono text-[13px] font-normal">{siteUrl}</span>
           </Button>
-          <a href={`https://${siteUrl}`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="gap-1"><ExternalLink className="h-3.5 w-3.5" />Visit</Button>
+          <a href={`https://${siteUrl}`} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline" }), "max-sm:flex-1")}>
+            <ExternalLink /> Visit
           </a>
-          <Button size="sm" variant={siteConfig?.isPublished ? "outline" : "default"} className="gap-1" onClick={handlePublishToggle} disabled={isPublishing}>
-            {isPublishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          <Button variant={siteConfig?.isPublished ? "outline" : "default"} onClick={handlePublishToggle} disabled={isPublishing} className="max-sm:flex-1">
+            {isPublishing && <Loader2 className="animate-spin" />}
             {siteConfig?.isPublished ? "Unpublish" : "Publish"}
           </Button>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { icon: <Paintbrush className="h-5 w-5" />, label: "Edit Content", href: "/admin/org/website/editor", desc: "Customize sections and content" },
-          { icon: <Palette className="h-5 w-5" />, label: "Change Template", href: "/admin/org/website/templates", desc: "Browse other designs" },
-          { icon: <Layout className="h-5 w-5" />, label: "Feature Modules", href: "/admin/org/website/modules", desc: "Enable interactive features" },
-          { icon: <Eye className="h-5 w-5" />, label: "Preview", href: "/admin/org/website/templates/" + (template?.slug || ""), desc: "See how it looks" },
-        ].map((action) => (
-          <Link key={action.label} href={action.href}>
-            <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer h-full">
-              <div className="text-primary mb-2">{action.icon}</div>
-              <h3 className="font-medium text-sm">{action.label}</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">{action.desc}</p>
-            </Card>
-          </Link>
-        ))}
-      </div>
-
-      {/* Status */}
-      <Card className="p-5 space-y-3">
-        <h3 className="font-semibold text-sm">Website Details</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div>
-            <p className="text-muted-foreground text-xs">Status</p>
-            <p className="font-medium">{siteConfig?.isPublished ? "Live" : "Draft"}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground text-xs">Template</p>
-            <p className="font-medium">{template?.name || "—"}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground text-xs">Active Sections</p>
-            <p className="font-medium">{enabledSections}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground text-xs">Last Edited</p>
-            <p className="font-medium">{siteConfig?.lastEditedAt ? new Date(siteConfig.lastEditedAt).toLocaleDateString() : "—"}</p>
-          </div>
-        </div>
+      <Card className="gap-0 overflow-hidden p-0">
+        <dl className="grid grid-cols-2 md:grid-cols-4 [&>div]:border-rule max-md:[&>div:nth-child(n+3)]:border-t md:divide-x md:divide-rule max-md:[&>div:nth-child(even)]:border-l">
+          {[
+            { label: "Status", value: siteConfig?.isPublished ? "Live" : "Draft" },
+            { label: "Template", value: template?.name || "—" },
+            { label: "Active sections", value: String(enabledSections) },
+            { label: "Last edited", value: siteConfig?.lastEditedAt ? new Date(siteConfig.lastEditedAt).toLocaleDateString() : "—" },
+          ].map((it) => (
+            <div key={it.label} className="min-w-0 px-5 py-4">
+              <dt className="text-[13px] text-muted-foreground">{it.label}</dt>
+              <dd className="mt-1 truncate text-[15px] font-medium tabular-nums">{it.value}</dd>
+            </div>
+          ))}
+        </dl>
       </Card>
+
+      <section aria-labelledby="site-actions" className="space-y-3">
+        <h2 id="site-actions" className="text-[15px] font-semibold">Manage</h2>
+        <ul className="grid overflow-hidden rounded-lg border sm:grid-cols-2 [&>li]:border-rule max-sm:[&>li+li]:border-t sm:[&>li:nth-child(n+3)]:border-t sm:[&>li:nth-child(even)]:border-l">
+          {actions.map((action) => (
+            <li key={action.label}>
+              <Link href={action.href} className="group flex min-h-16 items-center gap-3.5 px-4 py-3 transition-colors hover:bg-muted/50">
+                <action.icon className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">{action.label}</span>
+                  <span className="block truncate text-[13px] text-muted-foreground">{action.desc}</span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-faint transition-colors group-hover:text-foreground" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   )
 }

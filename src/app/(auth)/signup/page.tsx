@@ -1,16 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { Eye, EyeOff, ArrowLeft, ArrowRight, Loader2, Check, Mail } from "lucide-react"
+import { Eye, EyeOff, ArrowLeft, ArrowRight, Loader2 } from "lucide-react"
 import { AutocompleteInput } from "@/components/shared/AutocompleteInput"
 import { searchColleges, searchCompanies } from "@/lib/data/colleges"
 
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -19,30 +19,76 @@ import { PasswordStrength } from "@/components/forms/PasswordStrength"
 import { SocialLoginButtons } from "@/components/forms/SocialLoginButtons"
 import { useAuth } from "@/hooks/useAuth"
 import { signupSchema, type SignupInput } from "@/lib/validations/auth"
-import { PageTransition } from "@/components/motion/primitives"
-import { SplitTextReveal } from "@/components/motion/SplitTextReveal"
+import { getSafeCallbackUrl } from "@/lib/auth-redirect"
+import { cn } from "@/lib/utils"
 
 type Step = 1 | 2 | 3
+
+const STEP_LABELS: Record<Step, string> = { 1: "Account", 2: "Details", 3: "Verify email" }
+
+/** Which step shows each field, to send someone back to the field the API refused. */
+const FIELD_STEP: Record<string, Step> = {
+  name: 1, email: 1, password: 1, confirmPassword: 1, agreeToTerms: 1, phone: 2, collegeName: 2, companyName: 2,
+}
+
+/** An Indian mobile number as its 10 digits (drops spaces, dashes, +91 or a leading 0). */
+function normalizePhone(value: string | undefined): string {
+  const digits = (value ?? "").replace(/\D/g, "")
+  if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2)
+  if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1)
+  return digits || (value ?? "").trim()
+}
+
+/** aria wiring for a field: invalid, and described by its error message (id `${name}-error`) */
+function fieldA11y(name: string, hasError: boolean) {
+  return hasError ? { "aria-invalid": true as const, "aria-describedby": `${name}-error` } : {}
+}
+
+/** the eye toggle inside a password field: covers the field's full height */
+function RevealButton({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground pointer-coarse:w-11"
+      aria-label={shown ? "Hide password" : "Show password"}
+    >
+      {shown ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+    </button>
+  )
+}
 
 export default function SignupPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
-  const { signup, sendOtp, verifyEmail } = useAuth()
+  // Only same-site paths: anything else in ?callbackUrl= would be an open redirect
+  const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl")) ?? undefined
+  const { signup, sendOtp, verifyEmail, login } = useAuth()
 
   const [step, setStep] = useState<Step>(1)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resendTimer, setResendTimer] = useState(0)
+  // Settings → User registration: null until known (the form shows meanwhile; POST enforces it)
+  const [signupOpen, setSignupOpen] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/auth/signup")
+      .then((r) => r.json())
+      .then((json) => { if (!cancelled && json?.success) setSignupOpen(json.data?.open !== false) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   const {
     register,
-    handleSubmit,
     watch,
     trigger,
     getValues,
     setValue,
+    setError,
     formState: { errors },
   } = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
@@ -60,6 +106,11 @@ export default function SignupPage() {
   }
 
   const handleStep2Next = async () => {
+    // "+91 98765-43210" and "098765 43210" mean the same number: keep the 10 digits
+    const phone = normalizePhone(getValues("phone"))
+    setValue("phone", phone)
+    if (!(await trigger(["phone"]))) return
+
     setIsSubmitting(true)
     try {
       const data = getValues()
@@ -68,6 +119,11 @@ export default function SignupPage() {
       setStep(3)
       startResendTimer()
     } catch (error) {
+      // Put the API's messages next to their fields; a step-1 field sends them back there
+      const fieldErrors = (error as { fieldErrors?: Record<string, string[] | undefined> }).fieldErrors ?? {}
+      const fields = Object.entries(fieldErrors).filter(([key, msgs]) => key in FIELD_STEP && msgs?.[0])
+      for (const [key, msgs] of fields) setError(key as keyof SignupInput, { type: "server", message: msgs![0] })
+      if (fields.some(([key]) => FIELD_STEP[key] === 1)) setStep(1)
       toast.error(error instanceof Error ? error.message : "Signup failed")
     } finally {
       setIsSubmitting(false)
@@ -78,10 +134,18 @@ export default function SignupPage() {
     setIsSubmitting(true)
     try {
       await verifyEmail(email, code)
-      toast.success("Email verified! Welcome to EventFlow!")
-      router.push(callbackUrl)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Verification failed")
+      setIsSubmitting(false)
+      return
+    }
+    // Verified: sign in with the password just chosen instead of sending them to log in again
+    try {
+      await login(email, getValues("password"), callbackUrl)
+      toast.success("Email verified! Welcome to EventFlow!")
+    } catch {
+      toast.success("Email verified! Please log in.")
+      router.push(callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login")
     } finally {
       setIsSubmitting(false)
     }
@@ -110,53 +174,58 @@ export default function SignupPage() {
     }, 1000)
   }
 
+  const loginHref = callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login"
+
+  // Registration is switched off: say so before anyone fills in the form
+  if (signupOpen === false && step === 1) {
+    return (
+      <div className="space-y-7">
+        <div role="status">
+          <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">Sign-ups are currently closed</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            New accounts can&apos;t be created right now. If you already have an account, log in instead.
+          </p>
+        </div>
+        <Link href={loginHref} className={cn(buttonVariants({ size: "lg" }), "w-full")}>Log in</Link>
+      </div>
+    )
+  }
+
   return (
-    <PageTransition className="space-y-6">
+    <div className="space-y-7">
       <div>
-        <SplitTextReveal as="h2" className="text-2xl font-semibold tracking-tight">Create an account</SplitTextReveal>
-        <p className="text-sm text-muted-foreground mt-1">Get started with EventFlow</p>
+        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">Create an account</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">Get started with EventFlow</p>
       </div>
 
-      {/* Step indicator */}
-      <div className="flex items-center justify-center gap-2">
-        {[1, 2, 3].map((s) => (
-          <div key={s} className="flex items-center gap-2">
-            <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors ${
-                s < step
-                  ? "bg-primary text-primary-foreground"
-                  : s === step
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {s < step ? <Check className="h-3.5 w-3.5" /> : s}
-            </div>
-            {s < 3 && (
-              <div
-                className={`h-0.5 w-8 transition-colors ${
-                  s < step ? "bg-primary" : "bg-muted"
-                }`}
-              />
-            )}
-          </div>
-        ))}
+      {/* Progress: three hairline segments and the step's name */}
+      <div>
+        <p className="text-[13px] text-muted-foreground">
+          <span className="tabular-nums">Step {step} of 3</span>
+          <span aria-hidden> · </span>
+          <span className="font-medium text-foreground">{STEP_LABELS[step]}</span>
+        </p>
+        <div className="mt-2 grid grid-cols-3 gap-1.5" aria-hidden>
+          {([1, 2, 3] as Step[]).map((s) => (
+            <span key={s} className={cn("h-1 rounded-full transition-colors duration-300", s <= step ? "bg-foreground" : "bg-border")} />
+          ))}
+        </div>
       </div>
 
-      <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-5">
         {/* Step 1: Account */}
         {step === 1 && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" placeholder="John Doe" {...register("name")} />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+              <Label htmlFor="name">Full name</Label>
+              <Input id="name" autoComplete="name" placeholder="John Doe" {...fieldA11y("name", !!errors.name)} {...register("name")} />
+              {errors.name && <p id="name-error" className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="signup-email">Email</Label>
-              <Input id="signup-email" type="email" placeholder="you@example.com" {...register("email")} />
-              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+              <Input id="signup-email" type="email" autoComplete="email" placeholder="you@example.com" {...fieldA11y("email", !!errors.email)} {...register("email")} />
+              {errors.email && <p id="email-error" className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-2">
@@ -165,94 +234,80 @@ export default function SignupPage() {
                 <Input
                   id="signup-password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
                   placeholder="Create a password"
-                  className="pr-9"
+                  className="pr-11"
+                  {...fieldA11y("password", !!errors.password)}
                   {...register("password")}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                <RevealButton shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
               </div>
-              {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+              {errors.password && <p id="password-error" className="text-xs text-destructive">{errors.password.message}</p>}
               <PasswordStrength password={password} />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Label htmlFor="confirm-password">Confirm password</Label>
               <div className="relative">
                 <Input
                   id="confirm-password"
                   type={showConfirmPassword ? "text" : "password"}
+                  autoComplete="new-password"
                   placeholder="Confirm your password"
-                  className="pr-9"
+                  className="pr-11"
+                  {...fieldA11y("confirmPassword", !!errors.confirmPassword)}
                   {...register("confirmPassword")}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                <RevealButton shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />
               </div>
-              {errors.confirmPassword && (
-                <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
-              )}
+              {errors.confirmPassword && <p id="confirmPassword-error" className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
             </div>
 
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="terms"
-                checked={watch("agreeToTerms") as boolean}
-                onCheckedChange={(checked) => setValue("agreeToTerms", checked === true ? true : (false as unknown as true), { shouldValidate: true })}
-              />
-              <label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                I agree to the{" "}
-                <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  Privacy Policy
-                </Link>
-              </label>
+            <div className="space-y-2">
+              <div className="flex items-start gap-2.5">
+                <Checkbox
+                  id="terms"
+                  className="mt-0.5"
+                  checked={watch("agreeToTerms") as boolean}
+                  {...fieldA11y("agreeToTerms", !!errors.agreeToTerms)}
+                  onCheckedChange={(checked) => setValue("agreeToTerms", checked === true ? true : (false as unknown as true), { shouldValidate: true })}
+                />
+                <label htmlFor="terms" className="cursor-pointer text-[13px] leading-relaxed text-muted-foreground">
+                  I agree to the{" "}
+                  <Link href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-4">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-4">
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+              {errors.agreeToTerms && <p id="agreeToTerms-error" className="text-xs text-destructive">{errors.agreeToTerms.message}</p>}
             </div>
-            {errors.agreeToTerms && (
-              <p className="text-xs text-destructive">{errors.agreeToTerms.message}</p>
-            )}
 
-            <Button type="button" className="w-full" onClick={handleStep1Next}>
-              Next <ArrowRight className="ml-2 h-4 w-4" />
+            <Button type="button" size="lg" className="w-full" onClick={handleStep1Next}>
+              Next <ArrowRight aria-hidden />
             </Button>
           </div>
         )}
 
         {/* Step 2: Details */}
         {step === 2 && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              These details are optional. You can add them later.
-            </p>
+          <div className="space-y-5">
+            <p className="text-sm text-muted-foreground">These details are optional. You can add them later.</p>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="flex gap-2">
-                <div className="flex items-center rounded-lg border bg-muted px-3 text-sm text-muted-foreground">
-                  +91
-                </div>
-                <Input id="phone" placeholder="9876543210" {...register("phone")} />
+              <Label htmlFor="phone">Phone number</Label>
+              <div className="flex">
+                <span className="flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground tabular-nums">+91</span>
+                <Input id="phone" type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="9876543210" className="rounded-l-none" {...fieldA11y("phone", !!errors.phone)} {...register("phone")} />
               </div>
-              {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+              {errors.phone && <p id="phone-error" className="text-xs text-destructive">{errors.phone.message}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="college">College / University</Label>
+              <Label htmlFor="college">College / university</Label>
               <AutocompleteInput
                 id="college"
                 value={watch("collegeName") || ""}
@@ -273,64 +328,53 @@ export default function SignupPage() {
               />
             </div>
 
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(1)}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center">
+              <Button type="button" variant="ghost" size="lg" className="sm:-ml-3" onClick={() => setStep(1)}>
+                <ArrowLeft aria-hidden /> Back
               </Button>
-              <Button type="button" variant="outline" className="flex-1" onClick={handleStep2Next} disabled={isSubmitting}>
-                Skip
-              </Button>
-              <Button type="button" className="flex-1" onClick={handleStep2Next} disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Next
-              </Button>
+              <div className="flex gap-2 sm:ml-auto">
+                <Button type="button" variant="outline" size="lg" className="flex-1 sm:flex-none" onClick={handleStep2Next} disabled={isSubmitting}>
+                  Skip
+                </Button>
+                <Button type="button" size="lg" className="flex-1 sm:flex-none sm:px-6" onClick={handleStep2Next} disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Step 3: Verify Email */}
         {step === 3 && (
-          <div className="space-y-4 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <Mail className="h-6 w-6 text-primary" />
-            </div>
+          <div className="space-y-5">
             <p className="text-sm text-muted-foreground">
-              We&apos;ve sent a 6-digit code to <strong>{email}</strong>
+              We&apos;ve sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>
             </p>
             <OTPInput onComplete={handleVerifyOtp} disabled={isSubmitting} />
-            <div className="space-y-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleResendOtp}
-                disabled={resendTimer > 0}
-              >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button type="button" variant="ghost" size="sm" className="-ml-3 tabular-nums" onClick={handleResendOtp} disabled={resendTimer > 0}>
                 {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
               </Button>
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="text-xs text-muted-foreground hover:text-primary"
-                >
-                  <ArrowLeft className="inline h-3 w-3 mr-1" />
-                  Go back
-                </button>
-              </div>
+              <Button type="button" variant="ghost" size="sm" className="-mr-3 text-muted-foreground" onClick={() => setStep(2)}>
+                <ArrowLeft aria-hidden /> Go back
+              </Button>
             </div>
           </div>
         )}
       </form>
 
-      {step === 1 && <SocialLoginButtons mode="signup" />}
+      {step === 1 && <SocialLoginButtons mode="signup" callbackUrl={callbackUrl} />}
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
+        <Link
+          href={callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login"}
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
           Log in
         </Link>
       </p>
-    </PageTransition>
+    </div>
   )
 }

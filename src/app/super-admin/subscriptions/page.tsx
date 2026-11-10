@@ -1,19 +1,24 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CreditCard, Loader2 } from "lucide-react"
+import { CreditCard } from "lucide-react"
 import { PageHeader } from "@/components/shared/PageHeader"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { KpiStrip } from "@/components/shared/StatCard"
+import { EmptyState } from "@/components/shared/EmptyState"
+import { Pill } from "@/components/ui/pill"
+import { Skeleton } from "@/components/ui/skeleton"
+import { statusLabel, statusTone } from "@/lib/status-tone"
+import { fmtDate, inr, num } from "@/app/admin/enterprise/_components/admin-ui"
 
 const planMeta = [
-  { key: "FREE", name: "Free", price: "₹0", color: "border-zinc-200" },
-  { key: "STARTER", name: "Starter", price: "₹999", color: "border-blue-200" },
-  { key: "PRO", name: "Pro", price: "₹2,999", color: "border-purple-200" },
-  { key: "ENTERPRISE", name: "Enterprise", price: "Custom", color: "border-amber-200" },
+  { key: "FREE", name: "Free", price: "₹0" },
+  { key: "STARTER", name: "Starter", price: "₹999" },
+  { key: "PRO", name: "Pro", price: "₹2,999" },
+  { key: "ENTERPRISE", name: "Enterprise", price: "Custom" },
 ]
 
-const statusColors: Record<string, string> = { ACTIVE: "bg-green-100 text-green-700", TRIAL: "bg-blue-100 text-blue-700", PAST_DUE: "bg-red-100 text-red-700", CANCELLED: "bg-zinc-100 text-zinc-700" }
+/** Subscription statuses use the shared tones; a trial reads as information. */
+const subscriptionTone = (status: string) => statusTone(status === "TRIAL" ? "trialing" : status)
 
 interface Sub { id: string; plan: string; status: string; interval: string; price: number; tenant: string; currentPeriodEnd: string | null; createdAt: string }
 
@@ -33,52 +38,65 @@ export default function SubscriptionsPage() {
     fetch_()
   }, [])
 
-  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-
   return (
     <div className="space-y-6">
-      <PageHeader title="Subscriptions" description="Manage subscription plans and active subscriptions" breadcrumbs={[{ label: "Super Admin", href: "/super-admin" }, { label: "Subscriptions" }]} />
+      <PageHeader title="Subscriptions" description="Plans and the tenants paying for them" />
 
-      <div>
-        <h3 className="text-sm font-medium mb-3">Plan Distribution</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {planMeta.map((plan) => (
-            <Card key={plan.key} className={`p-6 border-2 ${plan.color}`}>
-              <h4 className="font-semibold">{plan.name}</h4>
-              <p className="text-2xl font-bold mt-1">{plan.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-              <p className="text-sm text-muted-foreground mt-2">{planCounts[plan.key] || 0} subscribers</p>
-            </Card>
-          ))}
-        </div>
-      </div>
+      <section aria-labelledby="plans-heading">
+        <h2 id="plans-heading" className="mb-2 text-[15px] font-semibold">Subscribers by plan</h2>
+        <KpiStrip
+          isLoading={isLoading}
+          items={planMeta.map((plan) => ({
+            label: plan.name,
+            value: num(planCounts[plan.key] || 0),
+            caption: plan.price === "Custom" ? "Custom pricing" : `${plan.price}/mo`,
+          }))}
+        />
+      </section>
 
-      <div>
-        <h3 className="text-sm font-medium mb-3">Paid Subscriptions</h3>
-        {subscriptions.length > 0 ? (
-          <div className="space-y-2">
-            {subscriptions.map((sub) => (
-              <Card key={sub.id} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium">{sub.tenant}</p>
-                    <p className="text-xs text-muted-foreground">{sub.plan} · {sub.interval}{sub.currentPeriodEnd ? ` · Renews ${new Date(sub.currentPeriodEnd).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}</p>
+      <section aria-labelledby="paid-heading">
+        <h2 id="paid-heading" className="mb-2 text-[15px] font-semibold">Paid subscriptions</h2>
+        {isLoading ? (
+          <div className="space-y-2" aria-busy="true" aria-label="Loading subscriptions">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+          </div>
+        ) : subscriptions.length > 0 ? (
+          <div className="overflow-hidden rounded-lg border">
+            <div className="hidden grid-cols-[minmax(0,1fr)_120px_120px_110px] gap-4 border-b border-border bg-raised px-4 py-2.5 text-xs font-medium text-muted-foreground sm:grid">
+              <span>Tenant</span>
+              <span>Renews</span>
+              <span>Status</span>
+              <span className="text-right">Price</span>
+            </div>
+            <ul className="divide-y divide-rule">
+              {subscriptions.map((sub) => (
+                <li
+                  key={sub.id}
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_120px_120px_110px]"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{sub.tenant}</p>
+                    <p className="text-[13px] text-muted-foreground">{statusLabel(sub.plan)} · {statusLabel(sub.interval)}</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant="secondary" className={statusColors[sub.status] || ""}>{sub.status}</Badge>
-                    <span className="text-sm font-bold">₹{sub.price.toLocaleString("en-IN")}</span>
+                  <p className="order-3 text-[13px] text-muted-foreground tabular-nums sm:order-none sm:text-sm">
+                    {sub.currentPeriodEnd ? <><span className="sm:hidden">Renews </span>{fmtDate(sub.currentPeriodEnd)}</> : "—"}
+                  </p>
+                  <div className="order-4 justify-self-end sm:order-none sm:justify-self-start">
+                    <Pill tone={subscriptionTone(sub.status)}>{statusLabel(sub.status)}</Pill>
                   </div>
-                </div>
-              </Card>
-            ))}
+                  <p className="order-2 text-right text-sm font-medium tabular-nums sm:order-none">{inr(sub.price)}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         ) : (
-          <Card className="p-8 text-center text-muted-foreground">
-            <CreditCard className="mx-auto h-10 w-10 mb-2 opacity-30" />
-            <p className="font-medium">No paid subscriptions yet</p>
-            <p className="text-sm">Subscriptions will appear when tenants subscribe to paid plans.</p>
-          </Card>
+          <EmptyState
+            icon={CreditCard}
+            title="No paid subscriptions yet"
+            description="Subscriptions will appear when tenants subscribe to paid plans."
+          />
         )}
-      </div>
+      </section>
     </div>
   )
 }

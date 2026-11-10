@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
-import crypto from "crypto"
+import { MAX_UPLOAD_SIZE, detectFileType, saveUpload } from "@/lib/uploads"
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -13,37 +11,34 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData()
-    const file = formData.get("file") as File | null
+    const file = formData.get("file")
 
-    if (!file) {
+    if (!file || typeof file === "string") {
       return NextResponse.json({ success: false, message: "No file provided" }, { status: 400 })
     }
 
-    // Validate file type
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml", "application/pdf"]
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ success: false, message: "Invalid file type" }, { status: 400 })
-    }
-
-    // Validate file size (5MB for images, 10MB for PDFs)
-    const maxSize = file.type === "application/pdf" ? 10 * 1024 * 1024 : 5 * 1024 * 1024
-    if (file.size > maxSize) {
+    if (file.size > MAX_UPLOAD_SIZE) {
       return NextResponse.json({ success: false, message: "File too large" }, { status: 400 })
     }
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    const buffer = Buffer.from(await file.arrayBuffer())
 
-    const ext = file.name.split(".").pop() || "bin"
-    const filename = `${crypto.randomUUID()}.${ext}`
-    const uploadDir = path.join(process.cwd(), "public", "uploads")
+    // Validate the type from the file's own bytes; the client MIME type and name are ignored.
+    const type = detectFileType(buffer)
+    if (!type) {
+      return NextResponse.json({ success: false, message: "Invalid file type" }, { status: 400 })
+    }
 
-    await mkdir(uploadDir, { recursive: true })
-    await writeFile(path.join(uploadDir, filename), buffer)
+    // 5MB for images, 10MB for PDFs
+    if (buffer.length > type.maxSize) {
+      return NextResponse.json({ success: false, message: "File too large" }, { status: 400 })
+    }
+
+    const filename = await saveUpload(buffer, type)
 
     return NextResponse.json({
       success: true,
-      data: { url: `/uploads/${filename}`, filename, size: file.size, type: file.type },
+      data: { url: `/uploads/${filename}`, filename, size: buffer.length, type: type.mime },
     })
   } catch (error) {
     console.error("Upload error:", error)

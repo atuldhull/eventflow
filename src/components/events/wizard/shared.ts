@@ -44,6 +44,10 @@ export const wizardSchema = z.object({
   maxGuestsPerRegistration: z.string().optional().or(z.literal("")),
   enableDynamicPricing: z.boolean().default(false),
   dynamicPricingTiers: z.string().optional().or(z.literal("")),
+  // Step 4: the optional default fields of the public registration form (event settings)
+  collectPhone: z.boolean().default(true),
+  collectOrganization: z.boolean().default(false),
+  collectDepartment: z.boolean().default(false),
   // Step 5
   coverImage: z.string().optional().or(z.literal("")),
   rules: z.string().optional().or(z.literal("")),
@@ -57,6 +61,9 @@ export const wizardSchema = z.object({
 
 export type WizardFormData = z.infer<typeof wizardSchema>
 
+/** A ticket type in the wizard; `id` is set for ones that already exist (edit mode). */
+export type WizardTicketType = TicketTypeInput & { id?: string }
+
 // ── Shared Props ──
 export interface StepProps {
   register: UseFormRegister<WizardFormData>
@@ -66,7 +73,7 @@ export interface StepProps {
 }
 
 export interface TicketsStepProps extends StepProps {
-  ticketTypes: TicketTypeInput[]
+  ticketTypes: WizardTicketType[]
   addTicketType: () => void
   removeTicketType: (i: number) => void
   updateTicketType: (i: number, field: string, value: unknown) => void
@@ -90,7 +97,7 @@ export interface MediaStepProps extends StepProps {
 
 export interface ReviewStepProps {
   watch: UseFormWatch<WizardFormData>
-  ticketTypes: TicketTypeInput[]
+  ticketTypes: WizardTicketType[]
   customFields: CustomFormFieldInput[]
   faqs: { question: string; answer: string }[]
   sponsors: { name: string; tier: string; website: string }[]

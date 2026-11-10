@@ -3,15 +3,20 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { motion } from "framer-motion"
-import { ArrowLeft, Monitor, Tablet, Smartphone, Check, Loader2, AlertTriangle, Star, Puzzle, Lock } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Monitor, Tablet, Smartphone, Loader2, AlertTriangle, Star, Lock, PanelRightClose, PanelRightOpen, LayoutTemplate } from "lucide-react"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { toast } from "sonner"
 import { TemplatePreview } from "@/components/website/TemplatePreview"
 import { useRBAC } from "@/hooks/useRBAC"
+import { cn } from "@/lib/utils"
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- template JSON is loosely typed by the API */
 interface Template {
   id: string
   name: string
@@ -34,6 +39,13 @@ interface Template {
   isCurrentTemplate: boolean
   canApply: boolean
 }
+
+const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase()
+const breadcrumbsFor = (name?: string) => [
+  { label: "Website", href: "/admin/org/website" },
+  { label: "Templates", href: "/admin/org/website/templates" },
+  ...(name ? [{ label: name }] : []),
+]
 
 export default function TemplatePreviewPage({ params }: { params: Promise<{ templateSlug: string }> }) {
   const router = useRouter()
@@ -116,62 +128,78 @@ export default function TemplatePreviewPage({ params }: { params: Promise<{ temp
     }
   }
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-  if (!template) return <div className="text-center py-20"><p className="text-muted-foreground">Template not found</p><Link href="/admin/org/website/templates"><Button variant="link">Back to Templates</Button></Link></div>
+  if (isLoading) {
+    return (
+      <div className="space-y-6" aria-busy="true">
+        <PageHeader title="Template" breadcrumbs={breadcrumbsFor()} />
+        <Skeleton className="h-[60vh] rounded-lg" />
+      </div>
+    )
+  }
+  if (!template) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Template" breadcrumbs={breadcrumbsFor()} />
+        <EmptyState icon={LayoutTemplate} title="Template not found">
+          <Link href="/admin/org/website/templates" className={buttonVariants({ variant: "outline" })}>Back to templates</Link>
+        </EmptyState>
+      </div>
+    )
+  }
 
   const sections = template.defaultSections || []
   const styles = template.defaultStyles || {}
 
   return (
-    <div className="space-y-4 -mx-2 sm:-mx-4">
-      {/* Top Bar */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b px-4 py-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/admin/org/website/templates">
-            <Button variant="ghost" size="icon-sm"><ArrowLeft className="h-4 w-4" /></Button>
-          </Link>
-          <div>
-            <h1 className="font-semibold text-sm">{template.name}</h1>
-            <Badge variant="secondary" className="text-[10px]">{template.category}</Badge>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Device toggle */}
-          <div className="hidden sm:flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
-            {([["desktop", Monitor], ["tablet", Tablet], ["mobile", Smartphone]] as const).map(([mode, Icon]) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`p-1.5 rounded-md transition-colors ${viewMode === mode ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <Icon className="h-4 w-4" />
-              </button>
-            ))}
-          </div>
-
-          <Button onClick={() => setShowSidebar(!showSidebar)} variant="ghost" size="sm" className="hidden md:flex text-xs">
-            {showSidebar ? "Hide Info" : "Show Info"}
-          </Button>
-
-          {template.canApply ? (
-            <Button onClick={() => setShowConfirm(true)} disabled={template.isCurrentTemplate || isApplying} className="gap-1">
-              {isApplying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {template.isCurrentTemplate ? "Current Template" : "Use This Template"}
+    <div className="space-y-5">
+      <PageHeader
+        title={template.name}
+        description={`${titleCase(template.category)} template`}
+        breadcrumbs={breadcrumbsFor(template.name)}
+        actions={
+          <>
+            <div className="hidden items-center rounded-md border p-0.5 sm:flex" role="group" aria-label="Preview size">
+              {([["desktop", Monitor, "Desktop"], ["tablet", Tablet, "Tablet"], ["mobile", Smartphone, "Phone"]] as const).map(([mode, Icon, label]) => (
+                <Button
+                  key={mode}
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setViewMode(mode)}
+                  aria-label={`${label} preview`}
+                  aria-pressed={viewMode === mode}
+                  className={cn("rounded-[4px]", viewMode === mode ? "bg-accent text-foreground" : "text-muted-foreground")}
+                >
+                  <Icon />
+                </Button>
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="hidden md:inline-flex"
+              aria-pressed={showSidebar}
+            >
+              {showSidebar ? <PanelRightClose /> : <PanelRightOpen />}
+              {showSidebar ? "Hide info" : "Show info"}
             </Button>
-          ) : (
-            <Button variant="secondary" onClick={() => router.push("/admin/org/billing")} className="gap-1">
-              <Lock className="h-4 w-4" />
-              Upgrade to {template.requiredPlan}
-            </Button>
-          )}
-        </div>
-      </div>
+            {template.canApply ? (
+              <Button onClick={() => setShowConfirm(true)} disabled={template.isCurrentTemplate || isApplying}>
+                {isApplying && <Loader2 className="animate-spin" />}
+                {template.isCurrentTemplate ? "Current template" : "Use this template"}
+              </Button>
+            ) : (
+              <Button variant="secondary" onClick={() => router.push("/admin/org/billing")}>
+                <Lock />
+                Upgrade to {template.requiredPlan}
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      {/* Content */}
-      <div className="flex gap-4 px-2 sm:px-4">
-        {/* Preview */}
-        <div className="flex-1 min-w-0">
+      <div className="flex gap-5">
+        {/* Preview (the tenant's own design) */}
+        <div className="min-w-0 flex-1 rounded-lg bg-raised p-3 sm:p-5">
           <TemplatePreview
             sections={sections}
             styles={styles}
@@ -181,41 +209,45 @@ export default function TemplatePreviewPage({ params }: { params: Promise<{ temp
           />
         </div>
 
-        {/* Sidebar */}
+        {/* Info */}
         {showSidebar && (
-          <motion.div className="hidden md:block w-72 shrink-0 space-y-4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-            <Card className="p-4 space-y-3">
-              <h3 className="font-semibold">{template.name}</h3>
-              <p className="text-sm text-muted-foreground">{template.longDescription || template.description}</p>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Category</span><Badge variant="secondary" className="text-[10px]">{template.category}</Badge></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Plan</span><span className="font-medium">{template.requiredPlan}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Installs</span><span>{template.installCount}</span></div>
-                {template.ratingCount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Rating</span><span className="flex items-center gap-0.5"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{template.rating.toFixed(1)}</span></div>}
-                <div className="flex justify-between"><span className="text-muted-foreground">Version</span><span>{template.version}</span></div>
-                {template.author && <div className="flex justify-between"><span className="text-muted-foreground">Author</span><span>{template.author}</span></div>}
+          <aside className="hidden w-72 shrink-0 space-y-4 md:block" aria-label="Template details">
+            <Card className="gap-0 p-0">
+              <div className="space-y-1.5 px-4 py-3.5">
+                <h2 className="text-[15px] font-semibold">{template.name}</h2>
+                <p className="text-[13px] text-muted-foreground">{template.longDescription || template.description}</p>
               </div>
+              <dl className="divide-y divide-rule border-t border-rule text-[13px]">
+                <div className="flex justify-between gap-3 px-4 py-2"><dt className="text-muted-foreground">Category</dt><dd>{titleCase(template.category)}</dd></div>
+                <div className="flex justify-between gap-3 px-4 py-2"><dt className="text-muted-foreground">Plan</dt><dd className="font-medium">{template.requiredPlan}</dd></div>
+                <div className="flex justify-between gap-3 px-4 py-2"><dt className="text-muted-foreground">Installs</dt><dd className="tabular-nums">{template.installCount}</dd></div>
+                {template.ratingCount > 0 && (
+                  <div className="flex justify-between gap-3 px-4 py-2"><dt className="text-muted-foreground">Rating</dt><dd className="flex items-center gap-1 tabular-nums"><Star className="size-3 fill-current" aria-hidden />{template.rating.toFixed(1)}</dd></div>
+                )}
+                <div className="flex justify-between gap-3 px-4 py-2"><dt className="text-muted-foreground">Version</dt><dd className="font-mono">{template.version}</dd></div>
+                {template.author && <div className="flex justify-between gap-3 px-4 py-2"><dt className="text-muted-foreground">Author</dt><dd>{template.author}</dd></div>}
+              </dl>
             </Card>
 
-            <Card className="p-4 space-y-2">
-              <h4 className="font-medium text-sm">Sections ({sections.length})</h4>
-              <div className="space-y-1">
+            <Card className="gap-0 p-0">
+              <h3 className="border-b border-rule px-4 py-2.5 text-sm font-medium">
+                Sections <span className="font-normal text-muted-foreground tabular-nums">{sections.length}</span>
+              </h3>
+              <ul className="space-y-1 px-4 py-3">
                 {sections.filter((s: any) => s.enabled).map((s: any) => (
-                  <div key={s.id} className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  <li key={s.id} className="text-[13px] text-muted-foreground">
                     {s.type.replace(/-/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </Card>
 
             {template.supportedFeatures.length > 0 && (
-              <Card className="p-4 space-y-2">
-                <h4 className="font-medium text-sm flex items-center gap-1"><Puzzle className="h-3.5 w-3.5" />Supported Features</h4>
-                <div className="flex flex-wrap gap-1">
+              <Card className="gap-0 p-0">
+                <h3 className="border-b border-rule px-4 py-2.5 text-sm font-medium">Supported features</h3>
+                <div className="flex flex-wrap gap-1 px-4 py-3">
                   {template.supportedFeatures.map((f: string) => (
-                    <Badge key={f} variant="outline" className="text-[10px]">{f.replace(/-/g, " ")}</Badge>
+                    <span key={f} className="rounded-sm bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{f.replace(/-/g, " ")}</span>
                   ))}
                 </div>
               </Card>
@@ -224,54 +256,57 @@ export default function TemplatePreviewPage({ params }: { params: Promise<{ temp
             {template.tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {template.tags.map((tag: string) => (
-                  <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{tag}</span>
+                  <span key={tag} className="rounded-sm bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{tag}</span>
                 ))}
               </div>
             )}
-          </motion.div>
+          </aside>
         )}
       </div>
 
-      {/* Confirmation Dialog */}
-      {showConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
-          <motion.div className="bg-background rounded-xl p-6 max-w-md w-full shadow-xl space-y-4" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={(e) => e.stopPropagation()}>
-            {hasExisting ? (
-              <>
-                <h3 className="text-lg font-bold">Change to {template.name}?</h3>
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400">
-                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div className="text-sm space-y-1">
-                    <p className="font-medium">This will replace your current section layout</p>
-                    <p>Your custom content (text, images) will be preserved where possible, but section order and configuration will change. Your enabled feature modules will not be affected.</p>
-                  </div>
-                </div>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={confirmChecked} onChange={(e) => setConfirmChecked(e.target.checked)} />
-                  I understand my layout will change
-                </label>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setShowConfirm(false)}>Cancel</Button>
-                  <Button onClick={handleApply} disabled={!confirmChecked || isApplying}>
-                    {isApplying ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Change Template
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3 className="text-lg font-bold">Create your website with {template.name}?</h3>
-                <p className="text-sm text-muted-foreground">Your website will be live at <strong>{org?.slug || "org"}.eventflow.com</strong>. You can customize everything after setup.</p>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setShowConfirm(false)}>Cancel</Button>
-                  <Button onClick={handleApply} disabled={isApplying}>
-                    {isApplying ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Create Website
-                  </Button>
-                </div>
-              </>
-            )}
-          </motion.div>
-        </div>
-      )}
+      {/* Confirmation */}
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent>
+          {hasExisting ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Change to {template.name}?</DialogTitle>
+                <DialogDescription>This will replace your current section layout.</DialogDescription>
+              </DialogHeader>
+              <div className="flex items-start gap-2.5 rounded-md bg-pill-warning px-3 py-2.5 text-[13px] text-pill-warning-foreground">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <p>Your custom content (text, images) will be preserved where possible, but section order and configuration will change. Your enabled feature modules will not be affected.</p>
+              </div>
+              <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-sm">
+                <Checkbox checked={confirmChecked} onCheckedChange={(v) => setConfirmChecked(!!v)} />
+                I understand my layout will change
+              </label>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowConfirm(false)}>Cancel</Button>
+                <Button onClick={handleApply} disabled={!confirmChecked || isApplying}>
+                  {isApplying && <Loader2 className="animate-spin" />}Change template
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Create your website with {template.name}?</DialogTitle>
+                <DialogDescription>
+                  Your website will be live at <span className="font-mono text-foreground">{org?.slug || "org"}.eventflow.com</span>. You can customize everything after setup.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowConfirm(false)}>Cancel</Button>
+                <Button onClick={handleApply} disabled={isApplying}>
+                  {isApplying && <Loader2 className="animate-spin" />}Create website
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */

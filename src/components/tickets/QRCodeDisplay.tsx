@@ -38,7 +38,8 @@ export function QRCodeDisplay({
 
   return (
     <div className={cn(
-      "inline-flex flex-col items-center gap-2 rounded-lg p-4",
+      "inline-flex flex-col items-center gap-2 rounded-lg",
+      variant !== "print" && "p-4",
       variant === "default" && "border bg-white"
     )}>
       <QRCodeSVG
@@ -50,7 +51,7 @@ export function QRCodeDisplay({
         fgColor="#000000"
       />
       {showTicketNumber && ticketNumber && (
-        <p className="text-sm font-mono font-semibold tracking-widest text-foreground">{ticketNumber}</p>
+        <p className="font-mono text-sm font-medium tracking-[0.08em] text-[#141b2d]">{ticketNumber}</p>
       )}
     </div>
   )

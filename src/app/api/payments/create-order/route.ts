@@ -2,23 +2,12 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-
-// Lazy init to avoid crash when keys not set
-type RazorpayClient = {
-  orders: { create: (opts: Record<string, unknown>) => Promise<{ id: string; amount: number; currency: string }> }
-}
-let _razorpay: RazorpayClient | null = null
-function getRazorpay(): RazorpayClient {
-  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    throw new Error("RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set")
-  }
-  if (!_razorpay) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Razorpay = require("razorpay")
-    _razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET }) as RazorpayClient
-  }
-  return _razorpay
-}
+import { getRazorpay, isRazorpayConfigured } from "@/lib/razorpay"
+import { holdExpiresAt, holdIsReclaimable } from "@/lib/registration-capacity"
+import { releaseExpiredHolds, reholdReleasedRegistration } from "@/lib/seat-hold"
+import { getActivePlatformSettings } from "@/lib/platform-settings-store"
+import { liveWorkspaceWhere } from "@/lib/public-events"
+import { reportError } from "@/lib/error-reporting"
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -43,8 +32,20 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  if (!payment) {
+  // CANCELLED: the payment of an earlier attempt, closed when the registration was reused
+  // for a free one.
+  if (!payment || payment.status === "CANCELLED") {
     return NextResponse.json({ success: false, message: "No payment pending for this registration" }, { status: 404 })
+  }
+
+  // No checkout for a deleted event, or one whose organization or enterprise is deactivated
+  // or deleted: like its public page, it's "not found".
+  const eventId = payment.registration?.event.id
+  if (eventId) {
+    const liveEvent = await prisma.event.findFirst({ where: { id: eventId, deletedAt: null, ...liveWorkspaceWhere() }, select: { id: true } })
+    if (!liveEvent) {
+      return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
+    }
   }
 
   if (payment.status === "COMPLETED") {
@@ -64,7 +65,46 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: "Invalid payment amount" }, { status: 400 })
   }
 
-  // If we already created a gateway order and the payment is still PENDING, re-use it (idempotency)
+  if (!isRazorpayConfigured()) {
+    return NextResponse.json({ success: false, message: "Payments are not configured" }, { status: 503 })
+  }
+  // Platform settings → Features → Payment processing. Same 503 as an unconfigured gateway:
+  // the register page then tells the buyer their seat is held and to contact the organizer.
+  if (!(await getActivePlatformSettings()).features.paymentProcessing) {
+    return NextResponse.json({ success: false, message: "Online payments are turned off right now" }, { status: 503 })
+  }
+
+  // Seat hold: release it if it has run out, then take a fresh one if the buyer is
+  // retrying after the hold expired or a payment attempt failed.
+  await releaseExpiredHolds({ registrationId })
+  let registration = await prisma.registration.findUniqueOrThrow({
+    where: { id: registrationId },
+    select: { status: true, metadata: true },
+  })
+  if (holdIsReclaimable(registration)) {
+    const rehold = await reholdReleasedRegistration(registrationId)
+    if (!rehold.ok) {
+      const message = rehold.reason === "TICKETS_SOLD_OUT"
+        ? "Your seat hold expired and this ticket has sold out since."
+        : "Your seat hold expired and the event is now full."
+      return NextResponse.json({ success: false, message }, { status: 409 })
+    }
+    registration = await prisma.registration.findUniqueOrThrow({
+      where: { id: registrationId },
+      select: { status: true, metadata: true },
+    })
+  }
+
+  if (registration.status === "CANCELLED" || registration.status === "REJECTED") {
+    return NextResponse.json({ success: false, message: `This registration has been ${registration.status.toLowerCase()}` }, { status: 400 })
+  }
+  if (registration.status === "WAITLISTED") {
+    return NextResponse.json({ success: false, message: "You're on the waitlist. Payment opens once the organizer confirms a seat for you." }, { status: 400 })
+  }
+
+  const holdUntil = holdExpiresAt(registration)?.toISOString() ?? null
+
+  // If we already created a gateway order and the payment is still open, re-use it (idempotency)
   if (payment.gatewayOrderId) {
     return NextResponse.json({
       success: true,
@@ -74,6 +114,7 @@ export async function POST(request: NextRequest) {
         currency: payment.currency,
         keyId: process.env.RAZORPAY_KEY_ID,
         paymentNumber: payment.paymentNumber,
+        holdExpiresAt: holdUntil,
       },
     })
   }
@@ -103,10 +144,17 @@ export async function POST(request: NextRequest) {
         currency: order.currency,
         keyId: process.env.RAZORPAY_KEY_ID,
         paymentNumber: payment.paymentNumber,
+        holdExpiresAt: holdUntil,
       },
     })
   } catch (error) {
     console.error("Razorpay order creation failed:", error)
-    return NextResponse.json({ success: false, message: "Failed to create payment order" }, { status: 500 })
+    // Usually wrong or missing Razorpay keys, or Razorpay being down: the operator must know
+    void reportError(error, { where: "POST /api/payments/create-order", extra: { reason: "Razorpay order creation failed" } })
+    const until = holdUntil ? ` Your seat stays held until ${new Date(holdUntil).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}.` : ""
+    return NextResponse.json({
+      success: false,
+      message: `We couldn't start the payment just now. Nothing was charged.${until} Please try again in a minute; if it keeps failing, contact the organizer.`,
+    }, { status: 502 })
   }
 }

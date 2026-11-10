@@ -1,0 +1,7 @@
+# HTTPS in front of EventFlow. Caddy gets and renews the Let's Encrypt certificate itself.
+# Point your domain's DNS (A record) at the server first, set DOMAIN in .env, then:
+#   docker compose --profile https up -d
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

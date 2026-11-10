@@ -1,20 +1,35 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, ClipboardList, IndianRupee, Users, Building2, Download } from "lucide-react"
+import { Calendar, Download } from "lucide-react"
 
 import { PageHeader } from "@/components/shared/PageHeader"
-import { StatCard } from "@/components/shared/StatCard"
+import { KpiStrip } from "@/components/shared/StatCard"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Pill } from "@/components/ui/pill"
 import { useRBAC } from "@/hooks/useRBAC"
+import { statusLabel, statusTone } from "@/lib/status-tone"
+import { BlockHeading, RowsSkeleton, inr, num } from "../_components/admin-ui"
+
+interface RecentEvent {
+  id: string
+  title: string
+  status: string
+  organization?: string
+  // the stats route sends date / registrations; older shapes used startDate / currentRegistrations
+  date?: string
+  startDate?: string
+  registrations?: number
+  currentRegistrations?: number
+}
 
 export default function EnterpriseAnalyticsPage() {
   const { currentEnterpriseId, accessibleEnterprises } = useRBAC()
   const enterprise = accessibleEnterprises.find((e) => e.id === currentEnterpriseId)
   const [stats, setStats] = useState({ organizationCount: 0, eventCount: 0, registrationCount: 0, totalRevenue: 0 })
-  const [recentEvents, setRecentEvents] = useState<any[]>([])
+  const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -24,7 +39,12 @@ export default function EnterpriseAnalyticsPage() {
         const res = await fetch(`/api/admin/enterprise/${currentEnterpriseId}/dashboard-stats`)
         const json = await res.json()
         if (json.success) {
-          setStats({ organizationCount: json.data.organizationCount, eventCount: json.data.eventCount, registrationCount: json.data.registrationCount, totalRevenue: json.data.totalRevenue || 0 })
+          setStats({
+            organizationCount: json.data.organizationCount ?? json.data.orgCount ?? 0,
+            eventCount: json.data.eventCount ?? 0,
+            registrationCount: json.data.registrationCount ?? 0,
+            totalRevenue: json.data.totalRevenue || 0,
+          })
           setRecentEvents(json.data.recentEvents || [])
         }
       } catch {} finally { setIsLoading(false) }
@@ -34,35 +54,61 @@ export default function EnterpriseAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Analytics" description={`${enterprise?.name || "Enterprise"} — Performance Overview`} breadcrumbs={[{ label: "Admin" }, { label: "Enterprise", href: "/admin/enterprise" }, { label: "Analytics" }]}
-        actions={<Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> Export Report</Button>}
+      <PageHeader
+        title="Analytics"
+        description={`${enterprise?.name || "Enterprise"} performance overview`}
+        actions={<Button variant="outline"><Download /> Export report</Button>}
       />
 
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Organizations" value={isLoading ? "—" : String(stats.organizationCount)} icon={Building2} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-        <StatCard title="Total Events" value={isLoading ? "—" : String(stats.eventCount)} icon={Calendar} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
-        <StatCard title="Registrations" value={isLoading ? "—" : String(stats.registrationCount)} icon={ClipboardList} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
-        <StatCard title="Revenue" value={isLoading ? "—" : `₹${stats.totalRevenue.toLocaleString("en-IN")}`} icon={IndianRupee} iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" />
-      </div>
+      <KpiStrip
+        isLoading={isLoading}
+        items={[
+          { label: "Organizations", value: num(stats.organizationCount) },
+          { label: "Events", value: num(stats.eventCount) },
+          { label: "Registrations", value: num(stats.registrationCount) },
+          { label: "Revenue", value: inr(stats.totalRevenue) },
+        ]}
+      />
 
-      <Card className="p-6">
-        <h3 className="text-sm font-medium mb-4">Recent Events Across Enterprise</h3>
-        {recentEvents.length > 0 ? (
-          <div className="space-y-2">
-            {recentEvents.map((event: any) => (
-              <div key={event.id} className="flex items-center justify-between rounded-md border p-3">
-                <div>
-                  <p className="text-sm font-medium">{event.title}</p>
-                  <p className="text-xs text-muted-foreground">{new Date(event.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · {event.currentRegistrations} registrations</p>
-                </div>
-                <Badge variant="secondary">{event.status}</Badge>
-              </div>
-            ))}
-          </div>
+      <section aria-labelledby="events-heading">
+        <BlockHeading id="events-heading" title="Upcoming events across the enterprise" href="/admin/enterprise/events" linkLabel="All events" />
+        {isLoading ? (
+          <Card className="gap-0 p-0"><RowsSkeleton rows={4} /></Card>
+        ) : recentEvents.length > 0 ? (
+          <Card className="gap-0 overflow-hidden p-0">
+            <ul className="divide-y divide-rule">
+              {recentEvents.map((event) => {
+                const start = new Date(event.startDate ?? event.date ?? "")
+                const valid = !Number.isNaN(start.getTime())
+                const regs = event.currentRegistrations ?? event.registrations ?? 0
+                return (
+                  <li key={event.id} className="flex items-center gap-4 px-4 py-3">
+                    <div className="flex w-11 shrink-0 flex-col items-center rounded-md bg-muted py-1 leading-none" aria-hidden>
+                      <span className="text-[11px] text-muted-foreground">{valid ? start.toLocaleDateString("en-IN", { month: "short" }) : "—"}</span>
+                      <span className="mt-0.5 text-[17px] font-semibold tabular-nums">{valid ? start.getDate() : ""}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{event.title}</p>
+                      <p className="mt-0.5 truncate text-[13px] text-muted-foreground tabular-nums">
+                        {valid && <span className="sr-only">{start.toLocaleDateString("en-IN", { day: "numeric", month: "long" })} · </span>}
+                        {event.organization ? `${event.organization} · ` : ""}
+                        {num(regs)} registration{regs === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <Pill tone={statusTone(event.status)} className="shrink-0">{statusLabel(event.status)}</Pill>
+                  </li>
+                )
+              })}
+            </ul>
+          </Card>
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-8">No events yet. Create events within your organizations to see analytics.</p>
+          <EmptyState
+            icon={Calendar}
+            title="No events yet"
+            description="Create events within your organizations to see analytics."
+          />
         )}
-      </Card>
+      </section>
     </div>
   )
 }

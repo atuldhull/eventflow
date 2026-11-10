@@ -1,14 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { Mail, Phone, MapPin, Clock, Loader2, CheckCircle } from "lucide-react"
-import { Card } from "@/components/ui/card"
+import { Mail, MapPin, Clock, Loader2, CircleCheck } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { Container, PageIntro } from "@/components/marketing/layout"
 import { toast } from "sonner"
+
+const SUBJECTS = [
+  { value: "general", label: "General Inquiry" },
+  { value: "support", label: "Technical Support" },
+  { value: "enterprise", label: "Enterprise Plans" },
+  { value: "bug", label: "Bug Report" },
+  { value: "feature", label: "Feature Request" },
+  { value: "other", label: "Other" },
+]
+
+const DETAILS: { icon: typeof Mail; label: string; value: string; href?: string }[] = [
+  { icon: Mail, label: "Email", value: "support@eventflow.com", href: "mailto:support@eventflow.com" },
+  { icon: MapPin, label: "Address", value: "Bangalore, India" },
+  { icon: Clock, label: "Hours", value: "Mon-Fri, 9 AM — 6 PM IST" },
+]
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" })
@@ -42,70 +57,91 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-center">Get in Touch</h1>
-        <p className="text-muted-foreground text-center mt-2">Have a question or need help? We&apos;d love to hear from you.</p>
+    <>
+      <PageIntro title="Get in touch" description="Have a question or need help? We'd love to hear from you." />
 
-        <div className="grid gap-8 lg:grid-cols-5 mt-12">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="space-y-4">
-              {[
-                { icon: Mail, label: "Email", value: "support@eventflow.com" },
-                { icon: Phone, label: "Phone", value: "+91 XXXXX XXXXX" },
-                { icon: MapPin, label: "Address", value: "Bangalore, India" },
-                { icon: Clock, label: "Hours", value: "Mon-Fri, 9 AM — 6 PM IST" },
-              ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="flex items-start gap-3">
-                  <Icon className="h-5 w-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium">{label}</p>
-                    <p className="text-sm text-muted-foreground">{value}</p>
-                  </div>
+      <Container className="grid gap-12 py-12 sm:py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-20">
+        <section aria-labelledby="contact-details-heading">
+          <h2 id="contact-details-heading" className="text-[15px] font-semibold">Contact details</h2>
+          <dl className="mt-4 divide-y divide-rule border-y border-rule">
+            {DETAILS.map(({ icon: Icon, label, value, href }) => (
+              <div key={label} className="flex items-start gap-3 py-4">
+                <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
+                <div className="min-w-0">
+                  <dt className="text-[13px] text-muted-foreground">{label}</dt>
+                  <dd className="mt-0.5 text-[15px]">
+                    {href ? <a href={href} className="underline-offset-4 hover:text-brand hover:underline">{value}</a> : value}
+                  </dd>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <Card className="lg:col-span-3 p-6 space-y-4">
-            {sent ? (
-              <div className="text-center py-12">
-                <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
-                <h3 className="text-lg font-semibold">Message Sent!</h3>
-                <p className="text-sm text-muted-foreground mt-1">We&apos;ll get back to you within 24 hours.</p>
-                <Button variant="outline" className="mt-4" onClick={() => { setSent(false); setForm({ name: "", email: "", subject: "", message: "" }) }}>
-                  Send Another Message
-                </Button>
               </div>
-            ) : (
-              <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2"><Label>Name *</Label><Input placeholder="Your name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-                  <div className="space-y-2"><Label>Email *</Label><Input type="email" placeholder="you@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            ))}
+          </dl>
+        </section>
+
+        <section aria-labelledby="contact-form-heading" className="rounded-lg border bg-card p-5 sm:p-8">
+          {sent ? (
+            <div className="flex flex-col items-start py-6" role="status">
+              <CircleCheck className="size-6 text-positive" strokeWidth={1.75} aria-hidden />
+              <h2 id="contact-form-heading" className="mt-4 text-lg font-semibold">Message sent</h2>
+              <p className="mt-1 text-sm text-muted-foreground">We&apos;ll get back to you within 24 hours.</p>
+              <Button
+                variant="outline"
+                className="mt-6"
+                onClick={() => {
+                  setSent(false)
+                  setForm({ name: "", email: "", subject: "", message: "" })
+                }}
+              >
+                Send another message
+              </Button>
+            </div>
+          ) : (
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleSubmit()
+              }}
+              className="space-y-5"
+            >
+              <div>
+                <h2 id="contact-form-heading" className="text-lg font-semibold">Send us a message</h2>
+                <p className="mt-1 text-[13px] text-muted-foreground">Fields marked * are required.</p>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="contact-name">Name *</Label>
+                  <Input id="contact-name" autoComplete="name" placeholder="Your name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Subject</Label>
-                  <Select value={form.subject} onValueChange={(v) => setForm({ ...form, subject: v || "" })}>
-                    <SelectTrigger><SelectValue placeholder="Select a subject" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="general">General Inquiry</SelectItem>
-                      <SelectItem value="support">Technical Support</SelectItem>
-                      <SelectItem value="enterprise">Enterprise Plans</SelectItem>
-                      <SelectItem value="bug">Bug Report</SelectItem>
-                      <SelectItem value="feature">Feature Request</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="contact-email">Email *</Label>
+                  <Input id="contact-email" type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 </div>
-                <div className="space-y-2"><Label>Message *</Label><Textarea placeholder="How can we help?" rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} /></div>
-                <Button className="w-full" onClick={handleSubmit} disabled={isSending}>
-                  {isSending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending...</> : "Send Message"}
-                </Button>
-              </>
-            )}
-          </Card>
-        </div>
-      </div>
-    </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-subject">Subject</Label>
+                <Select items={SUBJECTS} value={form.subject || null} onValueChange={(v) => setForm({ ...form, subject: v || "" })}>
+                  <SelectTrigger id="contact-subject" className="w-full data-[size=default]:h-9">
+                    <SelectValue placeholder="Select a subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUBJECTS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-message">Message *</Label>
+                <Textarea id="contact-message" placeholder="How can we help?" rows={5} className="min-h-32" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+              </div>
+              <Button type="submit" size="lg" className="w-full sm:w-auto sm:px-6" disabled={isSending}>
+                {isSending ? <><Loader2 className="size-4 animate-spin" aria-hidden /> Sending…</> : "Send message"}
+              </Button>
+            </form>
+          )}
+        </section>
+      </Container>
+    </>
   )
 }

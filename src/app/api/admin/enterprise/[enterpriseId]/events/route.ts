@@ -1,10 +1,22 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import type { EventStatus, Prisma } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { cleanSearch, enterpriseEventScope, parsePaging } from "@/lib/enterprise-admin"
+import { readApprovalDecision } from "@/lib/enterprise-event-approval"
 
+const EVENT_STATUSES: readonly EventStatus[] = [
+  "DRAFT", "PENDING_APPROVAL", "PUBLISHED", "REGISTRATION_OPEN", "REGISTRATION_CLOSED", "ONGOING", "COMPLETED", "CANCELLED", "POSTPONED",
+]
+
+/**
+ * Every event of the enterprise (its own and its organizations'). `status` filters to one
+ * EventStatus (an unknown one is a 400); `counts` are totals over ALL the enterprise's
+ * events, whatever the page, search or filter, for the KPI strip and the tab badges.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ enterpriseId: string }> }
@@ -22,30 +34,27 @@ export async function GET(
   }
 
   const searchParams = request.nextUrl.searchParams
-  const page = parseInt(searchParams.get("page") || "1")
-  const limit = parseInt(searchParams.get("limit") || "10")
-  const search = searchParams.get("search") || ""
-  const status = searchParams.get("status") || ""
-
-  const where: Record<string, unknown> = {
-    deletedAt: null,
-    OR: [
-      { enterpriseId },
-      { organization: { enterpriseId } },
-    ],
-  }
-  if (search) {
-    where.title = { contains: search, mode: "insensitive" }
-  }
-  if (status) {
-    where.status = status
+  const { page, limit, skip } = parsePaging(searchParams, 10)
+  const search = cleanSearch(searchParams.get("search"))
+  const rawStatus = searchParams.get("status") || ""
+  const status = EVENT_STATUSES.find((s) => s === rawStatus.toUpperCase())
+  if (rawStatus && !status) {
+    return NextResponse.json({ success: false, message: `Unknown status "${rawStatus}"` }, { status: 400 })
   }
 
-  const [events, total] = await Promise.all([
+  const scope = enterpriseEventScope(enterpriseId)
+  const where: Prisma.EventWhereInput = {
+    ...scope,
+    ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
+    ...(status ? { status } : {}),
+  }
+
+  const [events, total, byStatus] = await Promise.all([
     prisma.event.findMany({
-      where: where as any,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
+      where,
+      // the oldest request first while reviewing; newest first otherwise
+      orderBy: { createdAt: status === "PENDING_APPROVAL" ? "asc" : "desc" },
+      skip,
       take: limit,
       select: {
         id: true,
@@ -60,20 +69,38 @@ export async function GET(
         maxCapacity: true,
         isPaid: true,
         isFeatured: true,
+        settings: true,
         organization: { select: { name: true } },
       },
     }),
-    prisma.event.count({ where: where as any }),
+    prisma.event.count({ where }),
+    prisma.event.groupBy({ by: ["status"], where: scope, _count: { _all: true } }),
   ])
+
+  const count = (...s: EventStatus[]) => byStatus.filter((g) => s.includes(g.status)).reduce((n, g) => n + g._count._all, 0)
+  const counts = {
+    total: byStatus.reduce((n, g) => n + g._count._all, 0),
+    pending: count("PENDING_APPROVAL"),
+    published: count("PUBLISHED", "REGISTRATION_OPEN", "REGISTRATION_CLOSED"),
+    ongoing: count("ONGOING"),
+    completed: count("COMPLETED"),
+    draft: count("DRAFT"),
+  }
 
   return NextResponse.json({
     success: true,
-    data: events.map((e) => ({
-      ...e,
-      organization: e.organization?.name || "Direct",
-      startDate: e.startDate.toISOString(),
-      endDate: e.endDate.toISOString(),
-    })),
+    data: events.map(({ settings, ...e }) => {
+      const decision = readApprovalDecision(settings)
+      return {
+        ...e,
+        organization: e.organization?.name || "Direct",
+        startDate: e.startDate.toISOString(),
+        endDate: e.endDate.toISOString(),
+        // the enterprise's last approval decision (a rejection's reason is shown to the org)
+        approvalDecision: decision ? { status: decision.status, reason: decision.reason, decidedAt: decision.decidedAt } : null,
+      }
+    }),
+    counts,
     pagination: { page, pageSize: limit, total, totalPages: Math.ceil(total / limit) },
   })
 }

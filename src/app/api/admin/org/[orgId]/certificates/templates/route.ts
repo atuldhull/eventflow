@@ -16,19 +16,28 @@ export async function GET(
   }
 
   const { orgId } = await params
+  // was readable by any signed-in user for any organization
+  const authResult = await authorize(session.user.id, PERMISSIONS.CERTIFICATE_VIEW, { organizationId: orgId })
+  if (!authResult.authorized) {
+    return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
+  }
+
   const templates = await prisma.certificateTemplate.findMany({
     where: { organizationId: orgId },
-    orderBy: { createdAt: "desc" },
-    include: { _count: { select: { certificates: true } } },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true, name: true, description: true, templateHtml: true, isDefault: true, createdAt: true,
+      _count: { select: { certificates: true } },
+    },
   })
 
   return NextResponse.json({ success: true, data: templates })
 }
 
 const createTemplateSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().optional(),
-  templateHtml: z.string().min(1),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(1000).optional(),
+  templateHtml: z.string().min(1).max(100_000),
   isDefault: z.boolean().default(false),
 })
 

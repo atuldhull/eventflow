@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { csvResponse, toCsv } from "@/lib/csv-export"
 
 export async function GET(request: NextRequest) {
   const session = await auth()
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
   }
 
-  const eventId = request.nextUrl.searchParams.get("eventId")
+  const eventId = request.nextUrl.searchParams.get("eventId")?.slice(0, 64)
   if (!eventId) {
     return NextResponse.json({ success: false, message: "Event ID required" }, { status: 400 })
   }
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "asc" },
   })
 
-  const headers = "Name,Email,Phone,Ticket Type,Registration #,Status,Check-in Time,Check-in Method,Checked By,Location\n"
+  const headers = ["Name", "Email", "Phone", "Ticket Type", "Registration #", "Status", "Check-in Time", "Check-in Method", "Checked By", "Location"]
   const rows = registrations.map((r) => {
     const ci = r.checkIn
     return [
@@ -45,13 +46,8 @@ export async function GET(request: NextRequest) {
       ci?.checkInMethod || "",
       ci?.performer?.name || "",
       ci?.location || "",
-    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")
-  }).join("\n")
-
-  return new NextResponse(headers + rows, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="attendance-${eventId.slice(0, 8)}.csv"`,
-    },
+    ]
   })
+
+  return csvResponse(`attendance-${eventId.slice(0, 8)}.csv`, toCsv(headers, rows))
 }

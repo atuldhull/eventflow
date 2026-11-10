@@ -8,7 +8,7 @@ interface Props { label: string; value: string; onChange: (v: string) => void; p
 export function TextFieldEditor({ label, value, onChange, placeholder, required, description }: Props) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <Label className="text-xs font-medium">{label}{required && <span className="ml-0.5 text-destructive">*</span>}</Label>
       {description && <p className="text-[11px] text-muted-foreground">{description}</p>}
       <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="text-sm h-9" />
     </div>

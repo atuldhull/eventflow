@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { isSafeMediaUrl } from "@/lib/safe-url"
 
 // GET — List media files
 export async function GET(req: NextRequest, { params }: { params: Promise<{ orgId: string }> }) {
@@ -69,6 +70,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ org
   const { fileName, fileUrl, fileType, fileSize, altText, folder, tags, width, height } = body
 
   if (!fileName || !fileUrl) return NextResponse.json({ success: false, message: "fileName and fileUrl required" }, { status: 400 })
+  // The URL ends up in src/href on the public site: only web links and our own uploads,
+  // never javascript:, data: or other schemes.
+  if (!isSafeMediaUrl(fileUrl)) {
+    return NextResponse.json({ success: false, message: "Use an https:// link or upload the file" }, { status: 400 })
+  }
 
   // Validate file type
   const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml", "image/gif", "video/mp4", "application/pdf"]

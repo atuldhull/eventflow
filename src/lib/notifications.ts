@@ -1,5 +1,8 @@
 import prisma from "@/lib/prisma"
-import type { NotificationType, NotificationCategory } from "@prisma/client"
+import type { NotificationType, NotificationCategory, Prisma } from "@prisma/client"
+
+/** The client a notification is written with: prisma, or the caller's transaction so it commits with the change it reports. */
+type NotificationDb = Pick<Prisma.TransactionClient, "notification">
 
 interface CreateNotificationParams {
   userId: string
@@ -13,8 +16,8 @@ interface CreateNotificationParams {
   scheduledFor?: Date
 }
 
-export async function createNotification(params: CreateNotificationParams) {
-  return prisma.notification.create({
+export async function createNotification(params: CreateNotificationParams, db: NotificationDb = prisma) {
+  return db.notification.create({
     data: {
       userId: params.userId,
       type: params.type,
@@ -113,9 +116,22 @@ export async function getUserNotifications(
   return { notifications, total, page, totalPages: Math.ceil(total / limit) }
 }
 
-// Notification trigger helpers
+/**
+ * Runs a notification outside any transaction without letting a failure reach the caller:
+ * the payment, registration or certificate it reports has already happened.
+ */
+export async function notifySafely(send: () => Promise<unknown>): Promise<void> {
+  try {
+    await send()
+  } catch (error) {
+    console.error("Failed to create notification:", error)
+  }
+}
+
+// Notification trigger helpers. Each takes an optional transaction client (`db`) so the
+// notification is written once, together with the change that caused it.
 export const notify = {
-  async registrationConfirmed(registration: { userId: string; eventId: string; registrationNumber: string }, eventTitle: string) {
+  async registrationConfirmed(registration: { userId: string; eventId: string; registrationNumber: string }, eventTitle: string, db?: NotificationDb) {
     await createNotification({
       userId: registration.userId,
       type: "IN_APP",
@@ -124,10 +140,10 @@ export const notify = {
       message: `Your registration for ${eventTitle} has been confirmed. Registration #: ${registration.registrationNumber}`,
       data: { actionUrl: "/dashboard/tickets" },
       eventId: registration.eventId,
-    })
+    }, db)
   },
 
-  async paymentConfirmed(userId: string, eventId: string, amount: number, eventTitle: string) {
+  async paymentConfirmed(userId: string, eventId: string, amount: number, eventTitle: string, db?: NotificationDb) {
     await createNotification({
       userId,
       type: "IN_APP",
@@ -136,7 +152,19 @@ export const notify = {
       message: `Payment of ₹${amount.toLocaleString("en-IN")} for ${eventTitle} has been confirmed.`,
       data: { actionUrl: "/dashboard/tickets" },
       eventId,
-    })
+    }, db)
+  },
+
+  async paymentRefunded(userId: string, eventId: string, amount: number, eventTitle: string, full: boolean, db?: NotificationDb) {
+    await createNotification({
+      userId,
+      type: "IN_APP",
+      category: "PAYMENT",
+      title: full ? "Refund Processed" : "Partial Refund Processed",
+      message: `₹${amount.toLocaleString("en-IN")} for ${eventTitle} has been refunded to your original payment method.${full ? " Your registration has been cancelled." : ""}`,
+      data: { actionUrl: "/dashboard/payments" },
+      eventId,
+    }, db)
   },
 
   async eventReminder(userId: string, eventId: string, eventTitle: string, hours: number) {
@@ -164,7 +192,7 @@ export const notify = {
     })
   },
 
-  async certificateReady(userId: string, eventId: string, eventTitle: string) {
+  async certificateReady(userId: string, eventId: string, eventTitle: string, db?: NotificationDb) {
     await createNotification({
       userId,
       type: "IN_APP",
@@ -173,7 +201,19 @@ export const notify = {
       message: `Your certificate for ${eventTitle} is ready for download.`,
       data: { actionUrl: "/dashboard/certificates" },
       eventId,
-    })
+    }, db)
+  },
+
+  async certificateRevoked(userId: string, eventId: string, eventTitle: string, db?: NotificationDb) {
+    await createNotification({
+      userId,
+      type: "IN_APP",
+      category: "CERTIFICATE",
+      title: "Certificate Revoked",
+      message: `Your certificate for ${eventTitle} has been revoked by the organizer.`,
+      data: { actionUrl: "/dashboard/certificates" },
+      eventId,
+    }, db)
   },
 
   async announcement(userId: string, eventId: string, eventTitle: string, announcementTitle: string) {

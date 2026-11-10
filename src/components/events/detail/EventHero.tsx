@@ -1,94 +1,125 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import { gsap } from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
-import { Badge } from "@/components/ui/badge"
-import { SplitTextReveal } from "@/components/motion/SplitTextReveal"
-import { statusConfig, type EventData } from "./types"
+import { Calendar, MapPin, Monitor } from "lucide-react"
+import { Pill } from "@/components/ui/pill"
+import { statusLabel } from "@/lib/status-tone"
+import { formatInZone } from "@/lib/event-time"
+import { useEventZoneNote } from "@/hooks/useViewerTimeZone"
+import { eventStatus, fmtDay, fmtShort, fmtTime, type EventData } from "./types"
 
+/**
+ * The top of the event page: the cover (or a quiet date plate when there is
+ * no photo), then organiser · category, the title and the two facts people
+ * look for first: when and where.
+ */
 export function EventHero({ event }: { event: EventData }) {
-  const status = statusConfig[event.status] || statusConfig.PUBLISHED
-  const rootRef = useRef<HTMLDivElement>(null)
-  const imageRef = useRef<HTMLImageElement>(null)
-  const overlayRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
-    if (!rootRef.current) return
-
-    gsap.registerPlugin(ScrollTrigger)
-
-    const triggers: ScrollTrigger[] = []
-
-    // Cover image slowly scales and drifts upward as you scroll past the hero.
-    if (imageRef.current) {
-      const t = gsap.to(imageRef.current, {
-        scale: 1.15,
-        yPercent: -12,
-        ease: "none",
-        scrollTrigger: {
-          trigger: rootRef.current,
-          start: "top top",
-          end: "bottom top",
-          scrub: 0.5,
-        },
-      })
-      if (t.scrollTrigger) triggers.push(t.scrollTrigger)
-    }
-
-    // The dark overlay intensifies as the hero leaves the viewport, fading
-    // title/meta text so the next section transitions in cleanly.
-    if (overlayRef.current) {
-      const t = gsap.to(overlayRef.current, {
-        opacity: 1,
-        ease: "none",
-        scrollTrigger: {
-          trigger: rootRef.current,
-          start: "center top",
-          end: "bottom top",
-          scrub: 0.5,
-        },
-      })
-      if (t.scrollTrigger) triggers.push(t.scrollTrigger)
-    }
-
-    return () => { triggers.forEach((tr) => tr.kill()) }
-  }, [])
+  // The register API refuses sign-ups before registrationStartDate, so the date wins over a
+  // stored "registration open" status (they disagreed: pill said open, card said not open).
+  const opensLater =
+    event.status === "REGISTRATION_OPEN" &&
+    !!event.registrationStartDate &&
+    new Date(event.registrationStartDate) > new Date()
+  const status = opensLater
+    ? { label: `Registration opens ${fmtShort(event.registrationStartDate!, event.timezone)}`, tone: "info" as const, live: false }
+    : eventStatus(event.status)
+  // Dates and times on the event's clock; labelled when that isn't the viewer's.
+  const tz = event.timezone
+  const zoneNote = useEventZoneNote(tz, event.startDate)
+  const multiDay = fmtDay(event.startDate, tz) !== fmtDay(event.endDate, tz)
+  const region = [event.venueCity, event.venueState, event.venueCountry].filter(Boolean).join(", ")
+  const hybrid = event.type === "HYBRID"
+  const showVenue = !event.isOnline || hybrid
+  const showOnline = event.isOnline || hybrid
 
   return (
-    <div ref={rootRef} className="relative h-64 sm:h-80 lg:h-96 bg-linear-to-br from-primary/20 to-primary/5 overflow-hidden">
-      {event.coverImage && (
-        <img
-          ref={imageRef}
-          src={event.coverImage}
-          alt={event.title}
-          className="w-full h-full object-cover absolute inset-0 will-change-transform"
-        />
-      )}
-      <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/30 to-transparent" />
-      <div
-        ref={overlayRef}
-        className="absolute inset-0 bg-black/30 opacity-0 pointer-events-none"
-        aria-hidden="true"
-      />
-      <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 lg:p-12">
-        <div className="container mx-auto">
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <Badge className={status.color}>{status.label}</Badge>
-            <Badge variant="secondary">{event.category}</Badge>
-            {event.isFeatured && <Badge className="bg-amber-500 text-white">Featured</Badge>}
-            {event.type !== "SINGLE" && <Badge variant="outline" className="border-white/30 text-white">{event.type.replace(/_/g, " ")}</Badge>}
-          </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
-            <SplitTextReveal as="span">{event.title}</SplitTextReveal>
-          </h1>
-          <p className="text-white/80 mt-2 max-w-2xl text-sm sm:text-base">{event.shortDescription}</p>
-          <div className="flex items-center gap-3 mt-3 text-white/70 text-sm">
-            <span>by {event.organization.name}</span>
-          </div>
+    <div>
+      {event.coverImage ? (
+        <div className="aspect-[16/9] overflow-hidden rounded-xl bg-raised">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={event.coverImage} alt={event.title} className="size-full object-cover" />
         </div>
+      ) : (
+        <div
+          aria-hidden
+          className="flex aspect-[2/1] flex-col items-center justify-center rounded-xl border border-rule bg-raised leading-none sm:aspect-[5/2]"
+        >
+          <span className="text-[13px] text-muted-foreground">{formatInZone(event.startDate, tz, { weekday: "long" })}</span>
+          <span className="mt-2 text-[56px] font-semibold tracking-[-0.03em] tabular-nums sm:text-[64px]">{formatInZone(event.startDate, tz, { day: "numeric" })}</span>
+          <span className="mt-2 text-sm text-muted-foreground">{formatInZone(event.startDate, tz, { month: "long", year: "numeric" })}</span>
+        </div>
+      )}
+
+      <div className="mt-6">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-[13px] text-muted-foreground">
+          <span>{event.organization.name}</span>
+          {event.category && (
+            <>
+              <span aria-hidden>·</span>
+              <span>{event.category}</span>
+            </>
+          )}
+          {event.type && event.type !== "SINGLE" && (
+            <>
+              <span aria-hidden>·</span>
+              <span>{statusLabel(event.type)}</span>
+            </>
+          )}
+          <span className="flex flex-wrap items-center gap-1.5 sm:ml-1">
+            <Pill tone={status.tone} live={status.live}>{status.label}</Pill>
+            {event.isFeatured && <Pill tone="neutral">Featured</Pill>}
+          </span>
+        </div>
+
+        <h1 className="mt-3 text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[32px]">
+          {event.title}
+        </h1>
+        {event.shortDescription && (
+          <p className="mt-3 max-w-[62ch] text-[15px] leading-relaxed text-muted-foreground">{event.shortDescription}</p>
+        )}
+
+        <dl className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+          <div className="flex gap-3">
+            <dt className="mt-0.5 shrink-0 text-muted-foreground">
+              <Calendar className="size-4" aria-hidden />
+              <span className="sr-only">Date and time</span>
+            </dt>
+            <dd className="min-w-0 text-sm">
+              <p className="font-medium">{fmtDay(event.startDate, tz)}</p>
+              <p className="text-[13px] text-muted-foreground tabular-nums">
+                {fmtTime(event.startDate, tz)} &ndash; {fmtTime(event.endDate, tz)}
+              </p>
+              {multiDay && <p className="text-[13px] text-muted-foreground">to {fmtDay(event.endDate, tz)}</p>}
+              {zoneNote && <p className="text-[13px] text-muted-foreground">Times in {zoneNote}</p>}
+            </dd>
+          </div>
+          {/* A hybrid event happens in both places: show the venue and the online part. */}
+          {showVenue && (
+            <div className="flex gap-3">
+              <dt className="mt-0.5 shrink-0 text-muted-foreground">
+                <MapPin className="size-4" aria-hidden />
+                <span className="sr-only">Venue</span>
+              </dt>
+              <dd className="min-w-0 text-sm">
+                <p className="font-medium">{event.venue || "Venue TBA"}</p>
+                {event.venueAddress && <p className="text-[13px] text-muted-foreground">{event.venueAddress}</p>}
+                {region && <p className="text-[13px] text-muted-foreground">{region}</p>}
+                {hybrid && <p className="text-[13px] text-muted-foreground">In person</p>}
+              </dd>
+            </div>
+          )}
+          {showOnline && (
+            <div className="flex gap-3">
+              <dt className="mt-0.5 shrink-0 text-muted-foreground">
+                <Monitor className="size-4" aria-hidden />
+                <span className="sr-only">Where (online)</span>
+              </dt>
+              <dd className="min-w-0 text-sm">
+                <p className="font-medium">{event.onlinePlatform ? statusLabel(event.onlinePlatform) : hybrid ? "Join online" : "Online event"}</p>
+                <p className="text-[13px] text-muted-foreground">{hybrid ? "Online too: the link is shared after you register" : "Online"}</p>
+              </dd>
+            </div>
+          )}
+        </dl>
       </div>
     </div>
   )

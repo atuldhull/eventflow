@@ -1,14 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CheckCircle, X } from "lucide-react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { Check, Minus } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
+import { Container, PageIntro } from "@/components/marketing/layout"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
-  title: "Pricing | EventFlow",
+  title: "Pricing",
   description: "Simple, transparent pricing for event management. Start free, upgrade as you grow.",
 }
 
@@ -83,46 +81,66 @@ const plans = [
   },
 ]
 
+/** sentence case for the call-to-action labels kept in the plan data */
+const sentence = (s: string) => s.charAt(0) + s.slice(1).toLowerCase()
+
 export default function PricingPage() {
   return (
-    <div className="container mx-auto px-4 py-16 space-y-16">
-      <div className="text-center space-y-3">
-        <h1 className="text-4xl font-bold">Simple, Transparent Pricing</h1>
-        <p className="text-muted-foreground max-w-md mx-auto">Start free, upgrade as you grow. No hidden fees.</p>
-      </div>
+    <>
+      <PageIntro title="Simple, transparent pricing" description="Start free, upgrade as you grow. No hidden fees." />
 
-      <div className="grid gap-6 sm:grid-cols-3 max-w-5xl mx-auto pt-4">
-        {plans.map((plan) => (
-          <Card key={plan.name} className={cn("p-6 space-y-6 relative overflow-visible", plan.popular && "border-primary shadow-lg")}>
-            {plan.popular && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">Most Popular</Badge>}
-            <div>
-              <h3 className="text-lg font-semibold">{plan.name}</h3>
-              <p className="text-sm text-muted-foreground">{plan.description}</p>
-              <p className="text-3xl font-bold mt-2">{plan.price}<span className="text-sm font-normal text-muted-foreground">{plan.period}</span></p>
-              {plan.yearlyPrice && <p className="text-xs text-muted-foreground mt-1">{plan.yearlyPrice} — save 17%</p>}
-            </div>
-            <ul className="space-y-2.5">
-              {plan.features.map((f) => (
-                <li key={f.text} className="flex items-start gap-2 text-sm">
-                  {f.included ? (
-                    <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                  ) : (
-                    <X className="h-4 w-4 text-muted-foreground/40 mt-0.5 shrink-0" />
-                  )}
-                  <span className={cn(!f.included && "text-muted-foreground")}>{f.text}</span>
-                </li>
-              ))}
-            </ul>
-            <Link href={plan.href} className={cn(buttonVariants({ variant: plan.popular ? "default" : "outline" }), "w-full")}>
-              {plan.cta}
-            </Link>
-          </Card>
-        ))}
-      </div>
+      <Container className="py-12 sm:py-16">
+        {/* one row of plans; the recommended one is marked by an ink border, not colour */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          {plans.map((plan) => (
+            <section
+              key={plan.name}
+              aria-labelledby={`plan-${plan.name}`}
+              className={cn("flex flex-col rounded-lg border bg-card", plan.popular && "border-foreground ring-1 ring-foreground")}
+            >
+              <div className="border-b border-rule p-6">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 id={`plan-${plan.name}`} className="text-[17px] font-semibold">{plan.name}</h2>
+                  {plan.popular && <span className="text-[13px] text-muted-foreground">Most popular</span>}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
+                <p className="mt-6 flex items-baseline gap-1">
+                  <span className="text-[36px] leading-none font-semibold tracking-[-0.02em] tabular-nums">{plan.price}</span>
+                  {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
+                </p>
+                {/* the line is kept on every plan so the buttons align across the row */}
+                <p className="mt-2 h-5 text-[13px] text-muted-foreground tabular-nums">
+                  {plan.yearlyPrice && `or ${plan.yearlyPrice}, save 17%`}
+                </p>
+                <Link
+                  href={plan.href}
+                  className={cn(buttonVariants({ variant: plan.popular ? "default" : "outline", size: "lg" }), "mt-6 w-full")}
+                >
+                  {sentence(plan.cta)}
+                </Link>
+              </div>
 
-      <div className="text-center text-sm text-muted-foreground">
-        All plans include SSL security and free updates.
-      </div>
-    </div>
+              <ul className="flex-1 space-y-3 p-6 text-sm">
+                {plan.features.map((f) => (
+                  <li key={f.text} className="flex items-start gap-2.5">
+                    {f.included ? (
+                      <Check className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+                    ) : (
+                      <Minus className="mt-0.5 size-4 shrink-0 text-faint" aria-hidden />
+                    )}
+                    <span className={cn(!f.included && "text-muted-foreground")}>
+                      {f.text}
+                      {!f.included && <span className="sr-only"> (not included)</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+
+        <p className="mt-8 text-sm text-muted-foreground">All plans include SSL security and free updates.</p>
+      </Container>
+    </>
   )
 }

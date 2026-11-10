@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { z } from "zod/v4"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { createAuditLog, getClientInfo } from "@/lib/audit"
+import { csvResponse, toCsv } from "@/lib/csv-export"
 
-// Returns a CSV of all invoices for accounting/Tally import
+const DAY_MS = 24 * 60 * 60 * 1000
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+const querySchema = z.object({ dateFrom: isoDay.optional(), dateTo: isoDay.optional() })
+
+// Returns a CSV of the organization's invoices (completed payments) for accounting/Tally
+// import. `dateFrom` and `dateTo` are whole days (UTC), both included.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ orgId: string }> }
@@ -17,9 +25,16 @@ export async function GET(
   const authResult = await authorize(session.user.id, PERMISSIONS.PAYMENT_EXPORT, { organizationId: orgId })
   if (!authResult.authorized) return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
 
-  const sp = request.nextUrl.searchParams
-  const dateFrom = sp.get("dateFrom") ? new Date(sp.get("dateFrom")!) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  const dateTo = sp.get("dateTo") ? new Date(sp.get("dateTo")!) : new Date()
+  const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams))
+  if (!parsed.success) return NextResponse.json({ success: false, message: "Invalid date range" }, { status: 400 })
+
+  const toDay = parsed.data.dateTo ?? new Date().toISOString().slice(0, 10)
+  const fromDay = parsed.data.dateFrom ?? new Date(Date.parse(toDay) - 30 * DAY_MS).toISOString().slice(0, 10)
+  const dateFrom = new Date(`${fromDay}T00:00:00.000Z`)
+  const dateTo = new Date(`${toDay}T23:59:59.999Z`)
+  if (Number.isNaN(dateFrom.getTime()) || Number.isNaN(dateTo.getTime()) || dateFrom > dateTo) {
+    return NextResponse.json({ success: false, message: "Invalid date range" }, { status: 400 })
+  }
 
   const payments = await prisma.payment.findMany({
     where: {
@@ -28,6 +43,7 @@ export async function GET(
       registration: { event: { organizationId: orgId } },
     },
     orderBy: { paidAt: "asc" },
+    take: 10_000,
     select: {
       paymentNumber: true, amount: true, currency: true, taxAmount: true, discountAmount: true,
       method: true, gatewayPaymentId: true, paidAt: true,
@@ -43,8 +59,10 @@ export async function GET(
     const discount = Number(p.discountAmount || 0)
     const tax = Number(p.taxAmount || 0)
     const net = gross - discount + tax
+    // matches the number generateInvoiceData (src/lib/invoice.ts) prints on the invoice
+    const year = new Date().getFullYear()
     return [
-      `INV-${new Date().getFullYear()}-${(p.paymentNumber || "").replace("PAY-", "")}`,
+      `INV-${year}-${(p.paymentNumber || "").replace("PAY-", "")}`,
       p.paidAt ? p.paidAt.toISOString().split("T")[0] : "",
       p.user?.name || "",
       p.user?.email || "",
@@ -60,12 +78,17 @@ export async function GET(
     ]
   })
 
-  const csv = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n")
-
-  return new NextResponse(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="invoices-${dateFrom.toISOString().split("T")[0]}-to-${dateTo.toISOString().split("T")[0]}.csv"`,
-    },
+  const { ipAddress, userAgent } = getClientInfo(request)
+  await createAuditLog({
+    userId: session.user.id,
+    action: "EXPORT",
+    entityType: "PAYMENT",
+    entityId: orgId,
+    description: `Exported ${payments.length} invoices for ${fromDay} to ${toDay}`,
+    ipAddress,
+    userAgent,
+    organizationId: orgId,
   })
+
+  return csvResponse(`invoices-${fromDay}-to-${toDay}.csv`, toCsv(headers, rows))
 }

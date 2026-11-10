@@ -28,32 +28,41 @@ export function useRBAC() {
   const initialize = useAuthStore((s) => s.initialize)
   const setCurrentEnterprise = useAuthStore((s) => s.setCurrentEnterprise)
   const setCurrentOrganization = useAuthStore((s) => s.setCurrentOrganization)
+  const enterpriseRole = useAuthStore((s) => s.enterpriseRole)
+  const organizationRole = useAuthStore((s) => s.organizationRole)
+  const isEnterpriseOwner = useAuthStore((s) => s.isEnterpriseOwner)
 
+  // The GLOBAL role (User.role). Only the platform area means anything by it: inside an
+  // enterprise or organization use enterpriseRole / organizationRole, the role held there.
   const role = (session?.user?.role || "USER") as Role
   const userId = session?.user?.id
 
   const fetchPermissions = useCallback(async () => {
     if (status !== "authenticated" || !userId) return
 
+    const params = new URLSearchParams()
+    if (currentEnterpriseId) params.set("enterpriseId", currentEnterpriseId)
+    if (currentOrganizationId) params.set("organizationId", currentOrganizationId)
+
     try {
-      const params = new URLSearchParams()
-      if (currentEnterpriseId) params.set("enterpriseId", currentEnterpriseId)
-      if (currentOrganizationId) params.set("organizationId", currentOrganizationId)
-
       const res = await fetch(`/api/auth/permissions?${params.toString()}`)
-      if (!res.ok) return
+      const data = res.ok ? await res.json() : null
 
-      const data = await res.json()
-
+      // A failed lookup still finishes loading (with no access), so pages show their
+      // "no access" state instead of an endless skeleton
       initialize({
-        permissions: data.permissions || [],
-        enterprises: data.accessibleEnterprises || [],
-        organizations: data.accessibleOrganizations || [],
+        permissions: data?.permissions || [],
+        enterprises: data?.accessibleEnterprises || [],
+        organizations: data?.accessibleOrganizations || [],
         currentEnterpriseId,
         currentOrganizationId,
+        enterpriseRole: data?.enterpriseRole ?? null,
+        organizationRole: data?.organizationRole ?? null,
+        isEnterpriseOwner: !!data?.isEnterpriseOwner,
       })
     } catch (error) {
       console.error("Failed to fetch permissions:", error)
+      initialize({ permissions: [], enterprises: [], organizations: [], currentEnterpriseId, currentOrganizationId })
     }
   }, [status, userId, currentEnterpriseId, currentOrganizationId, initialize])
 
@@ -88,13 +97,23 @@ export function useRBAC() {
     currentOrganizationId,
     accessibleEnterprises,
     accessibleOrganizations,
+    /** the role held in the current enterprise (null: no access there) */
+    enterpriseRole,
+    /** the role held in the current organization, directly or through its enterprise */
+    organizationRole,
+    /** whether the user owns the current enterprise (may add co-admins, transfer ownership) */
+    isEnterpriseOwner,
     isAdmin: isAdminRole(role),
     isSuperAdmin: role === "SUPER_ADMIN",
     isLoading: status === "loading" || !isInitialized,
     can: (permission: Permission) => hasPermission(permissions, permission),
     canAny: (perms: Permission[]) => hasAnyPermission(permissions, perms),
     canAll: (perms: Permission[]) => hasAllPermissions(permissions, perms),
-    canManageRole: (targetRole: Role) => canManageRole(role, targetRole),
+    // rank checks use the role held in the current workspace, as the server does
+    canManageRole: (targetRole: Role) => {
+      const actor = role === "SUPER_ADMIN" ? role : (organizationRole ?? enterpriseRole)
+      return !!actor && canManageRole(actor, targetRole)
+    },
     setEnterpriseContext,
     setOrganizationContext,
     refreshPermissions: fetchPermissions,

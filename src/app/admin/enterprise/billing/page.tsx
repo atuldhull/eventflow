@@ -1,21 +1,31 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CreditCard, Zap, AlertTriangle, CheckCircle, Clock, Download, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { AlertTriangle, Check, Loader2, Minus } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { Card } from "@/components/ui/card"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PLANS, ALL_PLAN_IDS, type PlanId, formatLimit, isUnlimited, getYearlySavings } from "@/config/plans"
+import { Pill } from "@/components/ui/pill"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { PLANS, ALL_PLAN_IDS, type PlanId, formatLimit, isUnlimited } from "@/config/plans"
 import { useRBAC } from "@/hooks/useRBAC"
+import { purchasePlan } from "@/lib/razorpay-checkout"
+import { statusLabel, statusTone } from "@/lib/status-tone"
 import { cn } from "@/lib/utils"
+import { inr } from "../_components/admin-ui"
 
-interface UsageItem { used: number; limit: number; percentage: number; remaining: number }
+interface UsageItem { used: number; limit: number; percentage: number; remaining: number; resetsOn?: string }
 interface BillingData {
   subscription: { plan: string; status: string; interval: string; price: number; currentPeriodEnd: string; trialEndsAt: string | null; cancelledAt: string | null }
   usage: Record<string, UsageItem>
@@ -24,19 +34,20 @@ interface BillingData {
   planDetails: { name: string; description: string }
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  ACTIVE: { label: "Active", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400", icon: CheckCircle },
-  TRIAL: { label: "Trial", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", icon: Clock },
-  PAST_DUE: { label: "Past Due", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400", icon: AlertTriangle },
-  CANCELLED: { label: "Cancelled", color: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300", icon: AlertTriangle },
+const usageLabels: Record<string, string> = {
+  eventsThisMonth: "Events this month",
+  organizations: "Organizations",
+  teamMembers: "Team members",
+  certificateTemplates: "Certificate templates",
+  webhooks: "Webhooks",
 }
 
-const usageLabels: Record<string, string> = {
-  eventsThisMonth: "Events This Month",
-  organizations: "Organizations",
-  teamMembers: "Team Members",
-  certificateTemplates: "Certificate Templates",
-  webhooks: "Webhooks",
+/** Subscription statuses use the shared tones; a trial reads as information. */
+const subscriptionTone = (status: string) => statusTone(status === "TRIAL" ? "trialing" : status)
+
+function featureLabel(key: string) {
+  const words = key.replace(/([A-Z])/g, " $1").trim().toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 export default function EnterpriseBillingPage() {
@@ -45,6 +56,8 @@ export default function EnterpriseBillingPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showPlans, setShowPlans] = useState(false)
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly")
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
 
   useEffect(() => {
     if (!currentEnterpriseId) return
@@ -61,19 +74,21 @@ export default function EnterpriseBillingPage() {
   const handleUpgrade = async (plan: PlanId) => {
     if (!currentEnterpriseId) return
     try {
-      const res = await fetch("/api/admin/billing/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, billingInterval, entityType: "enterprise", entityId: currentEnterpriseId }),
+      // Paid plans open Razorpay Checkout and are activated only after server-side verification.
+      const result = await purchasePlan({
+        plan,
+        billingInterval: billingInterval === "yearly" ? "YEARLY" : "MONTHLY",
+        entityType: "enterprise",
+        entityId: currentEnterpriseId,
       })
-      const data = await res.json()
-      if (data.success) { toast.success("Plan updated!"); window.location.reload() }
-      else toast.error(data.message)
+      if (result.success) { toast.success(result.message); window.location.reload() }
+      else if (!result.cancelled) toast.error(result.message)
     } catch { toast.error("Failed to change plan") }
   }
 
   const handleCancel = async () => {
     if (!currentEnterpriseId) return
+    setIsCancelling(true)
     try {
       const res = await fetch("/api/admin/billing/cancel", {
         method: "POST",
@@ -83,163 +98,246 @@ export default function EnterpriseBillingPage() {
       const data = await res.json()
       if (data.success) { toast.success(data.message); window.location.reload() }
       else toast.error(data.message)
-    } catch { toast.error("Failed to cancel") }
+    } catch { toast.error("Failed to cancel") } finally { setIsCancelling(false) }
   }
 
-  if (isLoading) return <div className="flex justify-center py-16"><div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" /></div>
+  if (isLoading) {
+    return (
+      <div className="space-y-6" aria-busy="true" aria-label="Loading billing">
+        <div className="space-y-2"><Skeleton className="h-7 w-40" /><Skeleton className="h-4 w-64" /></div>
+        <Card className="p-5"><Skeleton className="h-5 w-32" /><Skeleton className="mt-3 h-8 w-28" /><Skeleton className="mt-3 h-4 w-48" /></Card>
+        <Card className="p-5"><Skeleton className="h-4 w-24" /><div className="mt-4 grid gap-5 sm:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10" />)}</div></Card>
+      </div>
+    )
+  }
 
   const currentPlan = (billing?.subscription?.plan || "FREE") as PlanId
-  const status = statusConfig[billing?.subscription?.status || "ACTIVE"] || statusConfig.ACTIVE
-  const StatusIcon = status.icon
+  const subStatus = billing?.subscription?.status || "ACTIVE"
+  const canCancel = currentPlan !== "FREE" && !billing?.subscription?.cancelledAt
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Billing & Subscription"
-        description="Manage your plan and payments"
-        breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Enterprise", href: "/admin/enterprise" }, { label: "Billing" }]}
-      />
+      <PageHeader title="Billing" description="Your plan, usage and payments" />
 
       {/* Alerts */}
       {billing?.alerts && billing.alerts.length > 0 && (
-        <div className="space-y-2">
+        <ul className="space-y-2">
           {billing.alerts.map((alert) => (
-            <div key={alert.limit} className={cn("rounded-lg p-3 text-sm flex items-center gap-2",
-              alert.severity === "critical" ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400" :
-              alert.severity === "danger" ? "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400" :
-              "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
-            )}>
-              <AlertTriangle className="h-4 w-4 shrink-0" />
+            <li
+              key={alert.limit}
+              role="status"
+              className={cn(
+                "flex items-start gap-2.5 rounded-lg px-4 py-3 text-sm",
+                alert.severity === "critical" ? "bg-pill-negative text-pill-negative-foreground" : "bg-pill-warning text-pill-warning-foreground",
+              )}
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
               <span>{alert.message}</span>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
-      {/* Current Plan */}
-      <Card className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <h3 className="text-xl font-bold">{PLANS[currentPlan].name} Plan</h3>
-              <Badge variant="secondary" className={status.color}><StatusIcon className="h-3 w-3 mr-1" />{status.label}</Badge>
+      {/* Current plan */}
+      <Card className="gap-0 p-0">
+        <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-semibold">{PLANS[currentPlan].name} plan</h2>
+              <Pill tone={subscriptionTone(subStatus)}>{statusLabel(subStatus)}</Pill>
             </div>
             <p className="text-sm text-muted-foreground">{PLANS[currentPlan].description}</p>
             {billing?.subscription?.price !== undefined && (
-              <p className="text-2xl font-bold">
-                ₹{billing.subscription.price.toLocaleString("en-IN")}
-                <span className="text-sm font-normal text-muted-foreground">/{billing.subscription.interval?.toLowerCase() === "yearly" ? "year" : "month"}</span>
+              <p className="pt-2 text-[28px] leading-8 tracking-[-0.02em] tabular-nums">
+                {inr(billing.subscription.price)}
+                <span className="ml-1 text-sm tracking-normal text-muted-foreground">
+                  /{billing.subscription.interval?.toLowerCase() === "yearly" ? "year" : "month"}
+                </span>
               </p>
             )}
             {billing?.subscription?.currentPeriodEnd && (
-              <p className="text-xs text-muted-foreground">
-                Next billing: {new Date(billing.subscription.currentPeriodEnd).toLocaleDateString("en-IN")}
+              <p className="text-[13px] text-muted-foreground tabular-nums">
+                Next billing on {new Date(billing.subscription.currentPeriodEnd).toLocaleDateString("en-IN")}
               </p>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowPlans(!showPlans)}>
-              {showPlans ? "Hide Plans" : "Change Plan"}
-            </Button>
-            {currentPlan !== "FREE" && !billing?.subscription?.cancelledAt && (
-              <Button variant="ghost" className="text-destructive" onClick={handleCancel}>Cancel</Button>
+          <div className="flex flex-wrap gap-2 max-sm:[&>*]:flex-1">
+            {canCancel && (
+              <Button variant="ghost" className="text-destructive hover:bg-pill-negative hover:text-destructive" onClick={() => setConfirmCancel(true)}>
+                Cancel plan
+              </Button>
             )}
+            <Button variant="outline" aria-expanded={showPlans} aria-controls="plan-picker" onClick={() => setShowPlans(!showPlans)}>
+              {showPlans ? "Hide plans" : "Change plan"}
+            </Button>
           </div>
         </div>
-      </Card>
 
-      {/* Plan Selection */}
-      {showPlans && (
-        <Card className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Choose a Plan</h3>
-            <div className="flex items-center gap-2 text-sm">
-              <button onClick={() => setBillingInterval("monthly")} className={cn("px-3 py-1 rounded-md", billingInterval === "monthly" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Monthly</button>
-              <button onClick={() => setBillingInterval("yearly")} className={cn("px-3 py-1 rounded-md", billingInterval === "yearly" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Yearly <span className="text-xs">(Save 17%)</span></button>
+        {/* Plan selection */}
+        {showPlans && (
+          <div id="plan-picker" className="border-t border-rule p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-[15px] font-semibold">Choose a plan</h3>
+              <div role="group" aria-label="Billing interval" className="inline-flex w-fit rounded-md border bg-raised p-0.5 text-[13px]">
+                {(["monthly", "yearly"] as const).map((interval) => (
+                  <button
+                    key={interval}
+                    type="button"
+                    aria-pressed={billingInterval === interval}
+                    onClick={() => setBillingInterval(interval)}
+                    className={cn(
+                      "h-8 rounded-[5px] px-3 font-medium transition-colors pointer-coarse:h-10",
+                      billingInterval === interval ? "bg-background text-foreground shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {interval === "monthly" ? "Monthly" : <>Yearly <span className="font-normal text-brand">save 17%</span></>}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-4">
-            {ALL_PLAN_IDS.map((planId) => {
-              const plan = PLANS[planId]
-              const isCurrent = planId === currentPlan
-              const price = plan.price[billingInterval]
-              return (
-                <Card key={planId} className={cn("p-4 space-y-3 relative overflow-visible", isCurrent && "border-primary", plan.isPopular && "shadow-md")}>
-                  {plan.badge && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] z-10">{plan.badge}</Badge>}
-                  <div>
-                    <p className="font-semibold">{plan.name}</p>
-                    <p className="text-xl font-bold mt-1">
-                      {price ? `₹${price.toLocaleString("en-IN")}` : "Custom"}
-                      {price ? <span className="text-xs font-normal text-muted-foreground">/{billingInterval === "yearly" ? "yr" : "mo"}</span> : null}
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {ALL_PLAN_IDS.map((planId) => {
+                const plan = PLANS[planId]
+                const isCurrent = planId === currentPlan
+                const price = plan.price[billingInterval]
+                const isUpgrade = ALL_PLAN_IDS.indexOf(planId) > ALL_PLAN_IDS.indexOf(currentPlan)
+                return (
+                  <div
+                    key={planId}
+                    className={cn(
+                      "flex flex-col rounded-lg border p-4",
+                      isCurrent && "border-brand ring-1 ring-brand",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold">{plan.name}</p>
+                      {isCurrent ? <Pill tone="brand">Current</Pill> : plan.badge ? <Pill>{plan.badge}</Pill> : null}
+                    </div>
+                    <p className="mt-2 text-[22px] leading-7 tracking-[-0.015em] tabular-nums">
+                      {price ? inr(price) : "Custom"}
+                      {price ? <span className="ml-0.5 text-[13px] tracking-normal text-muted-foreground">/{billingInterval === "yearly" ? "yr" : "mo"}</span> : null}
                     </p>
+                    <ul className="mt-3 mb-4 space-y-1.5 text-[13px] text-muted-foreground tabular-nums">
+                      <li>{formatLimit(plan.limits.maxEventsPerMonth)} events/mo</li>
+                      <li>{formatLimit(plan.limits.maxParticipantsPerEvent)} participants/event</li>
+                      <li>{formatLimit(plan.limits.maxOrganizations)} organizations</li>
+                      <li>{formatLimit(plan.limits.maxTeamMembers)} team members</li>
+                    </ul>
+                    <div className="mt-auto">
+                      {isCurrent ? (
+                        <Button variant="outline" disabled className="w-full">Current plan</Button>
+                      ) : planId === "ENTERPRISE" ? (
+                        <Link href="/contact" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>Contact sales</Link>
+                      ) : (
+                        <Button
+                          variant={isUpgrade && plan.isPopular ? "default" : "outline"}
+                          onClick={() => handleUpgrade(planId)}
+                          className="w-full"
+                        >
+                          {isUpgrade ? "Upgrade" : "Downgrade"}
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <ul className="space-y-1 text-xs text-muted-foreground">
-                    <li>{formatLimit(plan.limits.maxEventsPerMonth)} events/mo</li>
-                    <li>{formatLimit(plan.limits.maxParticipantsPerEvent)} participants/event</li>
-                    <li>{formatLimit(plan.limits.maxOrganizations)} organizations</li>
-                    <li>{formatLimit(plan.limits.maxTeamMembers)} team members</li>
-                  </ul>
-                  {isCurrent ? (
-                    <Button variant="outline" disabled className="w-full text-xs">Current Plan</Button>
-                  ) : planId === "ENTERPRISE" ? (
-                    <Link href="/contact" className={cn(buttonVariants({ variant: "outline" }), "w-full text-xs")}>Contact Sales</Link>
-                  ) : (
-                    <Button onClick={() => handleUpgrade(planId)} className="w-full text-xs">
-                      {ALL_PLAN_IDS.indexOf(planId) > ALL_PLAN_IDS.indexOf(currentPlan) ? "Upgrade" : "Downgrade"}
-                    </Button>
-                  )}
-                </Card>
-              )
-            })}
-          </div>
-        </Card>
-      )}
-
-      {/* Usage Dashboard */}
-      <Card className="p-6 space-y-4">
-        <h3 className="font-semibold">Usage</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {billing?.usage && Object.entries(billing.usage).map(([key, item]) => (
-            <div key={key} className="space-y-1.5">
-              <div className="flex justify-between text-sm">
-                <span>{usageLabels[key] || key}</span>
-                <span className="text-muted-foreground">
-                  {item.used} / {isUnlimited(item.limit) ? "∞" : item.limit}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                <div
-                  className={cn("h-full rounded-full transition-all",
-                    item.percentage >= 90 ? "bg-red-500" : item.percentage >= 70 ? "bg-amber-500" : "bg-green-500"
-                  )}
-                  style={{ width: `${Math.min(item.percentage, 100)}%` }}
-                />
-              </div>
+                )
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </Card>
+
+      {/* Usage */}
+      <section aria-labelledby="usage-heading">
+        <h2 id="usage-heading" className="mb-2 text-[15px] font-semibold">Usage</h2>
+        <Card className="gap-0 p-0">
+          {billing?.usage && Object.keys(billing.usage).length > 0 ? (
+            <ul className="grid gap-x-10 gap-y-5 p-5 sm:grid-cols-2 lg:grid-cols-3">
+              {Object.entries(billing.usage).map(([key, item]) => {
+                const label = usageLabels[key] || key
+                return (
+                  <li key={key} className="space-y-2">
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span>{label}</span>
+                      <span className="text-muted-foreground tabular-nums">
+                        <span className="text-foreground">{item.used}</span> / {isUnlimited(item.limit) ? "∞" : item.limit}
+                      </span>
+                    </div>
+                    <div
+                      className="h-1.5 overflow-hidden rounded-full bg-muted"
+                      role="progressbar"
+                      aria-label={label}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.min(item.percentage, 100)}
+                    >
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-[width]",
+                          item.percentage >= 90 ? "bg-destructive" : item.percentage >= 70 ? "bg-warning" : "bg-brand",
+                        )}
+                        style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                      />
+                    </div>
+                    {item.resetsOn && (
+                      <p className="text-xs text-muted-foreground">
+                        Resets on {item.resetsOn}. Cancelled and deleted events don&apos;t count.
+                      </p>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <p className="px-5 py-6 text-sm text-muted-foreground">No usage recorded yet.</p>
+          )}
+        </Card>
+      </section>
 
       {/* Features */}
-      <Card className="p-6 space-y-4">
-        <h3 className="font-semibold">Features</h3>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {billing?.features && Object.entries(billing.features).map(([feature, enabled]) => (
-            <div key={feature} className="flex items-center gap-2 text-sm">
-              {enabled ? <CheckCircle className="h-4 w-4 text-green-500" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />}
-              <span className={cn(!enabled && "text-muted-foreground")}>{feature.replace(/([A-Z])/g, " $1").trim()}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <section aria-labelledby="features-heading">
+        <h2 id="features-heading" className="mb-2 text-[15px] font-semibold">Included features</h2>
+        <Card className="p-5">
+          <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {billing?.features && Object.entries(billing.features).map(([feature, enabled]) => (
+              <li key={feature} className="flex items-center gap-2 text-sm">
+                {enabled ? (
+                  <Check className="size-4 shrink-0 text-brand" aria-label="Included" />
+                ) : (
+                  <Minus className="size-4 shrink-0 text-faint" aria-label="Not included" />
+                )}
+                <span className={cn(!enabled && "text-muted-foreground")}>{featureLabel(feature)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </section>
 
-      {/* Billing History */}
-      <Card className="p-6">
-        <h3 className="font-semibold mb-4">Billing History</h3>
-        <p className="text-sm text-muted-foreground text-center py-8">
+      {/* Billing history */}
+      <section aria-labelledby="history-heading">
+        <h2 id="history-heading" className="mb-2 text-[15px] font-semibold">Billing history</h2>
+        <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
           {currentPlan === "FREE" ? "No billing history on the Free plan." : "Invoices will appear here after your first payment."}
         </p>
-      </Card>
+      </section>
+
+      <Dialog open={confirmCancel} onOpenChange={(open) => !open && !isCancelling && setConfirmCancel(false)}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Cancel the {PLANS[currentPlan].name} plan?</DialogTitle>
+            <DialogDescription>
+              Your enterprise keeps its current features until the end of the billing period.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmCancel(false)} disabled={isCancelling}>Keep plan</Button>
+            <Button variant="destructive" onClick={handleCancel} disabled={isCancelling}>
+              {isCancelling && <Loader2 className="animate-spin" />}
+              Cancel plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

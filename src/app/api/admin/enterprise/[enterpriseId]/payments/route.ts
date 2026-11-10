@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { cleanSearch, enterprisePaymentWhere, parsePaging } from "@/lib/enterprise-admin"
+import { revenueTotals } from "@/lib/revenue"
 
 export async function GET(
   request: NextRequest,
@@ -17,23 +19,24 @@ export async function GET(
   if (!authResult.authorized) return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
 
   const sp = request.nextUrl.searchParams
-  const page = parseInt(sp.get("page") || "1")
-  const limit = parseInt(sp.get("limit") || "20")
+  const { page, limit, skip } = parsePaging(sp, 20)
+  const search = cleanSearch(sp.get("search"))
 
-  const paymentWhere: any = { registration: { event: { deletedAt: null, OR: [{ enterpriseId }, { organization: { enterpriseId } }] } } }
+  // KPIs describe the whole enterprise; only the list narrows with the search.
+  const scope = enterprisePaymentWhere(enterpriseId)
+  const where = enterprisePaymentWhere(enterpriseId, search)
 
-  const [payments, total, revenue, refunds, pending] = await Promise.all([
-    prisma.payment.findMany({ where: paymentWhere, orderBy: { createdAt: "desc" }, skip: (page - 1) * limit, take: limit, select: { id: true, paymentNumber: true, amount: true, status: true, method: true, createdAt: true, user: { select: { name: true } }, registration: { select: { event: { select: { title: true, organization: { select: { name: true } } } } } } } }),
-    prisma.payment.count({ where: paymentWhere }),
-    prisma.payment.aggregate({ where: { ...paymentWhere, status: "COMPLETED" }, _sum: { amount: true } }),
-    prisma.payment.aggregate({ where: { ...paymentWhere, status: "REFUNDED" }, _sum: { amount: true } }),
-    prisma.payment.count({ where: { ...paymentWhere, status: "PENDING" } }),
+  const [payments, total, revenue, pending] = await Promise.all([
+    prisma.payment.findMany({ where, orderBy: { createdAt: "desc" }, skip, take: limit, select: { id: true, paymentNumber: true, amount: true, status: true, method: true, createdAt: true, user: { select: { name: true } }, registration: { select: { event: { select: { title: true, organization: { select: { name: true } } } } } } } }),
+    prisma.payment.count({ where }),
+    revenueTotals(scope),
+    prisma.payment.count({ where: { ...scope, status: "PENDING" } }),
   ])
 
   return NextResponse.json({
     success: true,
     data: payments.map((p) => ({ id: p.id, paymentNumber: p.paymentNumber || p.id.slice(0, 8), participantName: p.user?.name || "—", eventTitle: p.registration?.event?.title || "—", organization: p.registration?.event?.organization?.name || "Direct", amount: Number(p.amount), status: p.status, method: p.method || "—", createdAt: p.createdAt.toISOString() })),
-    stats: { totalRevenue: Number(revenue._sum.amount || 0), refunds: Number(refunds._sum.amount || 0), pending },
+    stats: { totalRevenue: revenue.gross, refunds: revenue.refunds, pending },
     pagination: { page, pageSize: limit, total, totalPages: Math.ceil(total / limit) },
   })
 }

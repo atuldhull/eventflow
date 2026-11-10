@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma"
+import { COLLECTED_PAYMENT_STATUSES } from "@/lib/revenue"
 
 export async function getEventFunnel(eventId: string) {
   const [registrations, confirmed, checkedIn, feedbacks] = await Promise.all([
@@ -47,7 +48,7 @@ export async function getEventAnalytics(eventId: string, dateFrom?: Date, dateTo
       take: 5,
     }),
     prisma.payment.findMany({
-      where: { eventId, status: "COMPLETED" },
+      where: { eventId, status: { in: [...COLLECTED_PAYMENT_STATUSES] } },
       select: { amount: true, createdAt: true, method: true, discountAmount: true, refundAmount: true },
     }),
     prisma.checkIn.findMany({
@@ -88,7 +89,7 @@ export async function getEventAnalytics(eventId: string, dateFrom?: Date, dateTo
       uniqueViews: 0,
       registrations: totalRegistrations,
       confirmed: confirmedCount,
-      revenue: totalRevenue,
+      revenue: totalRevenue - totalRefunds,
       checkIns: checkedInCount,
       attendanceRate: confirmedCount > 0 ? Math.round((checkedInCount / confirmedCount) * 100) : 0,
       avgRating: Math.round(avgRating * 10) / 10,
@@ -156,16 +157,17 @@ export async function getOrgAnalytics(orgId: string, dateFrom: Date, dateTo: Dat
     prisma.event.count({ where: { ...eventFilter, ...dateFilter } }),
     prisma.registration.count({ where: { event: eventFilter, ...dateFilter } }),
     prisma.payment.aggregate({
-      where: { event: eventFilter, status: "COMPLETED", ...dateFilter },
-      _sum: { amount: true },
+      where: { event: eventFilter, status: { in: [...COLLECTED_PAYMENT_STATUSES] }, ...dateFilter },
+      _sum: { amount: true, refundAmount: true },
     }),
     prisma.checkIn.count({ where: { event: eventFilter, ...dateFilter } }),
     prisma.feedback.aggregate({ where: { event: eventFilter }, _avg: { rating: true }, _count: true }),
     prisma.event.findMany({
       where: { ...eventFilter, ...dateFilter },
       select: {
-        id: true, title: true, startDate: true, maxCapacity: true, currentRegistrations: true,
-        _count: { select: { registrations: true, checkIns: true, feedbacks: true } },
+        id: true, title: true, startDate: true, maxCapacity: true, currentRegistrations: true, status: true, category: true,
+        // registrations = the ones that can attend (same base as the event analytics attendanceRate)
+        _count: { select: { registrations: { where: { status: { in: ["CONFIRMED", "CHECKED_IN"] } } }, checkIns: true, feedbacks: true } },
       },
       orderBy: { startDate: "desc" },
     }),
@@ -176,6 +178,27 @@ export async function getOrgAnalytics(orgId: string, dateFrom: Date, dateTo: Dat
   })
 
   const attendanceRate = confirmedRegs > 0 ? Math.round((totalCheckIns / confirmedRegs) * 100) : 0
+
+  // Per-event revenue (same COMPLETED + date window as the overview total) for the performance table.
+  const revenueByEvent = new Map<string, number>()
+  if (events.length > 0) {
+    const sums = await prisma.payment.groupBy({
+      by: ["eventId"],
+      where: { eventId: { in: events.map((e) => e.id) }, status: { in: [...COLLECTED_PAYMENT_STATUSES] }, ...dateFilter },
+      _sum: { amount: true, refundAmount: true },
+    })
+    for (const row of sums) if (row.eventId) revenueByEvent.set(row.eventId, Number(row._sum.amount || 0) - Number(row._sum.refundAmount || 0))
+  }
+
+  const categories = new Map<string, { category: string; events: number; registrations: number }>()
+  for (const e of events) {
+    const key = e.category || "Other"
+    const c = categories.get(key) ?? { category: key, events: 0, registrations: 0 }
+    c.events += 1
+    c.registrations += e.currentRegistrations
+    categories.set(key, c)
+  }
+  const categoryBreakdown = [...categories.values()].sort((a, b) => b.registrations - a.registrations)
 
   const eventPerformance = events.map((e) => {
     const capacityPct = e.maxCapacity ? Math.round((e.currentRegistrations / e.maxCapacity) * 100) : 0
@@ -192,6 +215,9 @@ export async function getOrgAnalytics(orgId: string, dateFrom: Date, dateTo: Dat
       attendance,
       rating: feedbacks._avg?.rating || 0,
       score: Math.min(100, score),
+      checkIns: e._count.checkIns,
+      revenue: revenueByEvent.get(e.id) ?? 0,
+      status: e.status,
     }
   })
 
@@ -199,12 +225,14 @@ export async function getOrgAnalytics(orgId: string, dateFrom: Date, dateTo: Dat
     overview: {
       totalEvents,
       totalRegistrations,
-      totalRevenue: Number(totalRevenue._sum?.amount || 0),
+      // money kept: collected minus refunds
+      totalRevenue: Number(totalRevenue._sum?.amount || 0) - Number(totalRevenue._sum?.refundAmount || 0),
       attendanceRate,
       avgRating: Math.round((feedbacks._avg?.rating || 0) * 10) / 10,
       feedbackCount: feedbacks._count,
     },
     eventPerformance,
+    categoryBreakdown,
   }
 }
 

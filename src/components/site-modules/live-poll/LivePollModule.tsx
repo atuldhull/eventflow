@@ -32,7 +32,15 @@ export function LivePollModule({ config, orgSlug, isPreview }: ModuleProps) {
     if (voted[pollId] !== undefined && !config.allowMultipleVotes) return
     setVoted((v) => ({ ...v, [pollId]: optionIndex }))
     if (!isPreview) {
-      try { await fetch(`/api/modules/live-poll/polls/${pollId}/vote`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ optionIndex }) }) }
+      try {
+        const res = await fetch(`/api/modules/live-poll/polls/${pollId}/vote`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ optionIndex }) })
+        const json = await res.json().catch(() => null)
+        if (!res.ok || !json?.success) {
+          // 409 = this voter already voted on the poll; anything else means the vote was not counted.
+          toast.error(json?.message || "Failed to vote")
+          if (res.status !== 409) setVoted((v) => { const next = { ...v }; delete next[pollId]; return next })
+        }
+      }
       catch { toast.error("Failed to vote") }
     }
   }

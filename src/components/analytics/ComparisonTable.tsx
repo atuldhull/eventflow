@@ -1,4 +1,3 @@
-import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ComparisonRow {
@@ -13,33 +12,36 @@ interface ComparisonTableProps {
   title?: string
 }
 
+/** This period against the last: figures right-aligned, the change as a signed percentage. */
 export function ComparisonTable({ rows, title }: ComparisonTableProps) {
   return (
-    <div>
-      {title && <h3 className="text-sm font-medium mb-3">{title}</h3>}
-      <div className="rounded-lg border overflow-hidden">
-        <table className="w-full text-sm">
+    <div className="min-w-0">
+      {title && <h3 className="mb-2 text-[15px] font-semibold">{title}</h3>}
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[420px] text-sm tabular-nums">
           <thead>
-            <tr className="bg-muted/50">
-              <th className="text-left px-4 py-2 font-medium">Metric</th>
-              <th className="text-right px-4 py-2 font-medium">Current</th>
-              <th className="text-right px-4 py-2 font-medium">Previous</th>
-              <th className="text-right px-4 py-2 font-medium">Change</th>
+            <tr className="border-b bg-raised text-xs text-muted-foreground">
+              <th scope="col" className="h-10 px-4 text-left font-medium">Metric</th>
+              <th scope="col" className="h-10 px-3 text-right font-medium">Current</th>
+              <th scope="col" className="h-10 px-3 text-right font-medium">Previous</th>
+              <th scope="col" className="h-10 px-4 text-right font-medium">Change</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-rule">
             {rows.map((row) => (
-              <tr key={row.metric} className="border-t">
-                <td className="px-4 py-2.5">{row.metric}</td>
-                <td className="px-4 py-2.5 text-right font-medium">{row.current}</td>
-                <td className="px-4 py-2.5 text-right text-muted-foreground">{row.previous}</td>
-                <td className="px-4 py-2.5 text-right">
-                  <span className={cn(
-                    "inline-flex items-center gap-0.5 text-xs font-medium",
-                    row.change > 0 ? "text-green-600" : row.change < 0 ? "text-red-600" : "text-muted-foreground"
-                  )}>
-                    {row.change > 0 ? <TrendingUp className="h-3 w-3" /> : row.change < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                    {row.change > 0 ? "+" : ""}{row.change}%
+              <tr key={row.metric}>
+                <td className="h-12 px-4">{row.metric}</td>
+                <td className="h-12 px-3 text-right font-medium">{row.current}</td>
+                <td className="h-12 px-3 text-right text-muted-foreground">{row.previous}</td>
+                <td className="h-12 px-4 text-right">
+                  <span
+                    className={cn(
+                      "text-[13px] font-medium",
+                      row.change > 0 ? "text-positive" : row.change < 0 ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {row.change > 0 ? "+" : row.change < 0 ? "−" : ""}
+                    {Math.abs(row.change)}%
                   </span>
                 </td>
               </tr>

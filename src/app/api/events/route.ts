@@ -1,51 +1,47 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import prisma from "@/lib/prisma"
+import {
+  PUBLIC_EVENT_CARD_SELECT,
+  buildPublicEventsWhere,
+  publicEventsOrderBy,
+  publicEventsQuerySchema,
+  serializeEventCard,
+} from "@/lib/public-events"
 
+/**
+ * The public event listing (/events, the landing page, tenant-site sections). Only
+ * PUBLIC events in a listed status appear; UNLISTED ones are reachable by link only.
+ */
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const page = parseInt(searchParams.get("page") || "1")
-  const limit = parseInt(searchParams.get("limit") || "12")
-  const search = searchParams.get("search") || ""
-  const category = searchParams.get("category") || ""
-  const pricing = searchParams.get("pricing") || ""
-
-  const where: Record<string, unknown> = {
-    deletedAt: null,
-    status: { in: ["PUBLISHED", "REGISTRATION_OPEN", "ONGOING", "COMPLETED"] },
-    visibility: { in: ["PUBLIC", "UNLISTED"] },
+  const parsed = publicEventsQuerySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams))
+  if (!parsed.success) {
+    return NextResponse.json(
+      { success: false, message: "Invalid query", errors: parsed.error.flatten().fieldErrors },
+      { status: 400 },
+    )
   }
 
-  if (search) {
-    where.OR = [
-      { title: { contains: search, mode: "insensitive" } },
-      { category: { contains: search, mode: "insensitive" } },
-      { tags: { has: search } },
-    ]
-  }
-  if (category && category !== "All") where.category = category
-  if (pricing === "free") where.isPaid = false
-  if (pricing === "paid") where.isPaid = true
+  const query = parsed.data
+  const page = query.page
+  // A month view (dateFrom/dateTo) wants the whole month, not the first 12
+  const limit = query.limit ?? (query.dateFrom || query.dateTo ? 50 : 12)
+  const where = buildPublicEventsWhere(query)
 
   const [events, total] = await Promise.all([
     prisma.event.findMany({
-      where: where as any,
-      orderBy: { startDate: "asc" },
+      where,
+      orderBy: publicEventsOrderBy(query),
       skip: (page - 1) * limit,
       take: limit,
-      select: {
-        id: true, title: true, slug: true, shortDescription: true, coverImage: true,
-        category: true, startDate: true, venue: true, venueCity: true, isOnline: true,
-        isPaid: true, currentRegistrations: true, maxCapacity: true, status: true, isFeatured: true,
-        organization: { select: { name: true } },
-      },
+      select: PUBLIC_EVENT_CARD_SELECT,
     }),
-    prisma.event.count({ where: where as any }),
+    prisma.event.count({ where }),
   ])
 
   return NextResponse.json({
     success: true,
-    data: events.map((e) => ({ ...e, startDate: e.startDate.toISOString() })),
+    data: events.map((e) => serializeEventCard(e)),
     pagination: { page, pageSize: limit, total, totalPages: Math.ceil(total / limit) },
   })
 }

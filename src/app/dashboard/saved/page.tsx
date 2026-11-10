@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Heart, Calendar, MapPin, Monitor, Loader2 } from "lucide-react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Heart, Calendar, MapPin, Monitor } from "lucide-react"
+
+import { buttonVariants } from "@/components/ui/button"
+import { Pill } from "@/components/ui/pill"
+import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { SaveEventButton } from "@/components/events/SaveEventButton"
-import { PageTransition, Stagger, StaggerItem, FadeInScale } from "@/components/motion/primitives"
-import { TiltCard } from "@/components/motion/TiltCard"
 import { cn } from "@/lib/utils"
 
 interface SavedEvent {
@@ -50,94 +50,78 @@ export default function SavedEventsPage() {
   }, [])
 
   return (
-    <PageTransition className="space-y-6">
-      <PageHeader
-        title="Saved Events"
-        description="Events you've saved to come back to later"
-      />
+    <div className="space-y-6">
+      <PageHeader title="Saved" description="Events you've saved to come back to later" />
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading saved events">
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-[300px] rounded-lg" />)}
         </div>
       ) : events.length === 0 ? (
-        <FadeInScale><Card className="p-12 text-center space-y-3">
-          <Heart className="mx-auto h-12 w-12 text-muted-foreground/30" />
-          <div>
-            <p className="font-medium">No saved events yet</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Tap the heart on any event to save it here for later.
-            </p>
-          </div>
-          <Link href="/events" className={cn(buttonVariants({ variant: "outline" }), "mt-2")}>
-            Browse events
-          </Link>
-        </Card></FadeInScale>
+        <EmptyState icon={Heart} title="No saved events yet" description="Tap the heart on any event to save it here for later.">
+          <Link href="/events" className={buttonVariants({ variant: "outline" })}>Browse events</Link>
+        </EmptyState>
       ) : (
-        <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {events.map((event) => {
             const start = new Date(event.startDate)
             return (
-              <StaggerItem key={event.id}>
-              <TiltCard maxTilt={6}>
-              <Card className="overflow-hidden flex flex-col">
-                <Link href={`/events/${event.slug}`} className="block">
-                  <div className="relative h-32 bg-linear-to-br from-primary/10 to-primary/5">
+              <article key={event.id} className="relative flex flex-col overflow-hidden rounded-lg border bg-card">
+                <Link href={`/events/${event.slug}`} className="block" tabIndex={-1} aria-hidden>
+                  <div className="relative h-36 bg-raised">
                     {event.coverImage ? (
-                      <img src={event.coverImage} alt={event.title} className="h-full w-full object-cover" />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={event.coverImage} alt="" className="size-full object-cover" />
                     ) : (
                       <div className="flex h-full items-center justify-center">
-                        <Calendar className="h-10 w-10 text-primary/20" />
-                      </div>
-                    )}
-                    <div className="absolute top-2 right-2">
-                      <SaveEventButton eventId={event.id} />
-                    </div>
-                    {event.status === "ONGOING" && (
-                      <div className="absolute top-2 left-2">
-                        <Badge className="bg-emerald-500 text-white text-[10px]">Live Now</Badge>
+                        <Calendar className="size-8 text-faint" />
                       </div>
                     )}
                   </div>
                 </Link>
-                <div className="p-4 flex-1 flex flex-col space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{event.organization.name}</span>
-                    {event.category && <><span>·</span><span>{event.category}</span></>}
+                {/* pinned over the cover, outside the link so the heart doesn't also navigate */}
+                <div className="absolute top-2 right-2">
+                  <SaveEventButton eventId={event.id} />
+                </div>
+                {event.status === "ONGOING" && (
+                  <div className="absolute top-2 left-2">
+                    <Pill tone="positive" live>Live now</Pill>
                   </div>
-                  <Link href={`/events/${event.slug}`} className="font-semibold leading-snug hover:text-primary line-clamp-2">
+                )}
+                <div className="flex flex-1 flex-col gap-2 p-4">
+                  <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                    <span className="truncate">{event.organization.name}</span>
+                    {event.category && <><span aria-hidden>·</span><span className="shrink-0">{event.category}</span></>}
+                  </p>
+                  <Link href={`/events/${event.slug}`} className="line-clamp-2 text-[15px] leading-snug font-semibold hover:underline">
                     {event.title}
                   </Link>
                   {event.shortDescription && (
-                    <p className="text-xs text-muted-foreground line-clamp-2">{event.shortDescription}</p>
+                    <p className="line-clamp-2 text-[13px] text-muted-foreground">{event.shortDescription}</p>
                   )}
-                  <div className="pt-2 mt-auto border-t space-y-1.5 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-3 w-3 shrink-0" />
-                      <span>
+                  <div className="mt-auto space-y-1.5 border-t border-rule pt-3 text-[13px] text-muted-foreground">
+                    <p className="flex items-center gap-1.5">
+                      <Calendar className="size-3.5 shrink-0" />
+                      <span className="tabular-nums">
                         {start.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                        {" \u00B7 "}
+                        {" · "}
                         {start.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {event.isOnline ? <Monitor className="h-3 w-3 shrink-0" /> : <MapPin className="h-3 w-3 shrink-0" />}
-                      <span className="truncate">
-                        {event.isOnline ? "Online Event" : (event.venue || event.venueCity || "Venue TBA")}
-                      </span>
-                    </div>
+                    </p>
+                    <p className="flex items-center gap-1.5">
+                      {event.isOnline ? <Monitor className="size-3.5 shrink-0" /> : <MapPin className="size-3.5 shrink-0" />}
+                      <span className="truncate">{event.isOnline ? "Online event" : (event.venue || event.venueCity || "Venue TBA")}</span>
+                    </p>
                   </div>
-                  <Link href={`/events/${event.slug}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full mt-2")}>
+                  <Link href={`/events/${event.slug}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-2 w-full")}>
                     View event
                   </Link>
                 </div>
-              </Card>
-              </TiltCard>
-              </StaggerItem>
+              </article>
             )
           })}
-        </Stagger>
+        </div>
       )}
-    </PageTransition>
+    </div>
   )
 }

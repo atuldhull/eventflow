@@ -7,21 +7,31 @@ interface EmptyStateProps {
   icon?: LucideIcon
   children?: React.ReactNode
   className?: string
+  /** "block" sits inside a card or table area; "page" fills a first-run screen */
+  variant?: "block" | "page"
 }
 
-export function EmptyState({ title, description, icon: Icon, children, className }: EmptyStateProps) {
+/**
+ * An empty area keeps its frame and says what to do next. The action, when
+ * there is one, goes where the data will appear.
+ */
+export function EmptyState({ title, description, icon: Icon, children, className, variant = "block" }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center justify-center py-12 text-center page-enter", className)}>
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center rounded-lg border border-dashed border-border text-center",
+        variant === "page" ? "px-6 py-16" : "px-5 py-10",
+        className,
+      )}
+    >
       {Icon && (
-        <div className="mb-4 rounded-full bg-muted p-4">
-          <Icon className="h-8 w-8 text-muted-foreground" />
-        </div>
+        <span className="mb-3 flex items-center justify-center text-faint">
+          <Icon className="size-6" strokeWidth={1.5} aria-hidden />
+        </span>
       )}
-      <h3 className="text-lg font-medium">{title}</h3>
-      {description && (
-        <p className="mt-1.5 text-sm text-muted-foreground max-w-md">{description}</p>
-      )}
-      {children && <div className="mt-4">{children}</div>}
+      <p className="text-[15px] font-medium text-foreground">{title}</p>
+      {description && <p className="mt-1 max-w-[46ch] text-sm text-muted-foreground">{description}</p>}
+      {children && <div className="mt-4 flex flex-wrap justify-center gap-2">{children}</div>}
     </div>
   )
 }

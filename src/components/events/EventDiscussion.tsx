@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { useSession } from "next-auth/react"
-import { Send, MessageCircle, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Card } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 
 interface Message {
@@ -67,56 +68,82 @@ export function EventDiscussion({ slug }: EventDiscussionProps) {
   }
 
   return (
-    <Card className="p-6 space-y-4">
-      <div className="flex items-center gap-2">
-        <MessageCircle className="h-4 w-4" />
-        <h3 className="text-sm font-medium">Discussion ({messages.length})</h3>
-      </div>
+    <section aria-labelledby="discussion-heading" className="border-t border-rule pt-8">
+      <h2 id="discussion-heading" className="text-base font-semibold tracking-[-0.01em]">
+        Discussion
+        {!isLoading && <span className="ml-2 font-normal text-muted-foreground tabular-nums">{messages.length}</span>}
+      </h2>
 
-      {/* Post new message */}
+      {/* Post a message */}
       {session?.user ? (
-        <div className="flex gap-2">
+        <form
+          className="mt-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSend()
+          }}
+        >
+          <label htmlFor="discussion-message" className="sr-only">Your message</label>
           <Textarea
-            placeholder="Ask a question or share something with other attendees..."
-            rows={2}
+            id="discussion-message"
+            placeholder="Ask a question or share something with other attendees…"
+            rows={3}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             maxLength={500}
-            className="text-sm"
+            className="min-h-20 resize-y text-sm"
           />
-          <Button onClick={handleSend} disabled={isSending || !newMessage.trim()} size="icon" className="shrink-0 h-auto">
-            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
+          <div className="mt-2 flex justify-end">
+            <Button type="submit" size="sm" disabled={isSending || !newMessage.trim()} className="gap-1.5">
+              {isSending && <Loader2 className="animate-spin" />}
+              Post
+            </Button>
+          </div>
+        </form>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          <a href={`/login?callbackUrl=/events/${slug}`} className="text-primary hover:underline">Sign in</a> to join the discussion
+        <p className="mt-3 text-sm text-muted-foreground">
+          <Link href={`/login?callbackUrl=/events/${slug}`} className="font-medium text-foreground underline underline-offset-4 hover:text-brand">
+            Sign in
+          </Link>{" "}
+          to join the discussion.
         </p>
       )}
 
       {/* Messages */}
       {isLoading ? (
-        <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-      ) : messages.length > 0 ? (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {messages.map((msg) => (
-            <div key={msg.id} className="flex gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                {msg.author?.[0]?.toUpperCase() || "?"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{msg.author}</span>
-                  <span className="text-xs text-muted-foreground">{timeAgo(msg.createdAt)}</span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-0.5">{msg.message}</p>
+        <div className="mt-5 space-y-4" aria-busy="true" aria-label="Loading discussion">
+          {[0, 1].map((i) => (
+            <div key={i} className="flex gap-3">
+              <Skeleton className="size-8 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3.5 w-32" />
+                <Skeleton className="h-3.5 w-3/4" />
               </div>
             </div>
           ))}
         </div>
+      ) : messages.length > 0 ? (
+        <ul className="mt-5 max-h-[32rem] divide-y divide-rule overflow-y-auto">
+          {messages.map((msg) => (
+            <li key={msg.id} className="flex gap-3 py-3.5 first:pt-0">
+              <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-raised text-xs font-medium text-muted-foreground">
+                {msg.author?.[0]?.toUpperCase() || "?"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="text-sm font-medium">{msg.author}</span>
+                  <span className="text-xs text-muted-foreground">{timeAgo(msg.createdAt)}</span>
+                </p>
+                <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">{msg.message}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-4">No discussion yet. Be the first to post!</p>
+        <p className="mt-5 rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+          No discussion yet. Be the first to post!
+        </p>
       )}
-    </Card>
+    </section>
   )
 }

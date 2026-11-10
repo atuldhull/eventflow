@@ -24,13 +24,13 @@ export function CopyButton({ value, label, className, size = "sm" }: CopyButtonP
   if (size === "icon") {
     return (
       <Button variant="ghost" size="icon-sm" onClick={handleCopy} className={cn("transition-colors", className)} title="Copy">
-        {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+        {copied ? <Check className="h-3.5 w-3.5 text-positive" /> : <Copy className="h-3.5 w-3.5" />}
       </Button>
     )
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleCopy} className={cn("gap-1.5 transition-all", copied && "text-green-600 border-green-200", className)}>
+    <Button variant="outline" size="sm" onClick={handleCopy} className={cn("gap-1.5 transition-all", copied && "text-positive border-positive/30", className)}>
       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       {label ? (copied ? "Copied!" : label) : (copied ? "Copied!" : "Copy")}
     </Button>

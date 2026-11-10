@@ -17,7 +17,7 @@ function getClientIp(request: Request): string {
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request)
-    const ipLimit = rateLimiter.check(`send-otp:ip:${ip}`, 10, 60_000) // 10/min per IP
+    const ipLimit = await rateLimiter.check(`send-otp:ip:${ip}`, 10, 60_000) // 10/min per IP
     if (!ipLimit.allowed) {
       return NextResponse.json(
         { success: false, message: "Too many requests. Please try again later." },

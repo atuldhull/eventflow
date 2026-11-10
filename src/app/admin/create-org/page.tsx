@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { Building2 } from "lucide-react"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Loader2, Building2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { PageHeader } from "@/components/shared/PageHeader"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -14,12 +16,36 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { useRBAC } from "@/hooks/useRBAC"
 
 const CATEGORIES = ["TECHNICAL", "CULTURAL", "SPORTS", "ACADEMIC", "SOCIAL", "PROFESSIONAL", "CORPORATE", "HR", "ENGINEERING", "MARKETING", "OTHER"]
+const categoryLabel = (c: string) => c.charAt(0) + c.slice(1).toLowerCase()
+
+function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+  return (
+    <section className="grid gap-4 border-t border-rule pt-6 first:border-t-0 first:pt-0 md:grid-cols-[200px_minmax(0,1fr)] md:gap-10">
+      <div>
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
+      </div>
+      <div className="min-w-0 space-y-5">{children}</div>
+    </section>
+  )
+}
 
 export default function CreateOrgPage() {
   const router = useRouter()
   const { setOrganizationContext } = useRBAC()
   const [isCreating, setIsCreating] = useState(false)
   const [form, setForm] = useState({ name: "", slug: "", category: "", description: "", email: "", phone: "", website: "" })
+  // Settings → Public event creation: null until known; POST enforces it either way
+  const [closedMessage, setClosedMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/admin/organizations")
+      .then((r) => r.json())
+      .then((json) => { if (!cancelled && json?.success && !json.data?.allowed) setClosedMessage(json.data?.message ?? "Creating organizations is turned off.") })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   const handleSlugify = (name: string) => {
     setForm({ ...form, name, slug: name.toLowerCase().replace(/[^\w ]+/g, "").replace(/ +/g, "-") })
@@ -46,54 +72,92 @@ export default function CreateOrgPage() {
     finally { setIsCreating(false) }
   }
 
-  return (
-    <div className="max-w-2xl mx-auto py-8 space-y-6">
-      <PageHeader title="Create Organization" description="Set up your organization to start hosting events" />
+  if (closedMessage) {
+    return (
+      <div className="max-w-4xl space-y-6">
+        <PageHeader title="Create organization" />
+        <EmptyState variant="page" icon={Building2} title="Organizations are by invitation only" description={closedMessage}>
+          <Link href="/dashboard" className={buttonVariants({ variant: "outline" })}>Back to my dashboard</Link>
+        </EmptyState>
+      </div>
+    )
+  }
 
-      <Card className="p-6 space-y-4">
-        <div className="space-y-2">
-          <Label>Organization Name *</Label>
-          <Input value={form.name} onChange={(e) => handleSlugify(e.target.value)} placeholder="e.g., CodeCraft — IIT Bombay Coding Club" />
-        </div>
-        <div className="space-y-2">
-          <Label>URL Slug</Label>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>eventflow.com/org/</span>
-            <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="codecraft-iit-bombay" className="flex-1" />
+  return (
+    <div className="max-w-4xl space-y-6">
+      <PageHeader title="Create organization" description="Set up your organization to start hosting events" />
+
+      <form
+        noValidate
+        className="space-y-6"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void handleCreate()
+        }}
+      >
+        <Section title="Basics" description="How your organization appears on its public page.">
+          <div className="space-y-1.5">
+            <Label htmlFor="org-name">Organization name<span className="text-faint" aria-hidden> *</span></Label>
+            <Input id="org-name" value={form.name} onChange={(e) => handleSlugify(e.target.value)} placeholder="e.g., CodeCraft — IIT Bombay Coding Club" />
           </div>
-        </div>
-        <div className="space-y-2">
-          <Label>Category</Label>
-          <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v || "" })}>
-            <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-            <SelectContent>
-              {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c.charAt(0) + c.slice(1).toLowerCase()}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Description</Label>
-          <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Briefly describe your organization..." rows={3} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Email *</Label>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="club@college.edu" />
+          <div className="space-y-1.5">
+            <Label htmlFor="org-slug">URL slug</Label>
+            <div className="flex min-w-0 items-stretch overflow-hidden rounded-md border border-input focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+              <span className="flex shrink-0 items-center border-r border-input bg-raised px-3 text-[13px] text-muted-foreground select-none max-sm:max-w-[45%] max-sm:truncate">
+                eventflow.com/org/
+              </span>
+              <Input
+                id="org-slug"
+                value={form.slug}
+                onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                placeholder="codecraft-iit-bombay"
+                className="rounded-none border-0 focus-visible:ring-0"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>Phone</Label>
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 9876543210" />
+          <div className="space-y-1.5">
+            <Label htmlFor="org-category">Category</Label>
+            <Select
+              items={CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) }))}
+              value={form.category}
+              onValueChange={(v) => setForm({ ...form, category: v || "" })}
+            >
+              <SelectTrigger id="org-category" className="w-full sm:w-64"><SelectValue placeholder="Select category" /></SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{categoryLabel(c)}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="org-description">Description</Label>
+            <Textarea id="org-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Briefly describe your organization..." rows={3} />
+          </div>
+        </Section>
+
+        <Section title="Contact" description="How people can reach your organization.">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="org-email">Email<span className="text-faint" aria-hidden> *</span></Label>
+              <Input id="org-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="club@college.edu" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="org-phone">Phone</Label>
+              <Input id="org-phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 9876543210" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="org-website">Website</Label>
+            <Input id="org-website" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://yourclub.com" />
+          </div>
+        </Section>
+
+        <div className="flex justify-end border-t border-rule pt-6">
+          <Button type="submit" disabled={isCreating} className="max-sm:w-full">
+            {isCreating && <Loader2 className="animate-spin" />}
+            Create organization
+          </Button>
         </div>
-        <div className="space-y-2">
-          <Label>Website</Label>
-          <Input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://yourclub.com" />
-        </div>
-        <Button onClick={handleCreate} disabled={isCreating} className="w-full gap-2">
-          {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
-          Create Organization
-        </Button>
-      </Card>
+      </form>
     </div>
   )
 }

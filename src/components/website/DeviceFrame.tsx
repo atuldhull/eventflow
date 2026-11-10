@@ -1,5 +1,6 @@
 "use client"
 
+import { Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface DeviceFrameProps {
@@ -9,21 +10,26 @@ interface DeviceFrameProps {
   className?: string
 }
 
+/**
+ * Admin chrome around a tenant-site preview: a quiet browser bar, or a
+ * hairline device outline. The frame uses our tokens; what's inside is the
+ * tenant's own design and is left alone.
+ */
 export function DeviceFrame({ device, children, url, className }: DeviceFrameProps) {
   if (device === "desktop") {
     return (
-      <div className={cn("rounded-xl border shadow-2xl bg-background overflow-hidden", className)}>
-        {/* Browser title bar */}
-        <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-2.5">
-          <div className="flex gap-1.5">
-            <div className="h-3 w-3 rounded-full bg-red-400" />
-            <div className="h-3 w-3 rounded-full bg-amber-400" />
-            <div className="h-3 w-3 rounded-full bg-green-400" />
+      <div className={cn("overflow-hidden rounded-lg border bg-background", className)}>
+        {/* Browser bar */}
+        <div className="flex items-center gap-2 border-b bg-raised px-3 py-2">
+          <div className="flex gap-1.5" aria-hidden>
+            <div className="size-2.5 rounded-full bg-input" />
+            <div className="size-2.5 rounded-full bg-input" />
+            <div className="size-2.5 rounded-full bg-input" />
           </div>
-          <div className="flex-1 mx-4">
-            <div className="flex items-center gap-2 rounded-md bg-background border px-3 py-1 text-xs text-muted-foreground max-w-md mx-auto">
-              <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <span className="truncate">{url || "yourorg.eventflow.com"}</span>
+          <div className="mx-4 min-w-0 flex-1">
+            <div className="mx-auto flex max-w-md items-center gap-2 rounded-[4px] border bg-background px-3 py-1 text-xs text-muted-foreground">
+              <Lock className="size-3 shrink-0" aria-hidden />
+              <span className="truncate font-mono text-[11px]">{url || "yourorg.eventflow.com"}</span>
             </div>
           </div>
         </div>
@@ -38,17 +44,15 @@ export function DeviceFrame({ device, children, url, className }: DeviceFramePro
   if (device === "tablet") {
     return (
       <div className={cn("mx-auto", className)} style={{ maxWidth: 768 }}>
-        <div className="rounded-[2rem] border-[8px] border-zinc-800 dark:border-zinc-700 bg-zinc-800 shadow-2xl overflow-hidden">
-          {/* Camera */}
-          <div className="flex justify-center py-2 bg-zinc-800">
-            <div className="h-2 w-2 rounded-full bg-zinc-600" />
+        <div className="rounded-[24px] border bg-raised p-2.5">
+          <div className="flex justify-center pb-2" aria-hidden>
+            <div className="size-1.5 rounded-full bg-input" />
           </div>
           {/* Screen */}
-          <div className="bg-background overflow-y-auto" style={{ maxHeight: "65vh" }}>
+          <div className="overflow-y-auto rounded-[14px] border bg-background" style={{ maxHeight: "65vh" }}>
             {children}
           </div>
-          {/* Bottom bezel */}
-          <div className="h-3 bg-zinc-800" />
+          <div className="h-2" aria-hidden />
         </div>
       </div>
     )
@@ -57,18 +61,16 @@ export function DeviceFrame({ device, children, url, className }: DeviceFramePro
   // Phone
   return (
     <div className={cn("mx-auto", className)} style={{ maxWidth: 375 }}>
-      <div className="rounded-[2.5rem] border-[6px] border-zinc-800 dark:border-zinc-700 bg-zinc-800 shadow-2xl overflow-hidden">
-        {/* Notch / Dynamic Island */}
-        <div className="flex justify-center pt-2 pb-1 bg-zinc-800">
-          <div className="h-5 w-24 rounded-full bg-zinc-900" />
+      <div className="rounded-[32px] border bg-raised p-2">
+        <div className="flex justify-center pt-0.5 pb-1.5" aria-hidden>
+          <div className="h-1.5 w-16 rounded-full bg-input" />
         </div>
         {/* Screen */}
-        <div className="bg-background overflow-y-auto" style={{ maxHeight: "60vh" }}>
+        <div className="overflow-y-auto rounded-[24px] border bg-background" style={{ maxHeight: "60vh" }}>
           {children}
         </div>
-        {/* Home indicator */}
-        <div className="flex justify-center py-2 bg-zinc-800">
-          <div className="h-1 w-28 rounded-full bg-zinc-600" />
+        <div className="flex justify-center pt-2 pb-0.5" aria-hidden>
+          <div className="h-1 w-24 rounded-full bg-input" />
         </div>
       </div>
     </div>

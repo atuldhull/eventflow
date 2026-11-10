@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import prisma from "@/lib/prisma"
+import { liveWorkspaceWhere } from "@/lib/public-events"
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("q") || ""
@@ -14,7 +15,8 @@ export async function GET(request: NextRequest) {
       where: {
         deletedAt: null,
         status: { in: ["PUBLISHED", "REGISTRATION_OPEN", "ONGOING"] },
-        visibility: { in: ["PUBLIC", "UNLISTED"] },
+        visibility: "PUBLIC", // UNLISTED = reachable by link, never listed or searchable
+        ...liveWorkspaceWhere(),
         OR: [
           { title: { contains: query, mode: "insensitive" } },
           { category: { contains: query, mode: "insensitive" } },
@@ -37,6 +39,8 @@ export async function GET(request: NextRequest) {
       where: {
         isActive: true,
         deletedAt: null,
+        // nor an organization of a deactivated or deleted enterprise
+        AND: [{ OR: [{ enterpriseId: null }, { enterprise: { isActive: true, deletedAt: null } }] }],
         OR: [
           { name: { contains: query, mode: "insensitive" } },
           { category: { contains: query, mode: "insensitive" } },

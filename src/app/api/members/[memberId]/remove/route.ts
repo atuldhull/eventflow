@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { authorize } from "@/lib/authorization"
-import { canManageRole, PERMISSIONS } from "@/lib/permissions"
+import { authorize, isEnterpriseOwner } from "@/lib/authorization"
+import { canManageEnterpriseRole, canManageRole, PERMISSIONS } from "@/lib/permissions"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
 import type { Role } from "@/lib/constants"
 import { z } from "zod/v4"
@@ -37,21 +37,29 @@ export async function DELETE(
     const { entityType, entityId } = parsed.data
     const context = entityType === "ENTERPRISE" ? { enterpriseId: entityId } : { organizationId: entityId }
 
+    // Authorize by the caller's role IN this enterprise/organization (their membership, or
+    // SUPER_ADMIN), never by their global role, which can come from a different tenant.
     const authResult = await authorize(session.user.id, PERMISSIONS.MEMBER_REMOVE, context)
-    if (!authResult.authorized) {
-      return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
+    if (!authResult.authorized || !authResult.role) {
+      return NextResponse.json(
+        { success: false, message: authResult.message || "You don't have permission to perform this action." },
+        { status: 403 }
+      )
     }
+    const actorRole = authResult.role
 
-    let member: { userId: string; role: string } | null = null
+    // Scope the lookup to the entity the caller was authorized for: a membership id from
+    // another enterprise/organization must resolve to "not found".
+    let member: { userId: string; role: string; isActive: boolean } | null = null
     if (entityType === "ENTERPRISE") {
-      member = await prisma.enterpriseMember.findUnique({
-        where: { id: memberId },
-        select: { userId: true, role: true },
+      member = await prisma.enterpriseMember.findFirst({
+        where: { id: memberId, enterpriseId: entityId },
+        select: { userId: true, role: true, isActive: true },
       })
     } else {
-      member = await prisma.organizationMember.findUnique({
-        where: { id: memberId },
-        select: { userId: true, role: true },
+      member = await prisma.organizationMember.findFirst({
+        where: { id: memberId, organizationId: entityId },
+        select: { userId: true, role: true, isActive: true },
       })
     }
 
@@ -63,9 +71,23 @@ export async function DELETE(
       return NextResponse.json({ success: false, message: "You cannot remove yourself." }, { status: 400 })
     }
 
-    const userRole = session.user.role as Role
-    if (!canManageRole(userRole, member.role as Role)) {
+    if (entityType === "ENTERPRISE" && (await isEnterpriseOwner(entityId, member.userId))) {
+      return NextResponse.json(
+        { success: false, message: "The enterprise owner cannot be removed. Transfer ownership first." },
+        { status: 403 }
+      )
+    }
+
+    // In an enterprise its owner may also remove co-admins (other ENTERPRISE_ADMINs)
+    const outranks = entityType === "ENTERPRISE"
+      ? canManageEnterpriseRole(actorRole, member.role as Role, await isEnterpriseOwner(entityId, session.user.id))
+      : canManageRole(actorRole, member.role as Role)
+    if (!outranks) {
       return NextResponse.json({ success: false, message: "You cannot remove a member with equal or higher role." }, { status: 403 })
+    }
+
+    if (member.isActive === false) {
+      return NextResponse.json({ success: false, message: "This member has already been removed." }, { status: 409 })
     }
 
     if (entityType === "ENTERPRISE") {

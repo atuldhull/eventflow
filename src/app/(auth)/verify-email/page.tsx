@@ -4,23 +4,23 @@ import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2, Mail } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { OTPInput } from "@/components/forms/OTPInput"
 import { useAuth } from "@/hooks/useAuth"
-import { PageTransition, FadeInScale } from "@/components/motion/primitives"
-import { SplitTextReveal } from "@/components/motion/SplitTextReveal"
+import { getSafeCallbackUrl } from "@/lib/auth-redirect"
 
 export default function VerifyEmailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const emailParam = searchParams.get("email") || ""
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
+  // Only same-site paths: anything else in ?callbackUrl= would be an open redirect
+  const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"))
 
-  const { sendOtp, verifyEmail } = useAuth()
+  const { sendOtp, verifyEmail, loginWithOtp } = useAuth()
 
   const [email, setEmail] = useState(emailParam)
   const [otpSent, setOtpSent] = useState(!!emailParam)
@@ -48,12 +48,24 @@ export default function VerifyEmailPage() {
 
   const handleVerify = async (code: string) => {
     setIsSubmitting(true)
+    let loginCode: string | undefined
     try {
-      await verifyEmail(email, code)
-      toast.success("Email verified successfully!")
-      router.push(callbackUrl)
+      const result = await verifyEmail(email, code, { signIn: true })
+      loginCode = result.data?.loginCode
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Verification failed")
+      setIsSubmitting(false)
+      return
+    }
+    // The code just proved this inbox is theirs, so the server handed back a one-time
+    // sign-in code: use it straight away instead of sending them to log in again
+    try {
+      if (!loginCode) throw new Error("no sign-in code")
+      await loginWithOtp(email, loginCode, callbackUrl ?? undefined)
+      toast.success("Email verified! You're signed in.")
+    } catch {
+      toast.success("Email verified! Please log in.")
+      router.push(callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login")
     } finally {
       setIsSubmitting(false)
     }
@@ -73,71 +85,65 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <PageTransition className="space-y-6">
-      <div className="text-center">
-        <FadeInScale className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mb-4">
-          <Mail className="h-6 w-6 text-primary" />
-        </FadeInScale>
-        <SplitTextReveal as="h2" className="text-2xl font-semibold tracking-tight">Verify your email</SplitTextReveal>
-        <p className="text-sm text-muted-foreground mt-1">
-          {otpSent
-            ? `Enter the 6-digit code sent to ${email}`
-            : "Enter your email to receive a verification code"}
+    <div className="space-y-7">
+      <div>
+        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">Verify your email</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {otpSent ? (
+            <>
+              Enter the 6-digit code sent to <span className="font-medium break-all text-foreground">{email}</span>
+            </>
+          ) : (
+            "Enter your email to receive a verification code"
+          )}
         </p>
       </div>
 
       {!otpSent ? (
-        <div className="space-y-4">
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSendCode()
+          }}
+          className="space-y-5"
+        >
           <div className="space-y-2">
             <Label htmlFor="verify-email">Email</Label>
-            <Input
-              id="verify-email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <Input id="verify-email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <Button type="button" className="w-full" onClick={handleSendCode} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Verification Code
+          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
+            Send verification code
           </Button>
-        </div>
+        </form>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <OTPInput onComplete={handleVerify} disabled={isSubmitting} />
-          <div className="text-center space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button type="button" variant="ghost" size="sm" className="-ml-3 tabular-nums" onClick={handleSendCode} disabled={resendTimer > 0 || isSubmitting}>
+              {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
+            </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={handleSendCode}
-              disabled={resendTimer > 0 || isSubmitting}
+              className="-mr-3 text-muted-foreground"
+              onClick={() => {
+                setOtpSent(false)
+                setEmail("")
+              }}
             >
-              {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
+              Use a different email
             </Button>
-            <div>
-              <button
-                type="button"
-                onClick={() => {
-                  setOtpSent(false)
-                  setEmail("")
-                }}
-                className="text-xs text-muted-foreground hover:text-primary"
-              >
-                Use a different email
-              </button>
-            </div>
           </div>
         </div>
       )}
 
-      <div className="text-center">
-        <Link href="/login" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary">
-          <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-          Back to login
-        </Link>
-      </div>
-    </PageTransition>
+      <Link href="/login" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <ArrowLeft className="size-3.5" aria-hidden />
+        Back to login
+      </Link>
+    </div>
   )
 }

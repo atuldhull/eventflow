@@ -8,15 +8,24 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from "recharts"
-import { Card } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import {
+  ChartCard,
+  ChartEmpty,
+  ChartLegend,
+  ChartSkeleton,
+  ChartTooltip,
+  gridProps,
+  seriesColor,
+  xAxisProps,
+  yAxisProps,
+} from "./chart-parts"
 
 interface BarChartProps {
   data: Record<string, unknown>[]
   xKey: string
-  yKeys: { key: string; color: string; label?: string }[]
+  /** colour defaults to chart-1, chart-2, chart-3 in order; pass var(--chart-N) to choose */
+  yKeys: { key: string; color?: string; label?: string }[]
   height?: number
   showGrid?: boolean
   showLegend?: boolean
@@ -34,37 +43,38 @@ export function BarChart({
   isLoading = false,
   title,
 }: BarChartProps) {
-  if (isLoading) {
-    return (
-      <Card className="p-6">
-        {title && <Skeleton className="h-5 w-40 mb-4" />}
-        <Skeleton className="w-full" style={{ height }} />
-      </Card>
-    )
-  }
+  if (isLoading) return <ChartSkeleton title={title} height={height} />
+
+  const series = yKeys.map((y, i) => ({ ...y, color: seriesColor(i, y.color), name: y.label || y.key }))
 
   return (
-    <Card className="p-6">
-      {title && <h3 className="text-sm font-medium mb-4">{title}</h3>}
-      <ResponsiveContainer width="100%" height={height}>
-        <RechartsBarChart data={data}>
-          {showGrid && <CartesianGrid strokeDasharray="3 3" className="stroke-border" />}
-          <XAxis dataKey={xKey} className="text-xs" tick={{ fontSize: 12 }} />
-          <YAxis className="text-xs" tick={{ fontSize: 12 }} />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "hsl(var(--popover))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
-              fontSize: "12px",
-            }}
-          />
-          {showLegend && <Legend />}
-          {yKeys.map((y) => (
-            <Bar key={y.key} dataKey={y.key} fill={y.color} name={y.label || y.key} radius={[4, 4, 0, 0]} />
-          ))}
-        </RechartsBarChart>
-      </ResponsiveContainer>
-    </Card>
+    <ChartCard
+      title={title}
+      legend={showLegend ? <ChartLegend items={series.map((s) => ({ label: s.name, color: s.color }))} /> : undefined}
+    >
+      {data.length === 0 ? (
+        <ChartEmpty height={height} />
+      ) : (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsBarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -8 }} barGap={2}>
+            {showGrid && <CartesianGrid {...gridProps} />}
+            <XAxis dataKey={xKey} {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            <Tooltip content={ChartTooltip} cursor={{ fill: "var(--muted)", opacity: 0.6 }} isAnimationActive={false} />
+            {series.map((s) => (
+              <Bar
+                key={s.key}
+                dataKey={s.key}
+                fill={s.color}
+                name={s.name}
+                radius={[3, 3, 0, 0]}
+                maxBarSize={36}
+                isAnimationActive={false}
+              />
+            ))}
+          </RechartsBarChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
   )
 }

@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma"
 import type { TenantContext } from "@/lib/tenant"
+import { liveWorkspaceWhere } from "@/lib/public-events"
 
 export function getTenantEventFilter(tenant: TenantContext | null) {
   if (!tenant) return { deletedAt: null }
@@ -49,7 +50,9 @@ export async function getTenantEvents(tenant: TenantContext, params?: { page?: n
   const where: Record<string, unknown> = {
     ...getTenantEventFilter(tenant),
     status: { in: ["PUBLISHED", "REGISTRATION_OPEN", "ONGOING", "COMPLETED"] },
-    visibility: { in: ["PUBLIC", "UNLISTED"] },
+    visibility: "PUBLIC", // listings show PUBLIC only; UNLISTED stays reachable by direct link
+    // a deactivated or deleted organization of this enterprise takes its events off the site
+    ...liveWorkspaceWhere(),
   }
   if (params?.status) where.status = params.status
 

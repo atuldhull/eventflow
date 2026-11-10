@@ -11,15 +11,19 @@ const roleSchema = z.object({
 })
 
 export const PATCH = withSuperAdmin(async (req, { user, params }) => {
-  const body = await req.json()
-  const parsed = roleSchema.safeParse(body)
+  const parsed = roleSchema.safeParse(await req.json().catch(() => null))
 
   if (!parsed.success) {
     return NextResponse.json({ success: false, message: "Invalid role" }, { status: 400 })
   }
 
-  const targetUser = await prisma.user.findUnique({
-    where: { id: params.id },
+  // A super admin demoting themselves could leave the platform with no one able to undo it.
+  if (params.id === user.id) {
+    return NextResponse.json({ success: false, message: "You can't change your own role" }, { status: 400 })
+  }
+
+  const targetUser = await prisma.user.findFirst({
+    where: { id: params.id, deletedAt: null },
     select: { role: true, name: true },
   })
 
@@ -27,7 +31,11 @@ export const PATCH = withSuperAdmin(async (req, { user, params }) => {
     return NextResponse.json({ success: false, message: "User not found" }, { status: 404 })
   }
 
-  const updated = await prisma.user.update({
+  if (targetUser.role === parsed.data.role) {
+    return NextResponse.json({ success: true, message: "Role unchanged" })
+  }
+
+  await prisma.user.update({
     where: { id: params.id },
     data: { role: parsed.data.role },
   })
@@ -38,7 +46,7 @@ export const PATCH = withSuperAdmin(async (req, { user, params }) => {
     action: "UPDATE",
     entityType: "USER",
     entityId: params.id,
-    description: `Changed role from ${getRoleLabel(targetUser.role as Role)} to ${getRoleLabel(parsed.data.role as Role)}`,
+    description: `Changed ${targetUser.name}'s role from ${getRoleLabel(targetUser.role as Role)} to ${getRoleLabel(parsed.data.role as Role)}`,
     oldValues: { role: targetUser.role },
     newValues: { role: parsed.data.role },
     ipAddress,

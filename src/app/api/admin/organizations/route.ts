@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client"
 import { authorize } from "@/lib/authorization"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
 import { PERMISSIONS } from "@/lib/permissions"
+import { getActivePlatformSettings } from "@/lib/platform-settings-store"
 import { z } from "zod/v4"
 
 const createOrgSchema = z.object({
@@ -19,6 +20,30 @@ const createOrgSchema = z.object({
 })
 
 const MAX_ORGS_PER_USER = 10
+
+const SELF_SERVICE_CLOSED = "Creating your own organization is turned off on this platform. Ask an organization or enterprise admin to invite you."
+
+/**
+ * Settings → Features → Public event creation: may this user create an organization
+ * (and so host events) without an invitation? Callers holding an org:create grant
+ * (super admin, enterprise admins and managers) always may.
+ */
+async function selfServiceAllowed(userId: string): Promise<{ allowed: boolean; granted: boolean }> {
+  const grant = await authorize(userId, PERMISSIONS.ORG_CREATE)
+  if (grant.authorized) return { allowed: true, granted: true }
+  const { features } = await getActivePlatformSettings()
+  return { allowed: features.publicEventCreation, granted: false }
+}
+
+/** Whether the signed-in user may create an organization, so /admin/create-org can say so up front. */
+export async function GET() {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
+  }
+  const { allowed } = await selfServiceAllowed(session.user.id)
+  return NextResponse.json({ success: true, data: { allowed, message: allowed ? null : SELF_SERVICE_CLOSED } })
+}
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -42,10 +67,13 @@ export async function POST(request: NextRequest) {
   // Callers holding an explicit org:create grant (super admin, enterprise admins and
   // managers) provision orgs on behalf of an enterprise and are not self-service users,
   // so the anti-spam cap does not apply to them.
-  const orgCreateGrant = await authorize(session.user.id, PERMISSIONS.ORG_CREATE)
+  const selfService = await selfServiceAllowed(session.user.id)
+  if (!selfService.allowed) {
+    return NextResponse.json({ success: false, message: SELF_SERVICE_CLOSED }, { status: 403 })
+  }
 
   // Anti-spam: cap how many orgs a single user can admin via self-service
-  if (!orgCreateGrant.authorized) {
+  if (!selfService.granted) {
     const ownedOrgCount = await prisma.organizationMember.count({
       where: { userId: session.user.id, role: "ORG_ADMIN", isActive: true },
     })

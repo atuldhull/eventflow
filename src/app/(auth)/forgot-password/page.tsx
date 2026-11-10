@@ -20,10 +20,22 @@ import {
   type ForgotPasswordInput,
   type ResetPasswordInput,
 } from "@/lib/validations/auth"
-import { PageTransition } from "@/components/motion/primitives"
-import { SplitTextReveal } from "@/components/motion/SplitTextReveal"
 
 type Step = "email" | "reset"
+
+/** the eye toggle inside a password field: covers the field's full height */
+function RevealButton({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground pointer-coarse:w-11"
+      aria-label={shown ? "Hide password" : "Show password"}
+    >
+      {shown ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+    </button>
+  )
+}
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -109,24 +121,30 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <PageTransition className="space-y-6">
+    <div className="space-y-7">
       <div>
-        <SplitTextReveal as="h2" className="text-2xl font-semibold tracking-tight">Reset your password</SplitTextReveal>
-        <p className="text-sm text-muted-foreground mt-1">
-          {step === "email"
-            ? "Enter your email and we'll send you a reset code"
-            : `Enter the code sent to ${emailValue}`}
+        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">Reset your password</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {step === "email" ? (
+            "Enter your email and we'll send you a reset code"
+          ) : (
+            <>
+              Enter the code sent to <span className="font-medium text-foreground">{emailValue}</span>
+            </>
+          )}
         </p>
       </div>
 
       {step === "email" && (
-        <form onSubmit={emailForm.handleSubmit(handleSendResetCode)} className="space-y-4">
+        <form onSubmit={emailForm.handleSubmit(handleSendResetCode)} className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="reset-email">Email</Label>
             <Input
               id="reset-email"
               type="email"
+              autoComplete="email"
               placeholder="you@example.com"
+              aria-invalid={emailForm.formState.errors.email ? true : undefined}
               {...emailForm.register("email")}
             />
             {emailForm.formState.errors.email && (
@@ -134,48 +152,36 @@ export default function ForgotPasswordPage() {
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Reset Code
+          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
+            Send reset code
           </Button>
         </form>
       )}
 
       {step === "reset" && (
-        <form onSubmit={resetForm.handleSubmit(handleResetPassword)} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Verification Code</Label>
+        <form onSubmit={resetForm.handleSubmit(handleResetPassword)} className="space-y-5">
+          <div className="space-y-2" role="group" aria-labelledby="reset-code-label">
+            <p id="reset-code-label" className="text-sm leading-none font-medium">Verification code</p>
             <OTPInput onComplete={handleOtpComplete} />
-            <div className="text-center">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleResend}
-                disabled={resendTimer > 0}
-              >
-                {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
-              </Button>
-            </div>
+            <Button type="button" variant="ghost" size="sm" className="-ml-3 tabular-nums" onClick={handleResend} disabled={resendTimer > 0}>
+              {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
+            </Button>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="new-password">New Password</Label>
+            <Label htmlFor="new-password">New password</Label>
             <div className="relative">
               <Input
                 id="new-password"
                 type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
                 placeholder="Enter new password"
-                className="pr-9"
+                className="pr-11"
+                aria-invalid={resetForm.formState.errors.newPassword ? true : undefined}
                 {...resetForm.register("newPassword")}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+              <RevealButton shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
             </div>
             {resetForm.formState.errors.newPassword && (
               <p className="text-xs text-destructive">{resetForm.formState.errors.newPassword.message}</p>
@@ -184,41 +190,35 @@ export default function ForgotPasswordPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirm-new-password">Confirm Password</Label>
+            <Label htmlFor="confirm-new-password">Confirm password</Label>
             <div className="relative">
               <Input
                 id="confirm-new-password"
                 type={showConfirmPassword ? "text" : "password"}
+                autoComplete="new-password"
                 placeholder="Confirm new password"
-                className="pr-9"
+                className="pr-11"
+                aria-invalid={resetForm.formState.errors.confirmPassword ? true : undefined}
                 {...resetForm.register("confirmPassword")}
               />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+              <RevealButton shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />
             </div>
             {resetForm.formState.errors.confirmPassword && (
               <p className="text-xs text-destructive">{resetForm.formState.errors.confirmPassword.message}</p>
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Reset Password
+          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
+            Reset password
           </Button>
         </form>
       )}
 
-      <div className="text-center">
-        <Link href="/login" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary">
-          <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-          Back to login
-        </Link>
-      </div>
-    </PageTransition>
+      <Link href="/login" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <ArrowLeft className="size-3.5" aria-hidden />
+        Back to login
+      </Link>
+    </div>
   )
 }

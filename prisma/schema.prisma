@@ -1546,6 +1546,10 @@ model FeatureModuleData {
   lastActivityAt   DateTime? @map("last_activity_at")
   createdById      String?   @map("created_by_id")
   updatedById      String?   @map("updated_by_id")
+  // Optional dedupe key for records that must be one-per-something, e.g. a live-poll
+  // ballot ("live-poll:<pollId>:<voter>"), so the database rejects a second vote.
+  // NULL for everything else (Postgres allows many NULLs under a unique index).
+  uniqueKey        String?   @unique @map("unique_key")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 

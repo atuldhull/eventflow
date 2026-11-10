@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ orgS
   })
 
   if (!org) {
-    return NextResponse.json({ success: true, exists: false }, { headers: { "Cache-Control": "public, max-age=60" } })
+    return NextResponse.json({ success: true, exists: false }, { headers: { "Cache-Control": "no-store" } })
   }
 
   const siteConfig = await prisma.siteConfig.findUnique({
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ orgS
   })
 
   if (!siteConfig || !siteConfig.isPublished) {
-    return NextResponse.json({ success: true, exists: false }, { headers: { "Cache-Control": "public, max-age=60" } })
+    return NextResponse.json({ success: true, exists: false }, { headers: { "Cache-Control": "no-store" } })
   }
 
   const pages = await prisma.sitePage.findMany({
@@ -53,5 +53,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ orgS
       pages,
     },
     organization: { id: org.id, name: org.name, slug: org.slug, logo: org.logo, description: org.description },
-  }, { headers: { "Cache-Control": "public, max-age=120, stale-while-revalidate=300" } })
+  }, { headers: { "Cache-Control": "public, max-age=0, s-maxage=15" } })
 }

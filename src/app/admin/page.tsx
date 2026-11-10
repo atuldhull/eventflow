@@ -4,12 +4,13 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useRBAC } from "@/hooks/useRBAC"
-import { Building2, Users, Loader2, ShieldCheck } from "lucide-react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Building2, ChevronRight, ShieldCheck } from "lucide-react"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/EmptyState"
+import { Pill } from "@/components/ui/pill"
+import { Skeleton } from "@/components/ui/skeleton"
 import { buttonVariants } from "@/components/ui/button"
-import { getRoleLabel, getRoleColor } from "@/lib/permissions"
-import { cn } from "@/lib/utils"
+import { getRoleLabel } from "@/lib/permissions"
 import type { Role } from "@/lib/constants"
 
 export default function AdminPage() {
@@ -29,11 +30,12 @@ export default function AdminPage() {
     if (isLoading) return
     // Don't auto-redirect super admin — let them pick a workspace
     if (isSuperAdmin) return
-    if (currentEnterpriseId) {
+    // only a workspace they can still open (a stale one would bounce back here)
+    if (currentEnterpriseId && accessibleEnterprises.some((e) => e.id === currentEnterpriseId)) {
       router.replace("/admin/enterprise")
       return
     }
-    if (currentOrganizationId) {
+    if (currentOrganizationId && accessibleOrganizations.some((o) => o.id === currentOrganizationId)) {
       router.replace("/admin/org")
       return
     }
@@ -51,108 +53,100 @@ export default function AdminPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="max-w-2xl space-y-6" aria-busy="true" aria-label="Loading workspaces">
+        <div className="space-y-2"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-72" /></div>
+        <div className="space-y-px overflow-hidden rounded-lg border">
+          {[0, 1].map((i) => <Skeleton key={i} className="h-14 rounded-none" />)}
+        </div>
       </div>
     )
   }
 
   if (accessibleEnterprises.length === 0 && accessibleOrganizations.length === 0) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <Building2 className="h-12 w-12 text-muted-foreground/30 mb-4" />
-        <h2 className="text-xl font-semibold">No workspaces yet</h2>
-        <p className="text-sm text-muted-foreground mt-1 max-w-md">
-          Create your organization to start hosting events.
-        </p>
-        <Link href="/admin/create-org" className={cn(buttonVariants(), "mt-4 gap-2")}>
-          <Building2 className="h-4 w-4" /> Create Organization
+      <EmptyState
+        variant="page"
+        icon={Building2}
+        title="No workspaces yet"
+        description="Create your organization to start hosting events."
+      >
+        <Link href="/admin/create-org" className={buttonVariants()}>
+          <Building2 /> Create organization
         </Link>
-      </div>
+      </EmptyState>
     )
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 py-8">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold">Choose your workspace</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Select an enterprise or organization to manage
-        </p>
-      </div>
-
-      {isSuperAdmin && (
-        <div className="flex justify-center">
-          <Link href="/super-admin" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
-            <ShieldCheck className="h-4 w-4" />
-            Go to Super Admin Panel
-          </Link>
-        </div>
-      )}
+    <div className="max-w-2xl space-y-6">
+      <PageHeader
+        title="Choose your workspace"
+        description="Select an enterprise or organization to manage"
+        actions={
+          isSuperAdmin ? (
+            <Link href="/super-admin" className={buttonVariants({ variant: "outline" })}>
+              <ShieldCheck /> Go to Super Admin Panel
+            </Link>
+          ) : undefined
+        }
+      />
 
       {accessibleEnterprises.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">Enterprises</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {accessibleEnterprises.map((ent) => (
-              <Card
-                key={ent.id}
-                className="p-4 cursor-pointer hover:border-primary transition-colors"
-                onClick={() => {
-                  setEnterpriseContext(ent.id)
-                  router.push("/admin/enterprise")
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Building2 className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{ent.name}</p>
-                    {ent.role && (
-                      <Badge variant="secondary" className={`text-[10px] ${getRoleColor(ent.role as Role)}`}>
-                        {getRoleLabel(ent.role as Role)}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+        <WorkspaceList
+          label="Enterprises"
+          items={accessibleEnterprises}
+          onPick={(id) => {
+            setEnterpriseContext(id)
+            router.push("/admin/enterprise")
+          }}
+        />
       )}
 
       {accessibleOrganizations.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">Organizations</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {accessibleOrganizations.map((org) => (
-              <Card
-                key={org.id}
-                className="p-4 cursor-pointer hover:border-primary transition-colors"
-                onClick={() => {
-                  setOrganizationContext(org.id)
-                  router.push("/admin/org")
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-                    <Users className="h-5 w-5 text-blue-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{org.name}</p>
-                    {org.role && (
-                      <Badge variant="secondary" className={`text-[10px] ${getRoleColor(org.role as Role)}`}>
-                        {getRoleLabel(org.role as Role)}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+        <WorkspaceList
+          label="Organizations"
+          items={accessibleOrganizations}
+          onPick={(id) => {
+            setOrganizationContext(id)
+            router.push("/admin/org")
+          }}
+        />
       )}
     </div>
+  )
+}
+
+function WorkspaceList({
+  label,
+  items,
+  onPick,
+}: {
+  label: string
+  items: { id: string; name: string; role?: string | null }[]
+  onPick: (id: string) => void
+}) {
+  const headingId = `ws-${label.toLowerCase()}`
+  return (
+    <section aria-labelledby={headingId}>
+      <h2 id={headingId} className="mb-2 text-[15px] font-semibold">{label}</h2>
+      <ul className="divide-y divide-rule overflow-hidden rounded-lg border">
+        {items.map((ws) => (
+          <li key={ws.id}>
+            <button
+              type="button"
+              onClick={() => onPick(ws.id)}
+              className="group flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60"
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-raised text-[13px] font-semibold" aria-hidden>
+                {ws.name.charAt(0).toUpperCase()}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{ws.name}</span>
+              {ws.role && <Pill tone="neutral">{getRoleLabel(ws.role as Role)}</Pill>}
+              <ChevronRight className="size-4 shrink-0 text-faint transition-colors group-hover:text-foreground" aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

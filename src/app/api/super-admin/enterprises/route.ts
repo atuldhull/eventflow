@@ -2,13 +2,13 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { withSuperAdmin } from "@/lib/guards"
 import prisma from "@/lib/prisma"
-import { createAuditLog, getClientInfo } from "@/lib/audit"
-import { z } from "zod/v4"
+import { getClientInfo } from "@/lib/audit"
+import { parsePaging, superAdminEnterpriseCreateSchema } from "@/lib/enterprise-admin"
+import { createEnterpriseWithOwner } from "@/lib/enterprise-lifecycle"
 
 export const GET = withSuperAdmin(async (req) => {
   const searchParams = req.nextUrl.searchParams
-  const page = parseInt(searchParams.get("page") || "1")
-  const limit = parseInt(searchParams.get("limit") || "10")
+  const { page, limit } = parsePaging(searchParams, 10)
   const search = searchParams.get("search") || ""
   const status = searchParams.get("status") || ""
 
@@ -54,43 +54,34 @@ export const GET = withSuperAdmin(async (req) => {
   })
 })
 
-const createSchema = z.object({
-  name: z.string().min(2),
-  slug: z.string().min(2),
-  email: z.email(),
-  type: z.string().optional(),
-  description: z.string().optional(),
-  phone: z.string().optional(),
-  website: z.string().optional(),
-  ownerId: z.string(),
-})
-
+/**
+ * Create an enterprise owned by an existing account (picked by email). The owner's
+ * ENTERPRISE_ADMIN membership is created with it. A bad or taken slug and an unknown
+ * owner are answered with 400/409 and the field they concern, never a 500.
+ */
 export const POST = withSuperAdmin(async (req, { user }) => {
   try {
-    const body = await req.json()
-    // Allow "current" as ownerId to use the logged-in user
-    if (body.ownerId === "current") body.ownerId = user.id
-    const parsed = createSchema.safeParse(body)
-
+    const parsed = superAdminEnterpriseCreateSchema.safeParse(await req.json().catch(() => null))
     if (!parsed.success) {
-      return NextResponse.json({ success: false, message: "Validation failed", errors: parsed.error.flatten().fieldErrors }, { status: 400 })
+      return NextResponse.json(
+        { success: false, message: parsed.error.issues[0]?.message ?? "Validation failed", errors: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
     }
 
-    const enterprise = await prisma.enterprise.create({ data: parsed.data as any })
-
     const { ipAddress, userAgent } = getClientInfo(req)
-    await createAuditLog({
-      userId: user.id,
-      action: "CREATE",
-      entityType: "ENTERPRISE",
-      entityId: enterprise.id,
-      description: `Created enterprise: ${enterprise.name}`,
-      ipAddress,
-      userAgent,
-      enterpriseId: enterprise.id,
-    })
+    const result = await createEnterpriseWithOwner(parsed.data, { id: user.id, ipAddress, userAgent })
+    if (!result.ok) {
+      return NextResponse.json(
+        { success: false, message: result.message, ...(result.field ? { errors: { [result.field]: [result.message] } } : {}) },
+        { status: result.status }
+      )
+    }
 
-    return NextResponse.json({ success: true, data: enterprise }, { status: 201 })
+    return NextResponse.json(
+      { success: true, message: `${result.enterprise.name} created, owned by ${result.owner.email}`, data: { ...result.enterprise, owner: result.owner } },
+      { status: 201 }
+    )
   } catch (error) {
     console.error("Create enterprise error:", error)
     return NextResponse.json({ success: false, message: "Failed to create enterprise" }, { status: 500 })

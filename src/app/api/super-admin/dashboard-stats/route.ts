@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server"
 import { withSuperAdmin } from "@/lib/guards"
 import prisma from "@/lib/prisma"
+import { revenueTotals } from "@/lib/revenue"
 
 export const GET = withSuperAdmin(async () => {
   const [totalUsers, totalEvents, activeEnterprises, totalRevenueAgg, recentEvents, recentActivity] = await Promise.all([
     prisma.user.count({ where: { deletedAt: null } }),
     prisma.event.count({ where: { deletedAt: null } }),
     prisma.enterprise.count({ where: { isActive: true, deletedAt: null } }),
-    prisma.payment.aggregate({ where: { status: "COMPLETED" }, _sum: { amount: true } }),
+    revenueTotals({}),
     prisma.event.findMany({
       where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
@@ -41,7 +42,7 @@ export const GET = withSuperAdmin(async () => {
       totalUsers,
       totalEvents,
       activeEnterprises,
-      totalRevenue: Number(totalRevenueAgg._sum.amount || 0),
+      totalRevenue: totalRevenueAgg.net, // collected minus refunds
       userChange: 0,
       eventChange: 0,
       recentEvents: recentEvents.map((e) => ({

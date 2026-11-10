@@ -12,6 +12,7 @@ import puppeteer from "puppeteer-core"
 import fs from "node:fs"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+import { PERMISSIONS, ROLE_PERMISSIONS } from "../src/lib/permissions"
 
 // ── Locate a Chromium-based browser ────────────────────────────────────────
 const CANDIDATE_PATHS: string[] = [
@@ -42,6 +43,57 @@ function findBrowser(): string {
   )
 }
 
+// ── Permission tables, generated from the real role map ─────────────────────
+// <!--MATRIX Label=perm:key; ...--> becomes a role grid; <!--APPENDIX--> lists every
+// permission with its holders. Keeps the PDF from drifting away from the code.
+const ROLES = [
+  ["SUPER_ADMIN", "Super", "Super"],
+  ["ENTERPRISE_ADMIN", "Ent adm", "Ent Admin"],
+  ["ENTERPRISE_MANAGER", "Ent mgr", "Ent Manager"],
+  ["ORG_ADMIN", "Org adm", "Org Admin"],
+  ["EVENT_MANAGER", "Event mgr", "Event Manager"],
+  ["COORDINATOR", "Coord", "Coordinator"],
+  ["FINANCE_MANAGER", "Finance", "Finance"],
+  ["VIEWER", "Viewer", "Viewer"],
+] as const
+const holds = (role: string, perm: string) =>
+  (ROLE_PERMISSIONS as Record<string, readonly string[]>)[role].includes(perm)
+
+function matrix(spec: string): string {
+  const rows = spec.split(";").map((s) => s.trim()).filter(Boolean).map((pair) => {
+    const [label, perm] = pair.split("=").map((s) => s.trim())
+    if (!Object.values(PERMISSIONS).includes(perm as never)) throw new Error(`Unknown permission in docs: ${perm}`)
+    const cells = ROLES.map(([r]) => `<td><span class="${holds(r, perm) ? "yes" : "no"}"></span></td>`).join("")
+    return `<tr><td>${label}</td>${cells}</tr>`
+  })
+  const head = ROLES.map(([, short]) => `<th>${short}</th>`).join("")
+  return `<table class="perm"><thead><tr><th>Action</th>${head}</tr></thead><tbody>${rows.join("")}</tbody></table>`
+}
+
+function appendix(): string {
+  const groups = new Map<string, string[]>()
+  for (const perm of Object.values(PERMISSIONS)) {
+    const g = perm.split(":")[0]
+    groups.set(g, [...(groups.get(g) ?? []), perm])
+  }
+  const title = (g: string) => ({ enterprise: "Enterprise", org: "Organization", member: "Members", event: "Events",
+    registration: "Registrations", payment: "Payments", checkin: "Check-in", communication: "Communication",
+    certificate: "Certificates", coupon: "Coupons", analytics: "Analytics", audit: "Audit", platform: "Platform" } as Record<string, string>)[g] ?? g
+  return [...groups].map(([g, perms]) => {
+    const rows = perms.map((p) => {
+      const who = ROLES.slice(1).filter(([r]) => holds(r, p)).map(([, , long]) => long)
+      return `<tr><td><code>${p}</code></td><td>${who.length ? who.join(", ") : "Super Admin only"}</td></tr>`
+    }).join("")
+    return `<h3>${title(g)}</h3><table class="kv mono">${rows}</table>`
+  }).join("\n")
+}
+
+function fillTables(html: string): string {
+  return html
+    .replace(/<!--MATRIX ([\s\S]*?)-->/g, (_, spec: string) => matrix(spec))
+    .replace(/<!--APPENDIX-->/g, () => appendix())
+}
+
 // ── Stamp today's date into the HTML so the PDF isn't frozen at Apr 2026 ──
 function stampDate(html: string): string {
   const today = new Date().toLocaleDateString("en-IN", {
@@ -55,22 +107,27 @@ async function renderPdf(browser: Awaited<ReturnType<typeof puppeteer.launch>>, 
   // ./shared.css naturally. A single-step load is faster and more reliable than
   // the goto + setContent combo which deadlocks on `networkidle0` under
   // puppeteer-core 24.
-  const stamped = stampDate(fs.readFileSync(htmlPath, "utf8"))
+  const stamped = fillTables(stampDate(fs.readFileSync(htmlPath, "utf8")))
   const tmpPath = htmlPath.replace(/\.html$/, ".__render__.html")
   fs.writeFileSync(tmpPath, stamped, "utf8")
 
   const page = await browser.newPage()
+  const title = htmlPath.includes("admin") ? "Admin Reference" : "User Guide"
   try {
     await page.emulateMediaType("print")
     await page.goto(pathToFileURL(tmpPath).toString(), { waitUntil: "load", timeout: 60_000 })
-    // Give web fonts / pending layout a beat to settle before capturing.
+    // The pages use Google Fonts; wait for them so the PDF never falls back mid-render.
+    await page.evaluate(() => document.fonts.ready)
     await new Promise((r) => setTimeout(r, 400))
     await page.pdf({
       path: pdfPath,
       format: "A4",
       printBackground: true,
-      preferCSSPageSize: true,   // Honour @page size/margin declared in CSS
-      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      preferCSSPageSize: true,   // Honour @page size/margins declared in CSS
+      displayHeaderFooter: true,
+      headerTemplate: "<span></span>",
+      // Running footer with page numbers. The cover page has no margin, so it gets none.
+      footerTemplate: `<div style="width:100%;padding:0 16mm;display:flex;justify-content:space-between;font:600 7.5pt Segoe UI,Arial,sans-serif;color:#8a8780;letter-spacing:.06em;text-transform:uppercase"><span>EventFlow · ${title}</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
     })
   } finally {
     await page.close()

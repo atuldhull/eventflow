@@ -1,57 +1,118 @@
 import type { Metadata } from "next"
-import { CheckCircle, XCircle, HelpCircle } from "lucide-react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
+import { CircleCheck, CircleX, CircleHelp, Clock, type LucideIcon } from "lucide-react"
+import { Pill } from "@/components/ui/pill"
+import { Container } from "@/components/marketing/layout"
+import { statusLabel } from "@/lib/status-tone"
+import { cn } from "@/lib/utils"
 import prisma from "@/lib/prisma"
+import { VERIFICATION_CODE_PATTERN, certificateVerificationState, revokedAt } from "@/lib/certificate-verification"
 
-export const metadata: Metadata = { title: "Verify Certificate | EventFlow", robots: "noindex" }
+export const metadata: Metadata = { title: "Verify certificate", robots: "noindex" }
+
+/** the result's headline: a 24px status glyph in its status colour, then the title and a grey line */
+function Result({ icon: Icon, tone, title, children }: { icon: LucideIcon; tone: string; title: string; children?: React.ReactNode }) {
+  return (
+    <div>
+      <Icon className={cn("size-7", tone)} strokeWidth={1.75} aria-hidden />
+      <h1 className="mt-4 text-[28px] leading-tight font-semibold tracking-[-0.02em] sm:text-[32px]">{title}</h1>
+      {children}
+    </div>
+  )
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <Container className="py-16 sm:py-24">
+      <div className="max-w-[560px]">
+        {children}
+        <Link href="/verify" className="mt-10 inline-flex text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+          Check another code
+        </Link>
+      </div>
+    </Container>
+  )
+}
 
 export default async function VerifyCertificatePage({ params }: { params: Promise<{ code: string }> }) {
-  const { code } = await params
+  const { code: rawCode } = await params
+  let code = rawCode.trim()
+  try { code = decodeURIComponent(code).trim() } catch { /* not percent-encoded: use as is */ }
 
-  const certificate = await prisma.certificate.findUnique({
+  const certificate = !VERIFICATION_CODE_PATTERN.test(code) ? null : await prisma.certificate.findUnique({
     where: { verificationCode: code },
     select: {
-      certificateNumber: true, recipientName: true, type: true, title: true, issuedDate: true, status: true,
+      certificateNumber: true, recipientName: true, type: true, title: true, issuedDate: true, status: true, metadata: true,
       event: { select: { title: true, startDate: true } },
     },
   }).catch(() => null)
 
   if (!certificate) {
     return (
-      <div className="container mx-auto px-4 py-20 max-w-md text-center">
-        <HelpCircle className="mx-auto h-16 w-16 text-muted-foreground/30 mb-4" />
-        <h1 className="text-2xl font-bold">Certificate Not Found</h1>
-        <p className="text-muted-foreground mt-2">The verification code doesn&apos;t match any certificate in our system.</p>
-      </div>
+      <Shell>
+        <Result icon={CircleHelp} tone="text-muted-foreground" title="Certificate not found">
+          <p className="mt-3 text-base leading-relaxed text-muted-foreground">The verification code doesn&apos;t match any certificate in our system.</p>
+        </Result>
+      </Shell>
     )
   }
 
-  if (certificate.status === "PENDING") {
+  const state = certificateVerificationState(certificate.status, certificate.metadata)
+  const certNumber = (
+    <p className="mt-2 text-sm text-muted-foreground">
+      Certificate #: <span className="font-mono text-foreground">{certificate.certificateNumber}</span>
+    </p>
+  )
+
+  if (state === "not_issued") {
     return (
-      <div className="container mx-auto px-4 py-20 max-w-md text-center">
-        <XCircle className="mx-auto h-16 w-16 text-red-500 mb-4" />
-        <h1 className="text-2xl font-bold">Certificate Revoked</h1>
-        <p className="text-muted-foreground mt-2">This certificate has been revoked by the issuing organization.</p>
-        <p className="text-sm text-muted-foreground mt-1">Certificate #: {certificate.certificateNumber}</p>
-      </div>
+      <Shell>
+        <Result icon={Clock} tone="text-muted-foreground" title="Not issued yet">
+          <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+            This certificate exists but the issuing organization hasn&apos;t issued it yet, so it can&apos;t be verified. Check again once it has been issued.
+          </p>
+          {certNumber}
+        </Result>
+      </Shell>
     )
   }
+
+  if (state === "revoked") {
+    const when = revokedAt(certificate.metadata)
+    return (
+      <Shell>
+        <Result icon={CircleX} tone="text-destructive" title="Certificate revoked">
+          <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+            This certificate has been revoked by the issuing organization{when ? ` on ${when.toLocaleDateString("en-IN")}` : ""} and is no longer valid.
+          </p>
+          {certNumber}
+        </Result>
+      </Shell>
+    )
+  }
+
+  const rows: { label: string; value: React.ReactNode }[] = [
+    { label: "Certificate #", value: <span className="font-mono text-[13px]">{certificate.certificateNumber}</span> },
+    { label: "Recipient", value: <span className="font-medium">{certificate.recipientName}</span> },
+    { label: "Event", value: certificate.event.title },
+    { label: "Event Date", value: <span className="tabular-nums">{certificate.event.startDate.toLocaleDateString("en-IN")}</span> },
+    { label: "Type", value: <Pill tone="neutral">{statusLabel(certificate.type)}</Pill> },
+    { label: "Issued", value: <span className="tabular-nums">{certificate.issuedDate.toLocaleDateString("en-IN")}</span> },
+    { label: "Status", value: <Pill tone="positive">Valid</Pill> },
+  ]
 
   return (
-    <div className="container mx-auto px-4 py-20 max-w-md text-center space-y-6">
-      <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
-      <h1 className="text-2xl font-bold">Certificate Verified</h1>
-      <Card className="p-6 text-left space-y-3 text-sm">
-        <div className="flex justify-between"><span className="text-muted-foreground">Certificate #</span><span className="font-mono">{certificate.certificateNumber}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Recipient</span><span className="font-medium">{certificate.recipientName}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Event</span><span>{certificate.event.title}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Event Date</span><span>{certificate.event.startDate.toLocaleDateString("en-IN")}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Type</span><Badge variant="secondary">{certificate.type}</Badge></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Issued</span><span>{certificate.issuedDate.toLocaleDateString("en-IN")}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Status</span><Badge className="bg-green-100 text-green-700">Valid</Badge></div>
-      </Card>
-      <p className="text-xs text-muted-foreground">Verified on EventFlow — Professional Event Management Platform</p>
-    </div>
+    <Shell>
+      <Result icon={CircleCheck} tone="text-positive" title="Certificate verified" />
+      <dl className="mt-8 divide-y divide-rule rounded-lg border bg-card text-sm">
+        {rows.map((r) => (
+          <div key={r.label} className="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-4 px-5 py-3 sm:grid-cols-[160px_minmax(0,1fr)]">
+            <dt className="text-muted-foreground">{r.label}</dt>
+            <dd className="min-w-0 break-words">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-4 text-xs text-muted-foreground">Verified on EventFlow — Professional Event Management Platform</p>
+    </Shell>
   )
 }

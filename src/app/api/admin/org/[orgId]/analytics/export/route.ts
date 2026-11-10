@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
-import { generateCSVReport } from "@/lib/analytics"
+import { csvResponse, exportDateStamp, toCsv } from "@/lib/csv-export"
 
 export async function GET(
   request: NextRequest,
@@ -30,23 +30,18 @@ export async function GET(
     orderBy: { startDate: "desc" },
   })
 
-  const data = events.map((e) => ({
-    Event: e.title,
-    Date: e.startDate.toISOString().slice(0, 10),
-    Status: e.status,
-    Registrations: e.currentRegistrations,
-    Capacity: e.maxCapacity || "Unlimited",
-    CheckIns: e._count.checkIns,
-    Feedbacks: e._count.feedbacks,
-    Paid: e.isPaid ? "Yes" : "No",
-  }))
+  // event titles are typed by organizers: toCsv neutralises spreadsheet formulas
+  const headers = ["Event", "Date", "Status", "Registrations", "Capacity", "CheckIns", "Feedbacks", "Paid"]
+  const rows = events.map((e) => [
+    e.title,
+    e.startDate.toISOString().slice(0, 10),
+    e.status,
+    e.currentRegistrations,
+    e.maxCapacity ?? "Unlimited",
+    e._count.checkIns,
+    e._count.feedbacks,
+    e.isPaid ? "Yes" : "No",
+  ])
 
-  const csv = generateCSVReport(data as any, ["Event", "Date", "Status", "Registrations", "Capacity", "CheckIns", "Feedbacks", "Paid"])
-
-  return new NextResponse(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="analytics-${orgId.slice(0, 8)}.csv"`,
-    },
-  })
+  return csvResponse(`analytics-${exportDateStamp()}.csv`, toCsv(headers, rows))
 }

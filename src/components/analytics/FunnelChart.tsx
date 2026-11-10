@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils"
-
 interface FunnelStage {
   label: string
   count: number
@@ -11,45 +9,38 @@ interface FunnelChartProps {
   stages: FunnelStage[]
 }
 
+/**
+ * Stages as single-hue bars: the first stage is full teal, each later stage a
+ * step lighter, so the drop-off reads as length rather than as a rainbow.
+ */
 export function FunnelChart({ stages }: FunnelChartProps) {
   const maxCount = stages[0]?.count || 1
 
   return (
-    <div className="space-y-2">
+    <ol className="space-y-3">
       {stages.map((stage, i) => {
-        const widthPct = Math.max(10, (stage.count / maxCount) * 100)
+        const widthPct = Math.max(2, (stage.count / maxCount) * 100)
+        const opacity = Math.max(0.35, 1 - i * 0.15)
         return (
-          <div key={stage.label}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium">{stage.label}</span>
-              <span className="text-sm text-muted-foreground">
-                {stage.count.toLocaleString()} ({stage.percentage}%)
+          <li key={stage.label}>
+            <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate font-medium">{stage.label}</span>
+              <span className="shrink-0 tabular-nums">
+                {stage.count.toLocaleString("en-IN")}
+                <span className="ml-1.5 text-[13px] text-muted-foreground">{stage.percentage}%</span>
               </span>
             </div>
-            <div className="h-8 rounded bg-muted overflow-hidden">
-              <div
-                className={cn(
-                  "h-full rounded transition-all flex items-center pl-3",
-                  i === 0 ? "bg-green-500" :
-                  i === 1 ? "bg-emerald-500" :
-                  i === 2 ? "bg-blue-500" :
-                  i === 3 ? "bg-indigo-500" :
-                  i === 4 ? "bg-purple-500" : "bg-amber-500"
-                )}
-                style={{ width: `${widthPct}%` }}
-              >
-                <span className="text-xs font-medium text-white">{stage.count.toLocaleString()}</span>
-              </div>
+            <div className="h-2 overflow-hidden rounded-[2px] bg-muted">
+              <div className="h-full rounded-[2px] bg-brand" style={{ width: `${widthPct}%`, opacity }} />
             </div>
             {i < stages.length - 1 && stage.conversionFromPrevious !== undefined && (
-              <div className="flex items-center gap-1 mt-1 ml-4 text-xs text-muted-foreground">
-                <span>↓</span>
-                <span>{stage.conversionFromPrevious}% conversion</span>
-              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+                {stage.conversionFromPrevious}% continue to the next step
+              </p>
             )}
-          </div>
+          </li>
         )
       })}
-    </div>
+    </ol>
   )
 }

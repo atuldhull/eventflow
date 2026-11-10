@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
-import { withApiAuth } from "@/lib/api-auth"
+import { apiKeyEventWhere, withApiAuth } from "@/lib/api-auth"
 import prisma from "@/lib/prisma"
 
 export const GET = withApiAuth("checkins:read", async (req, ctx, routeCtx) => {
   const { ticketNumber } = await routeCtx.params
 
   const ticket = await prisma.ticket.findFirst({
-    where: { ticketNumber, event: { organizationId: ctx.organizationId || undefined } },
+    // only tickets of the key's own events (its organization's, or its enterprise's)
+    where: { ticketNumber: String(ticketNumber), event: { AND: [apiKeyEventWhere(ctx)] } },
     select: {
       id: true, ticketNumber: true, status: true,
       user: { select: { name: true, email: true } },

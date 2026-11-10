@@ -6,11 +6,9 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod/v4"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2 } from "lucide-react"
-import Link from "next/link"
+import { Loader2 } from "lucide-react"
 
 import { PageHeader } from "@/components/shared/PageHeader"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,7 +21,9 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { useRBAC } from "@/hooks/useRBAC"
+import { statusLabel } from "@/lib/status-tone"
 import { slugify } from "@/lib/utils"
+import { Section } from "../../_components/admin-ui"
 
 const createOrgSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters").max(100),
@@ -38,6 +38,12 @@ const createOrgSchema = z.object({
 type CreateOrgInput = z.infer<typeof createOrgSchema>
 
 const categories = ["TECHNICAL", "CULTURAL", "SPORTS", "SOCIAL", "ACADEMIC", "PROFESSIONAL", "CORPORATE", "HR", "ENGINEERING", "MARKETING", "OTHER"]
+const categoryItems = categories.map((value) => ({ value, label: statusLabel(value) }))
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null
+  return <p id={id} role="alert" className="text-xs text-destructive">{message}</p>
+}
 
 export default function CreateOrganizationPage() {
   const router = useRouter()
@@ -54,8 +60,6 @@ export default function CreateOrganizationPage() {
     resolver: zodResolver(createOrgSchema),
     defaultValues: { slug: "", category: "" },
   })
-
-  const name = watch("name", "")
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -92,80 +96,87 @@ export default function CreateOrganizationPage() {
     }
   }
 
+  const err = (field: keyof CreateOrgInput) =>
+    errors[field] ? { "aria-invalid": true as const, "aria-describedby": `${field}-error` } : {}
+
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="max-w-3xl space-y-6">
       <PageHeader
-        title="Create Organization"
-        description="Add a new organization to your enterprise"
+        title="New organization"
+        description="Add a club, department or team to your enterprise."
         breadcrumbs={[
-          { label: "Admin", href: "/admin" },
-          { label: "Enterprise", href: "/admin/enterprise" },
           { label: "Organizations", href: "/admin/enterprise/organizations" },
-          { label: "Create" },
+          { label: "New" },
         ]}
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <Card className="p-6 space-y-4">
-          <h3 className="text-sm font-medium">Basic Information</h3>
-
-          <div className="space-y-2">
-            <Label htmlFor="name">Organization Name</Label>
-            <Input id="name" placeholder="e.g. Tech Club" {...register("name")} onChange={handleNameChange} />
-            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="slug">Slug</Label>
-            <Input id="slug" placeholder="tech-club" {...register("slug")} />
-            {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Select value={watch("category")} onValueChange={(v) => setValue("category", v || "")}>
-              <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.category && <p className="text-xs text-destructive">{errors.category.message}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea id="description" placeholder="Brief description..." rows={3} {...register("description")} />
-            {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="org@example.com" {...register("email")} />
-              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        <Section title="Basics" description="The name people see and the address of its page.">
+          <div className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="name">Organization name</Label>
+              <Input id="name" placeholder="e.g. Tech Club" {...register("name")} onChange={handleNameChange} {...err("name")} />
+              <FieldError id="name-error" message={errors.name?.message} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone (optional)</Label>
-              <Input id="phone" placeholder="+91 9876543210" {...register("phone")} />
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="slug">Slug</Label>
+              <Input id="slug" placeholder="tech-club" className="font-mono" {...register("slug")} {...err("slug")} />
+              <FieldError id="slug-error" message={errors.slug?.message} />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="category">Category</Label>
+              <Select items={categoryItems} value={watch("category")} onValueChange={(v) => setValue("category", v || "")}>
+                <SelectTrigger id="category" className="w-full data-[size=default]:h-9" {...err("category")}>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{statusLabel(cat)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError id="category-error" message={errors.category?.message} />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" placeholder="Brief description…" rows={3} {...register("description")} {...err("description")} />
+              <FieldError id="description-error" message={errors.description?.message} />
             </div>
           </div>
+        </Section>
 
-          <div className="space-y-2">
-            <Label htmlFor="website">Website (optional)</Label>
-            <Input id="website" placeholder="https://..." {...register("website")} />
+        <Section title="Contact" description="How members and attendees reach the organization.">
+          <div className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" placeholder="org@example.com" {...register("email")} {...err("email")} />
+                <FieldError id="email-error" message={errors.email?.message} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="phone">Phone <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                <Input id="phone" type="tel" placeholder="+91 9876543210" {...register("phone")} />
+              </div>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="website">Website <span className="font-normal text-muted-foreground">(optional)</span></Label>
+              <Input id="website" placeholder="https://…" {...register("website")} {...err("website")} />
+              <FieldError id="website-error" message={errors.website?.message} />
+            </div>
           </div>
-        </Card>
+        </Section>
 
-        <div className="flex gap-3">
-          <Button type="button" variant="outline" onClick={() => router.back()} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
+        <div className="flex flex-col-reverse gap-2 border-t border-rule pt-6 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting} className="gap-2">
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            Create Organization
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="animate-spin" />}
+            Create organization
           </Button>
         </div>
       </form>

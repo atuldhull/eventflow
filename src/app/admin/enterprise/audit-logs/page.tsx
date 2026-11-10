@@ -2,25 +2,56 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
-import { ScrollText } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { DataTable } from "@/components/tables/DataTable"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import { Pill } from "@/components/ui/pill"
 import { useRBAC } from "@/hooks/useRBAC"
 import { useDebounce } from "@/hooks/useDebounce"
+import { PermissionGate } from "@/components/auth/PermissionGate"
+import { PERMISSIONS } from "@/lib/permissions"
+import { statusLabel } from "@/lib/status-tone"
+import { SearchField, TableEmpty, Initial, fmtDateTime, num } from "../_components/admin-ui"
+import { ExportButton } from "../_components/export-button"
 
 interface AuditRow { id: string; userName: string; action: string; entityType: string; description: string | null; createdAt: string }
-const actionColors: Record<string, string> = { CREATE: "bg-green-100 text-green-700", UPDATE: "bg-blue-100 text-blue-700", DELETE: "bg-red-100 text-red-700", APPROVE: "bg-emerald-100 text-emerald-700", REJECT: "bg-orange-100 text-orange-700", PUBLISH: "bg-purple-100 text-purple-700" }
 
 const columns: ColumnDef<AuditRow, unknown>[] = [
-  { accessorKey: "createdAt", header: "Timestamp", cell: ({ getValue }) => <span className="text-sm">{new Date(getValue() as string).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span> },
-  { accessorKey: "userName", header: "User", cell: ({ row }) => (<div className="flex items-center gap-2"><div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs">{row.original.userName?.[0] || "?"}</div><span className="text-sm">{row.original.userName}</span></div>) },
-  { accessorKey: "action", header: "Action", cell: ({ getValue }) => { const a = getValue() as string; return <Badge variant="secondary" className={actionColors[a] || ""}>{a}</Badge> } },
-  { accessorKey: "entityType", header: "Entity", cell: ({ getValue }) => <span className="text-sm">{getValue() as string}</span> },
-  { accessorKey: "description", header: "Description", cell: ({ getValue }) => <span className="text-sm text-muted-foreground">{(getValue() as string) || "—"}</span> },
+  {
+    accessorKey: "createdAt",
+    header: "Time",
+    cell: ({ getValue }) => <span className="text-[13px] text-muted-foreground tabular-nums">{fmtDateTime(getValue() as string)}</span>,
+  },
+  {
+    accessorKey: "userName",
+    header: "User",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2.5">
+        <Initial name={row.original.userName} className="size-6 text-[11px]" />
+        <span className="font-medium">{row.original.userName}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "action",
+    header: "Action",
+    cell: ({ getValue }) => <Pill>{statusLabel(getValue() as string)}</Pill>,
+  },
+  {
+    accessorKey: "entityType",
+    header: "Entity",
+    cell: ({ getValue }) => <span className="text-muted-foreground">{statusLabel(getValue() as string)}</span>,
+  },
+  {
+    accessorKey: "description",
+    header: "Description",
+    cell: ({ getValue }) => (
+      <span className="block max-w-[420px] truncate text-muted-foreground" title={(getValue() as string) || undefined}>
+        {(getValue() as string) || "—"}
+      </span>
+    ),
+  },
 ]
 
 export default function EnterpriseAuditLogsPage() {
@@ -37,20 +68,44 @@ export default function EnterpriseAuditLogsPage() {
     setIsLoading(true)
     try {
       const params = new URLSearchParams({ page: String(page), limit: "50" })
+      if (debouncedSearch) params.set("search", debouncedSearch)
       const res = await fetch(`/api/admin/enterprise/${currentEnterpriseId}/audit-logs?${params}`)
       const json = await res.json()
       if (json.success) { setData(json.data); setTotal(json.pagination.total) }
     } catch { toast.error("Failed to load") } finally { setIsLoading(false) }
-  }, [currentEnterpriseId, page])
+  }, [currentEnterpriseId, page, debouncedSearch])
+
+  const exportUrl = currentEnterpriseId
+    ? `/api/admin/enterprise/${currentEnterpriseId}/audit-logs/export${debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : ""}`
+    : ""
 
   useEffect(() => { fetchLogs() }, [fetchLogs])
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Audit Logs" description="Activity log across your enterprise" breadcrumbs={[{ label: "Admin" }, { label: "Enterprise", href: "/admin/enterprise" }, { label: "Audit Logs" }]} />
-      <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
-      <DataTable columns={columns} data={data} isLoading={isLoading} pagination={{ page, pageSize: 50, total }} onPaginationChange={(p) => setPage(p)}
-        emptyState={<div className="text-center py-4"><ScrollText className="mx-auto h-10 w-10 text-muted-foreground/30 mb-2" /><p className="font-medium">No audit logs yet</p></div>}
+      <PageHeader
+        title="Audit log"
+        description={isLoading && total === 0 ? "Activity across your enterprise" : `${num(total)} recorded action${total === 1 ? "" : "s"}${debouncedSearch ? " matching your search" : " across your enterprise"}`}
+        actions={
+          exportUrl ? (
+            <PermissionGate permission={PERMISSIONS.AUDIT_EXPORT}>
+              <ExportButton url={exportUrl} fallbackName="audit-log.csv" />
+            </PermissionGate>
+          ) : null
+        }
+      />
+      <SearchField value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search by user, entity or description…" className="sm:max-w-sm" />
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        pagination={{ page, pageSize: 50, total }}
+        onPaginationChange={(p) => setPage(p)}
+        emptyState={
+          debouncedSearch
+            ? <TableEmpty title="No matching actions" description="Try a different search." />
+            : <TableEmpty title="No audit logs yet" description="Changes made by your team will be recorded here." />
+        }
       />
     </div>
   )

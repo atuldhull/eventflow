@@ -2,12 +2,51 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import type { Prisma } from "@prisma/client"
+import type { EventStatus, Prisma } from "@prisma/client"
+import { z } from "zod/v4"
 import { authorize } from "@/lib/authorization"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
-import { PERMISSIONS } from "@/lib/permissions"
-import { createFullEventSchema } from "@/lib/validations/event"
-import { slugify } from "@/lib/utils"
+import { PERMISSIONS, getRolePermissions } from "@/lib/permissions"
+import { createFullEventSchema, eventScheduleIssues } from "@/lib/validations/event"
+import { imageUrlSchema, mergeEventSettings, wizardSettingsSchema } from "@/lib/event-update"
+import {
+  PENDING_APPROVAL_MESSAGE,
+  enterpriseRequiresEventApproval,
+  notifyEventApprovers,
+  paidTicketsBlocker,
+  publishOutcome,
+} from "@/lib/event-publishing"
+import { checkEventLimit } from "@/lib/subscription"
+import { approvalRejection } from "@/lib/enterprise-event-approval"
+
+const EVENT_STATUSES = [
+  "DRAFT", "PENDING_APPROVAL", "PUBLISHED", "REGISTRATION_OPEN", "REGISTRATION_CLOSED",
+  "ONGOING", "COMPLETED", "CANCELLED", "POSTPONED",
+] as const
+
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(10_000).catch(1),
+  limit: z.coerce.number().int().min(1).max(100).catch(10),
+  search: z.string().trim().max(100).catch(""),
+  /** One status or a comma-separated list. */
+  status: z.string().max(200).optional().catch(undefined),
+  category: z.string().trim().max(50).optional().catch(undefined),
+  from: z.coerce.date().optional().catch(undefined),
+  to: z.coerce.date().optional().catch(undefined),
+  sort: z.enum(["created", "start"]).optional().catch(undefined),
+})
+
+// The wizard's settings (registration form fields, budget, add-ons...) and a checked cover
+// image URL on top of the shared create schema, which would otherwise drop `settings`.
+const createEventSchema = createFullEventSchema
+  .extend({
+    coverImage: imageUrlSchema.optional(),
+    settings: wizardSettingsSchema.optional(),
+  })
+  // Ends after it starts; registration closes by the end (the wizard checks the same rules).
+  .superRefine((d, ctx) => {
+    for (const issue of eventScheduleIssues(d)) ctx.addIssue({ code: "custom", path: [issue.path], message: issue.message })
+  })
 
 export async function GET(
   request: NextRequest,
@@ -24,37 +63,78 @@ export async function GET(
     return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
   }
 
-  const searchParams = request.nextUrl.searchParams
-  const page = parseInt(searchParams.get("page") || "1")
-  const limit = parseInt(searchParams.get("limit") || "10")
-  const search = searchParams.get("search") || ""
-  const status = searchParams.get("status") || ""
-  const category = searchParams.get("category") || ""
+  const sp = request.nextUrl.searchParams
+  const q = listQuerySchema.parse({
+    page: sp.get("page") ?? undefined,
+    limit: sp.get("limit") ?? undefined,
+    search: sp.get("search") ?? undefined,
+    status: sp.get("status") || undefined,
+    category: sp.get("category") || undefined,
+    from: sp.get("from") || undefined,
+    to: sp.get("to") || undefined,
+    sort: sp.get("sort") || undefined,
+  })
+  const statuses = q.status?.split(",").filter((s): s is EventStatus => (EVENT_STATUSES as readonly string[]).includes(s)) ?? []
 
-  const where: Record<string, unknown> = { organizationId: orgId, deletedAt: null }
-  if (search) where.title = { contains: search, mode: "insensitive" }
-  if (status) where.status = status
-  if (category) where.category = category
+  const scope: Prisma.EventWhereInput = { organizationId: orgId, deletedAt: null }
+  const where: Prisma.EventWhereInput = {
+    ...scope,
+    ...(q.search ? { title: { contains: q.search, mode: "insensitive" } } : {}),
+    ...(statuses.length ? { status: { in: statuses } } : {}),
+    ...(q.category ? { category: q.category } : {}),
+    // from/to: events that overlap the window (still running at `from`, started by `to`).
+    ...(q.from ? { endDate: { gte: q.from } } : {}),
+    ...(q.to ? { startDate: { lte: q.to } } : {}),
+  }
 
-  const [events, total] = await Promise.all([
+  const [events, total, byStatus, org] = await Promise.all([
     prisma.event.findMany({
-      where: where as any,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
+      where,
+      orderBy: q.sort === "start" ? { startDate: "asc" } : { createdAt: "desc" },
+      skip: (q.page - 1) * q.limit,
+      take: q.limit,
       select: {
         id: true, title: true, slug: true, category: true, status: true, type: true,
-        visibility: true, startDate: true, endDate: true, currentRegistrations: true,
-        maxCapacity: true, isPaid: true, isFeatured: true, coverImage: true,
+        visibility: true, startDate: true, endDate: true, timezone: true, currentRegistrations: true,
+        maxCapacity: true, isPaid: true, isFeatured: true, coverImage: true, venue: true, isOnline: true,
+        // read for the enterprise's reject reason only; not sent to the browser
+        settings: true, createdAt: true,
       },
     }),
-    prisma.event.count({ where: where as any }),
+    prisma.event.count({ where }),
+    prisma.event.groupBy({ by: ["status"], where: scope, _count: true }),
+    prisma.organization.findUnique({ where: { id: orgId }, select: { enterprise: { select: { name: true, settings: true } } } }),
   ])
+
+  // Counts across all of the organization's events (not just this page).
+  const count = (...s: string[]) => byStatus.filter((b) => s.includes(b.status)).reduce((n, b) => n + b._count, 0)
+
+  const enterpriseName = org?.enterprise?.name ?? null
 
   return NextResponse.json({
     success: true,
-    data: events.map((e) => ({ ...e, startDate: e.startDate.toISOString(), endDate: e.endDate.toISOString() })),
-    pagination: { page, pageSize: limit, total, totalPages: Math.ceil(total / limit) },
+    data: events.map(({ settings, createdAt, ...e }) => {
+      // set while an event the enterprise rejected is still the draft it was sent back as
+      const rejection = approvalRejection({ status: e.status, settings, createdAt })
+      return {
+        ...e,
+        startDate: e.startDate.toISOString(),
+        endDate: e.endDate.toISOString(),
+        approvalRejection: rejection && { ...rejection, enterpriseName },
+      }
+    }),
+    // Whether the enterprise sends this organization's events through approval before they go live.
+    approvalRequired: enterpriseRequiresEventApproval(org?.enterprise?.settings),
+    stats: {
+      total: byStatus.reduce((n, b) => n + b._count, 0),
+      draft: count("DRAFT"),
+      pendingApproval: count("PENDING_APPROVAL"),
+      published: count("PUBLISHED", "REGISTRATION_OPEN", "REGISTRATION_CLOSED"),
+      ongoing: count("ONGOING"),
+      completed: count("COMPLETED"),
+      cancelled: count("CANCELLED"),
+    },
+    pagination: { page: q.page, pageSize: q.limit, total, totalPages: Math.ceil(total / q.limit) },
   })
 }
 
@@ -74,25 +154,27 @@ export async function POST(
   }
 
   try {
-    // Check plan limits
-    const orgForLimits = await prisma.organization.findUnique({ where: { id: orgId }, select: { enterpriseId: true } })
-    if (orgForLimits?.enterpriseId) {
-      const { checkUsageLimits } = await import("@/lib/subscription")
-      const usage = await checkUsageLimits("enterprise", orgForLimits.enterpriseId)
-      if (usage?.events && usage.events.limit !== -1 && usage.events.percentage >= 100) {
-        return NextResponse.json({
-          success: false,
-          message: `You've reached your event limit (${usage.events.used}/${usage.events.limit}). Upgrade your plan to create more events.`,
-        }, { status: 403 })
-      }
+    // Plan limit: events created this month at the plan's level (the enterprise's, for an enterprise org)
+    const limit = await checkEventLimit(orgId)
+    if (!limit.allowed) {
+      return NextResponse.json({ success: false, message: limit.message, data: { used: limit.used, limit: limit.limit, plan: limit.plan } }, { status: 403 })
     }
 
-    const body = await request.json()
-    const parsed = createFullEventSchema.safeParse(body)
+    const body = await request.json().catch(() => null)
+    const parsed = createEventSchema.safeParse(body)
 
     if (!parsed.success) {
+      const issue = parsed.error.issues[0]
       return NextResponse.json(
-        { success: false, message: "Validation failed", errors: parsed.error.flatten().fieldErrors },
+        {
+          success: false,
+          message: !issue
+            ? "Validation failed"
+            : issue.code === "custom"
+              ? issue.message
+              : `Validation failed: ${issue.path.join(".") || "body"}: ${issue.message}`,
+          errors: z.flattenError(parsed.error).fieldErrors,
+        },
         { status: 400 }
       )
     }
@@ -100,9 +182,24 @@ export async function POST(
     const data = parsed.data
     const {
       ticketTypes, customFormFields, sessions, sponsors, faqs,
-      status: eventStatus, isPaid,
+      status: eventStatus, isPaid, settings, parentEventId,
       ...eventData
     } = data
+
+    if (eventStatus === "PUBLISHED" && !(authResult.role && getRolePermissions(authResult.role).includes(PERMISSIONS.EVENT_PUBLISH))) {
+      return NextResponse.json({ success: false, message: "You don't have permission to publish events." }, { status: 403 })
+    }
+
+    // Paid tickets can't go live while online payments are unavailable.
+    if (eventStatus === "PUBLISHED" && ticketTypes.some((tt) => (tt.isActive ?? true) && tt.price > 0)) {
+      const blocker = await paidTicketsBlocker()
+      if (blocker) return NextResponse.json({ success: false, message: blocker }, { status: 409 })
+    }
+
+    // A parent event must be one of this organization's events.
+    const parent = parentEventId
+      ? await prisma.event.findFirst({ where: { id: parentEventId, organizationId: orgId, deletedAt: null }, select: { id: true } })
+      : null
 
     // Ensure unique slug
     let slug = data.slug
@@ -121,16 +218,22 @@ export async function POST(
       select: { enterpriseId: true },
     })
 
+    // Publishing straight away: an enterprise that requires approval gets PENDING_APPROVAL
+    const outcome = eventStatus === "PUBLISHED" ? await publishOutcome(orgId, session.user.id) : null
+    const status = outcome?.status ?? eventStatus
+
     const event = await prisma.event.create({
       data: {
         ...eventData,
         slug,
         isPaid,
-        status: eventStatus,
+        status,
+        parentEventId: parent?.id ?? null,
+        settings: mergeEventSettings(null, settings),
         organizationId: orgId,
         enterpriseId: org?.enterpriseId || undefined,
         createdById: session.user.id,
-        publishedAt: eventStatus === "PUBLISHED" ? new Date() : undefined,
+        publishedAt: status === "PUBLISHED" ? new Date() : undefined,
         shortDescription: eventData.shortDescription,
         ticketTypes: ticketTypes.length > 0 ? {
           create: ticketTypes.map((tt, i) => ({
@@ -213,7 +316,14 @@ export async function POST(
       enterpriseId: org?.enterpriseId || undefined,
     })
 
-    return NextResponse.json({ success: true, data: event }, { status: 201 })
+    if (status === "PENDING_APPROVAL" && outcome?.enterpriseId) {
+      await notifyEventApprovers(outcome.enterpriseId, { id: event.id, title: event.title }, session.user.id)
+    }
+
+    return NextResponse.json(
+      { success: true, ...(status === "PENDING_APPROVAL" ? { message: PENDING_APPROVAL_MESSAGE } : {}), data: event },
+      { status: 201 }
+    )
   } catch (error) {
     console.error("Create event error:", error)
     return NextResponse.json({ success: false, message: "Failed to create event" }, { status: 500 })

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
-import { PLAN_CONFIG } from "@/lib/subscription"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { activatePlan, getPlanAmount, PLAN_ORDER_PURPOSE } from "@/lib/billing"
+import { getRazorpay, isRazorpayConfigured } from "@/lib/razorpay"
 import { z } from "zod/v4"
+import { reportError } from "@/lib/error-reporting"
 
 const subscribeSchema = z.object({
   plan: z.enum(["FREE", "STARTER", "PRO", "ENTERPRISE"]),
@@ -39,46 +40,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message }, { status: 403 })
     }
 
-    const config = PLAN_CONFIG[plan as keyof typeof PLAN_CONFIG]
-    const price = billingInterval === "MONTHLY" ? config.price.monthly : config.price.yearly
+    // The price always comes from server-side plan config, never from the request.
+    const price = getPlanAmount(plan, billingInterval)
 
-    const now = new Date()
-    const periodEnd = new Date(now)
-    periodEnd.setDate(periodEnd.getDate() + (billingInterval === "MONTHLY" ? 30 : 365))
+    // Paid plans are only activated by /api/admin/billing/verify after a verified
+    // Razorpay payment. Here we just open the order.
+    if (plan !== "FREE") {
+      // ENTERPRISE has no list price (custom contract), so it can't be self-served.
+      if (price <= 0) {
+        return NextResponse.json({ success: false, message: "This plan requires a custom quote. Please contact sales." }, { status: 400 })
+      }
+      if (!isRazorpayConfigured()) {
+        return NextResponse.json({ success: false, message: "Payments are not configured" }, { status: 503 })
+      }
 
-    // Upsert subscription
-    const subscriptionData = {
-      plan: plan as any,
-      status: "ACTIVE" as any,
-      currentPeriodStart: now,
-      currentPeriodEnd: periodEnd,
-      amount: price,
-      currency: "INR",
-      billingInterval: billingInterval,
-      maxEvents: config.limits.maxEvents,
-      maxParticipantsPerEvent: config.limits.maxParticipantsPerEvent,
-      maxOrganizations: config.limits.maxOrganizations,
-      maxTeamMembers: config.limits.maxTeamMembers,
-      features: Object.entries(config.features).filter(([, v]) => v).map(([k]) => k),
+      try {
+        const order = await getRazorpay().orders.create({
+          amount: Math.round(price * 100), // Razorpay expects paise
+          currency: "INR",
+          receipt: `plan_${Date.now()}`,
+          notes: {
+            purpose: PLAN_ORDER_PURPOSE,
+            entityType,
+            entityId,
+            plan,
+            billingInterval,
+            userId: session.user.id,
+          },
+        })
+
+        return NextResponse.json({
+          success: true,
+          message: "Complete the payment to activate this plan",
+          data: {
+            requiresPayment: true,
+            orderId: order.id,
+            amount: order.amount,
+            currency: order.currency,
+            keyId: process.env.RAZORPAY_KEY_ID,
+            plan,
+            billingInterval,
+          },
+        })
+      } catch (error) {
+        console.error("Razorpay plan order creation failed:", error)
+        void reportError(error, { where: "POST /api/admin/billing/subscribe", extra: { reason: "Razorpay plan order creation failed" } })
+        return NextResponse.json({ success: false, message: "We couldn't start the payment just now. Nothing was charged and your plan is unchanged. Please try again in a minute." }, { status: 502 })
+      }
     }
 
-    let subscription
-    if (entityType === "org") {
-      const existing = await prisma.subscription.findFirst({ where: { organizationId: entityId } })
-      if (existing) {
-        subscription = await prisma.subscription.update({ where: { id: existing.id }, data: subscriptionData })
-      } else {
-        subscription = await prisma.subscription.create({ data: { ...subscriptionData, organizationId: entityId } })
-      }
-    } else {
-      const existing = await prisma.subscription.findFirst({ where: { enterprise: { id: entityId } } })
-      if (existing) {
-        subscription = await prisma.subscription.update({ where: { id: existing.id }, data: subscriptionData })
-      } else {
-        subscription = await prisma.subscription.create({ data: subscriptionData })
-        await prisma.enterprise.update({ where: { id: entityId }, data: { subscriptionId: subscription.id } })
-      }
-    }
+    const { subscription } = await activatePlan({ entityType, entityId, plan, billingInterval })
 
     const { ipAddress, userAgent } = getClientInfo(request)
     await createAuditLog({

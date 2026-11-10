@@ -8,6 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 import { generateICSFile, getGoogleCalendarUrl } from "@/lib/calendar"
 
 interface AddToCalendarProps {
@@ -67,10 +68,10 @@ export function AddToCalendar({ title, description, startDate, endDate, venue, i
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant={variant} size={size} className={className} />}>
-        <CalendarPlus className="h-4 w-4 mr-1.5" /> Add to Calendar
+      <DropdownMenuTrigger render={<Button variant={variant} size={size} className={cn("gap-2", className)} />}>
+        <CalendarPlus className="size-4" aria-hidden /> Add to calendar
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="min-w-52">
         <DropdownMenuItem onClick={handleGoogleCalendar}>Google Calendar</DropdownMenuItem>
         <DropdownMenuItem onClick={handleOutlook}>Outlook</DropdownMenuItem>
         <DropdownMenuItem onClick={handleICS}>Apple Calendar / ICS</DropdownMenuItem>

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client"
 import prisma from "@/lib/prisma"
 
 export const PLAN_CONFIG = {
@@ -62,21 +63,140 @@ export async function getEntityPlan(entityType: "enterprise" | "org", entityId: 
   return isValidPlan(subscription.plan) ? subscription.plan : "FREE"
 }
 
-export async function checkUsageLimits(entityType: "enterprise" | "org", entityId: string) {
-  const subscription = entityType === "enterprise"
-    ? await prisma.subscription.findFirst({ where: { enterprise: { id: entityId } } })
-    : await prisma.subscription.findFirst({ where: { organizationId: entityId } })
+// ============================================================================
+// EVENT LIMIT ("N events per month"): the one rule used by create, duplicate, recurrence
+// generation and the billing usage display.
+// ============================================================================
 
-  const plan = (subscription?.plan as PlanName) || "FREE"
+/** Whose subscription sets an organization's limits. */
+export type PlanScope = { entityType: "enterprise" | "org"; entityId: string }
+
+/** Start of the current calendar month (server local time): the monthly event count starts here. */
+export function startOfEventMonth(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth(), 1)
+}
+
+/** When the monthly event count resets: the 1st of next month (server local time). */
+export function eventLimitResetsAt(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth() + 1, 1)
+}
+
+/** "1 December 2026" */
+export function formatResetDate(date: Date): string {
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+}
+
+/**
+ * Not a saved event template. Templates are Event rows with settings.isTemplate = true
+ * (src/app/api/admin/org/[orgId]/event-templates). NULL-safe on purpose: a bare
+ * NOT { settings.isTemplate = true } also drops every event whose settings are NULL or
+ * lack the key (SQL: NOT (NULL = true) is NULL), so those are matched explicitly
+ * (a path filter equal to DbNull is "settings #> '{isTemplate}' IS NULL").
+ */
+export function notTemplateEventWhere(): Prisma.EventWhereInput {
+  return {
+    OR: [
+      { settings: { path: ["isTemplate"], equals: Prisma.DbNull } },
+      { NOT: { settings: { path: ["isTemplate"], equals: true } } },
+    ],
+  }
+}
+
+/**
+ * The events that count against the plan's monthly limit ("N events per month"): created
+ * since the 1st of the current month, not deleted, not cancelled and not a saved template.
+ * An enterprise's plan counts the events of all its organizations.
+ */
+export function eventsThisMonthWhere(scope: PlanScope, now = new Date()): Prisma.EventWhereInput {
+  return {
+    ...(scope.entityType === "enterprise"
+      ? { OR: [{ enterpriseId: scope.entityId }, { organization: { enterpriseId: scope.entityId } }] }
+      : { organizationId: scope.entityId }),
+    createdAt: { gte: startOfEventMonth(now) },
+    deletedAt: null,
+    status: { not: "CANCELLED" },
+    AND: [notTemplateEventWhere()],
+  }
+}
+
+/**
+ * An organization inside an enterprise runs on the enterprise's subscription (the
+ * enterprise owns billing); a standalone organization on its own.
+ */
+export async function resolvePlanScope(orgId: string): Promise<PlanScope> {
+  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { enterpriseId: true } })
+  return org?.enterpriseId ? { entityType: "enterprise", entityId: org.enterpriseId } : { entityType: "org", entityId: orgId }
+}
+
+export function countEventsThisMonth(scope: PlanScope, now = new Date()): Promise<number> {
+  return prisma.event.count({ where: eventsThisMonthWhere(scope, now) })
+}
+
+const PLAN_LABEL: Record<PlanName, string> = { FREE: "Free", STARTER: "Starter", PRO: "Pro", ENTERPRISE: "Enterprise" }
+
+function nextPlan(plan: PlanName): PlanName | null {
+  const order: PlanName[] = ["FREE", "STARTER", "PRO", "ENTERPRISE"]
+  return order[order.indexOf(plan) + 1] ?? null
+}
+
+export type EventLimitCheck = {
+  allowed: boolean
+  /** events created this calendar month (cancelled and deleted ones left out) */
+  used: number
+  /** events per month; -1 = unlimited */
+  limit: number
+  plan: PlanName
+  scope: PlanScope
+  /** when the monthly count starts again (the 1st of next month) */
+  resetsAt: Date
+  /** why it isn't allowed and how to get more room; set when allowed is false */
+  message?: string
+}
+
+export function eventLimitMessage(c: { used: number; limit: number; plan: PlanName; scope: PlanScope; adding: number; resetsAt: Date }): string {
+  const across = c.scope.entityType === "enterprise" ? " across your enterprise" : ""
+  const created = `You've created ${c.used} of ${c.limit} events this month on the ${PLAN_LABEL[c.plan]} plan${across}`
+  const head = c.adding > 1
+    ? `${created}, so ${c.adding} more would go over the limit.`
+    : `${created}.`
+  const resets = `The count resets on ${formatResetDate(c.resetsAt)}.`
+  const next = nextPlan(c.plan)
+  const nextLimit = next ? PLAN_CONFIG[next].limits.maxEvents : -1
+  const upgrade = next ? `upgrade to ${PLAN_LABEL[next]} (${nextLimit === -1 ? "unlimited events" : `${nextLimit} events a month`})` : "upgrade the plan"
+  return c.scope.entityType === "enterprise"
+    ? `${head} ${resets} To create more now, ask an enterprise admin to ${upgrade}.`
+    : `${head} ${resets} To create more now, ${upgrade} from Billing.`
+}
+
+/**
+ * Whether an organization may create `adding` more events this month. Counts the events
+ * created this calendar month (eventsThisMonthWhere) at the level the plan applies to
+ * (resolvePlanScope), against the plan that subscription actually entitles (getEntityPlan:
+ * a lapsed subscription is FREE). A batch (recurrences) is checked as a whole.
+ */
+export async function checkEventLimit(orgId: string, adding = 1, now = new Date()): Promise<EventLimitCheck> {
+  return checkEventLimitForScope(await resolvePlanScope(orgId), adding, now)
+}
+
+/**
+ * checkEventLimit for a known plan scope: an enterprise-level event (an enterprise API key
+ * creates one with no organization) is checked against the enterprise's plan and count.
+ */
+export async function checkEventLimitForScope(scope: PlanScope, adding = 1, now = new Date()): Promise<EventLimitCheck> {
+  const [plan, used] = await Promise.all([getEntityPlan(scope.entityType, scope.entityId), countEventsThisMonth(scope, now)])
+  const limit = PLAN_CONFIG[plan].limits.maxEvents
+  const resetsAt = eventLimitResetsAt(now)
+  if (limit === -1 || used + adding <= limit) return { allowed: true, used, limit, plan, scope, resetsAt }
+  return { allowed: false, used, limit, plan, scope, resetsAt, message: eventLimitMessage({ used, limit, plan, scope, adding, resetsAt }) }
+}
+
+export async function checkUsageLimits(entityType: "enterprise" | "org", entityId: string) {
+  // Same plan resolution and event count as checkEventLimit, so usage shows what is enforced.
+  const plan = await getEntityPlan(entityType, entityId)
   const config = PLAN_CONFIG[plan]
 
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-
   const [eventCount, memberCount, orgCount] = await Promise.all([
-    entityType === "org"
-      ? prisma.event.count({ where: { organizationId: entityId, deletedAt: null, createdAt: { gte: monthStart } } })
-      : prisma.event.count({ where: { OR: [{ enterpriseId: entityId }, { organization: { enterpriseId: entityId } }], deletedAt: null, createdAt: { gte: monthStart } } }),
+    countEventsThisMonth({ entityType, entityId }),
     entityType === "org"
       ? prisma.organizationMember.count({ where: { organizationId: entityId, isActive: true } })
       : prisma.enterpriseMember.count({ where: { enterpriseId: entityId, isActive: true } }),
@@ -86,7 +206,8 @@ export async function checkUsageLimits(entityType: "enterprise" | "org", entityI
   ])
 
   return {
-    events: { used: eventCount, limit: config.limits.maxEvents, percentage: config.limits.maxEvents === -1 ? 0 : Math.round((eventCount / config.limits.maxEvents) * 100) },
+    // events created this month; the count resets on resetsAt
+    events: { used: eventCount, limit: config.limits.maxEvents, percentage: config.limits.maxEvents === -1 ? 0 : Math.round((eventCount / config.limits.maxEvents) * 100), resetsAt: eventLimitResetsAt().toISOString() },
     teamMembers: { used: memberCount, limit: config.limits.maxTeamMembers, percentage: config.limits.maxTeamMembers === -1 ? 0 : Math.round((memberCount / config.limits.maxTeamMembers) * 100) },
     organizations: { used: orgCount, limit: config.limits.maxOrganizations, percentage: config.limits.maxOrganizations === -1 ? 0 : Math.round((orgCount / config.limits.maxOrganizations) * 100) },
     plan,

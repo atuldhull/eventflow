@@ -17,7 +17,7 @@ export function NumberFieldEditor({ label, value, onChange, min, max, required, 
 
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <Label className="text-xs font-medium">{label}{required && <span className="ml-0.5 text-destructive">*</span>}</Label>
       {description && <p className="text-[11px] text-muted-foreground">{description}</p>}
       <div className="flex items-center gap-1">
         <Button variant="outline" size="icon-sm" className="h-8 w-8 shrink-0" onClick={() => adjust(-1)}><Minus className="h-3 w-3" /></Button>

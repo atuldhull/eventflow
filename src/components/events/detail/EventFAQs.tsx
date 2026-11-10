@@ -1,35 +1,47 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, ChevronUp } from "lucide-react"
-import { Card } from "@/components/ui/card"
+import { ChevronDown } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { EventSection } from "./EventSection"
 import type { EventData } from "./types"
 
+/** Accordion rows between hairlines; one answer open at a time. */
 export function EventFAQs({ faqs }: { faqs: EventData["faqs"] }) {
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null)
 
   if (faqs.length === 0) return null
   return (
-    <section>
-      <h2 className="text-lg font-semibold mb-4">FAQs</h2>
-      <div className="space-y-2">
-        {faqs.map((faq) => (
-          <Card key={faq.id} className="overflow-hidden">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === faq.id ? null : faq.id)}
-              className="w-full flex items-center justify-between p-4 text-left"
-            >
-              <span className="text-sm font-medium">{faq.question}</span>
-              {expandedFaq === faq.id ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
-            </button>
-            {expandedFaq === faq.id && (
-              <div className="px-4 pb-4">
-                <p className="text-sm text-muted-foreground">{faq.answer}</p>
-              </div>
-            )}
-          </Card>
-        ))}
+    <EventSection id="faqs" title="FAQs">
+      <div className="-mt-1 divide-y divide-rule border-b border-rule">
+        {faqs.map((faq) => {
+          const open = expandedFaq === faq.id
+          return (
+            <div key={faq.id}>
+              <h3>
+                <button
+                  type="button"
+                  onClick={() => setExpandedFaq(open ? null : faq.id)}
+                  aria-expanded={open}
+                  aria-controls={`faq-${faq.id}`}
+                  className="flex min-h-12 w-full items-center justify-between gap-4 py-3 text-left text-sm font-medium transition-colors hover:text-foreground/80"
+                >
+                  <span>{faq.question}</span>
+                  <ChevronDown
+                    className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-180")}
+                    aria-hidden
+                  />
+                </button>
+              </h3>
+              {open && (
+                <div id={`faq-${faq.id}`} className="pr-8 pb-4 text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                  {faq.answer}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
-    </section>
+    </EventSection>
   )
 }

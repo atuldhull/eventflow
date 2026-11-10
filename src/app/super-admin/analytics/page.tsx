@@ -1,16 +1,21 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, Calendar, Building2, IndianRupee } from "lucide-react"
 import { PageHeader } from "@/components/shared/PageHeader"
-import { StatCard } from "@/components/shared/StatCard"
+import { KpiStrip } from "@/components/shared/StatCard"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Pill } from "@/components/ui/pill"
+import { statusLabel, statusTone } from "@/lib/status-tone"
+import { BlockHeading, RowsSkeleton, fmtDate, fmtDateTime, inr, num } from "@/app/admin/enterprise/_components/admin-ui"
+
+// The stats route sends date / registrations / organizer and user; older shapes used other names.
+interface RecentEvent { id: string; title: string; status: string; organizer?: string; date?: string; startDate?: string; registrations?: number; currentRegistrations?: number }
+interface Activity { id: string; action: string; description?: string; user?: string; userName?: string; createdAt: string }
 
 export default function SuperAdminAnalyticsPage() {
   const [stats, setStats] = useState({ totalUsers: 0, totalEvents: 0, activeEnterprises: 0, totalRevenue: 0 })
-  const [recentEvents, setRecentEvents] = useState<any[]>([])
-  const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([])
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -30,39 +35,72 @@ export default function SuperAdminAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Platform Analytics" description="Platform-wide performance overview" breadcrumbs={[{ label: "Super Admin", href: "/super-admin" }, { label: "Analytics" }]} />
+      <PageHeader title="Analytics" description="Platform-wide performance overview" />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Users" value={isLoading ? "—" : stats.totalUsers.toLocaleString()} icon={Users} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-        <StatCard title="Total Events" value={isLoading ? "—" : stats.totalEvents.toLocaleString()} icon={Calendar} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
-        <StatCard title="Enterprises" value={isLoading ? "—" : stats.activeEnterprises.toLocaleString()} icon={Building2} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
-        <StatCard title="Revenue" value={isLoading ? "—" : `₹${stats.totalRevenue.toLocaleString("en-IN")}`} icon={IndianRupee} iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" />
-      </div>
+      <KpiStrip
+        isLoading={isLoading}
+        items={[
+          { label: "Users", value: num(stats.totalUsers) },
+          { label: "Events", value: num(stats.totalEvents) },
+          { label: "Enterprises", value: num(stats.activeEnterprises), caption: "Active" },
+          { label: "Revenue", value: inr(stats.totalRevenue), caption: "All time" },
+        ]}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
-          <h3 className="text-sm font-medium mb-4">Recent Events</h3>
-          {recentEvents.length > 0 ? (
-            <div className="space-y-2">{recentEvents.map((e: any) => (
-              <div key={e.id} className="flex items-center justify-between rounded-md border p-3">
-                <div><p className="text-sm font-medium">{e.title}</p><p className="text-xs text-muted-foreground">{new Date(e.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · {e.currentRegistrations} registrations</p></div>
-                <Badge variant="secondary">{e.status}</Badge>
-              </div>
-            ))}</div>
-          ) : <p className="text-sm text-muted-foreground text-center py-8">No events yet</p>}
-        </Card>
+        <section aria-labelledby="events-heading" className="min-w-0">
+          <BlockHeading id="events-heading" title="Recent events" href="/super-admin/events" linkLabel="All events" />
+          <Card className="gap-0 p-0">
+            {isLoading ? (
+              <RowsSkeleton rows={4} />
+            ) : recentEvents.length > 0 ? (
+              <ul className="divide-y divide-rule">
+                {recentEvents.map((e) => {
+                  const regs = e.currentRegistrations ?? e.registrations ?? 0
+                  return (
+                    <li key={e.id} className="flex items-center gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{e.title}</p>
+                        <p className="mt-0.5 truncate text-[13px] text-muted-foreground tabular-nums">
+                          {fmtDate(e.startDate ?? e.date)}
+                          {e.organizer ? ` · ${e.organizer}` : ""} · {num(regs)} registration{regs === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <Pill tone={statusTone(e.status)} className="shrink-0">{statusLabel(e.status)}</Pill>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="px-4 py-10 text-center text-sm text-muted-foreground">No events yet</p>
+            )}
+          </Card>
+        </section>
 
-        <Card className="p-6">
-          <h3 className="text-sm font-medium mb-4">Recent Activity</h3>
-          {recentActivity.length > 0 ? (
-            <div className="space-y-2">{recentActivity.map((a: any) => (
-              <div key={a.id} className="flex items-center justify-between rounded-md border p-3">
-                <div><p className="text-sm">{a.description || a.action}</p><p className="text-xs text-muted-foreground">{a.userName} · {new Date(a.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p></div>
-                <Badge variant="secondary">{a.action}</Badge>
-              </div>
-            ))}</div>
-          ) : <p className="text-sm text-muted-foreground text-center py-8">No activity yet</p>}
-        </Card>
+        <section aria-labelledby="activity-heading" className="min-w-0">
+          <BlockHeading id="activity-heading" title="Recent activity" href="/super-admin/audit" linkLabel="Audit log" />
+          <Card className="gap-0 p-0">
+            {isLoading ? (
+              <RowsSkeleton rows={4} />
+            ) : recentActivity.length > 0 ? (
+              <ol className="divide-y divide-rule">
+                {recentActivity.map((a) => (
+                  <li key={a.id} className="flex items-start gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm">{a.description || a.action}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground tabular-nums">
+                        {a.userName ?? a.user ?? "—"} · {fmtDateTime(a.createdAt)}
+                      </p>
+                    </div>
+                    <Pill className="shrink-0">{statusLabel(a.action)}</Pill>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="px-4 py-10 text-center text-sm text-muted-foreground">No activity yet</p>
+            )}
+          </Card>
+        </section>
       </div>
     </div>
   )

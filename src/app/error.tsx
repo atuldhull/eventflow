@@ -6,6 +6,7 @@ import { AlertTriangle, RefreshCw, Home } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { reportClientError } from "@/lib/report-client-error"
 
 export default function Error({
   error,
@@ -16,6 +17,7 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error("Application error:", error)
+    reportClientError(error)
   }, [error])
 
   return (

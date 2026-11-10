@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import prisma from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
+import { issueAutomaticCertificates } from "@/lib/auto-certificates"
 
 // This endpoint should be called every hour by an external scheduler (Vercel Cron, crontab, etc.)
 // It finds events starting within the next 24h or 1h and sends reminders to registered participants
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     for (const reg of event.registrations) {
       try {
         await prisma.notification.create({
-          data: { userId: reg.userId, type: "REMINDER" as any, category: "EVENT" as any, title: "Event Tomorrow!", message: `"${event.title}" starts tomorrow at ${event.startDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}. ${event.isOnline ? "Check your email for the meeting link." : `Venue: ${event.venue || event.venueCity || "TBA"}`}` },
+          data: { userId: reg.userId, type: "IN_APP", category: "REMINDER", title: "Event Tomorrow!", message: `"${event.title}" starts tomorrow at ${event.startDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}. ${event.isOnline ? "Check your email for the meeting link." : `Venue: ${event.venue || event.venueCity || "TBA"}`}` },
         })
         sent++
       } catch {}
@@ -50,12 +51,21 @@ export async function GET(request: NextRequest) {
     for (const reg of event.registrations) {
       try {
         await prisma.notification.create({
-          data: { userId: reg.userId, type: "REMINDER" as any, category: "EVENT" as any, title: "Starting Soon!", message: `"${event.title}" starts in 1 hour! Get ready.` },
+          data: { userId: reg.userId, type: "IN_APP", category: "REMINDER", title: "Starting Soon!", message: `"${event.title}" starts in 1 hour! Get ready.` },
         })
         sent++
       } catch {}
     }
   }
 
-  return NextResponse.json({ success: true, message: `Sent ${sent} reminders`, events24h: events24h.length, events1h: events1h.length })
+  // Hourly as well: certificates for finished events where "Auto-generate certificates" is on
+  let certificates: Awaited<ReturnType<typeof issueAutomaticCertificates>> | { error: string }
+  try {
+    certificates = await issueAutomaticCertificates(now)
+  } catch (error) {
+    console.error("Automatic certificates failed:", error)
+    certificates = { error: "failed" }
+  }
+
+  return NextResponse.json({ success: true, message: `Sent ${sent} reminders`, events24h: events24h.length, events1h: events1h.length, certificates })
 }

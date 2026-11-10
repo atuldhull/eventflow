@@ -45,6 +45,38 @@ export const eventDateSchema = z.object({
 
 export type EventDateInput = z.infer<typeof eventDateSchema>
 
+type MaybeDate = Date | null | undefined
+const isDate = (d: MaybeDate): d is Date => d instanceof Date && !Number.isNaN(d.getTime())
+
+/**
+ * The schedule rules shared by the wizard (client) and the create / update routes
+ * (server): the event ends after it starts, and the registration window opens before it
+ * closes and closes by the time the event ends. Returns one issue per broken rule, keyed
+ * by the field to flag.
+ */
+export function eventScheduleIssues(d: {
+  startDate?: MaybeDate
+  endDate?: MaybeDate
+  registrationStartDate?: MaybeDate
+  registrationEndDate?: MaybeDate
+}): { path: "endDate" | "registrationStartDate" | "registrationEndDate"; message: string }[] {
+  const issues: { path: "endDate" | "registrationStartDate" | "registrationEndDate"; message: string }[] = []
+  const { startDate: start, endDate: end, registrationStartDate: regOpen, registrationEndDate: regClose } = d
+  if (isDate(start) && isDate(end) && end.getTime() <= start.getTime()) {
+    issues.push({ path: "endDate", message: "The event must end after it starts" })
+  }
+  if (isDate(regOpen) && isDate(regClose) && regClose.getTime() <= regOpen.getTime()) {
+    issues.push({ path: "registrationEndDate", message: "Registration must close after it opens" })
+  }
+  if (isDate(end) && isDate(regClose) && regClose.getTime() > end.getTime()) {
+    issues.push({ path: "registrationEndDate", message: "Registration must close by the time the event ends" })
+  }
+  if (isDate(end) && isDate(regOpen) && regOpen.getTime() >= end.getTime()) {
+    issues.push({ path: "registrationStartDate", message: "Registration must open before the event ends" })
+  }
+  return issues
+}
+
 // ============================================================================
 // STEP 3: Tickets & Pricing
 // ============================================================================

@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
-import { createAuditLog, getClientInfo } from "@/lib/audit"
+import { getClientInfo } from "@/lib/audit"
 import { PERMISSIONS } from "@/lib/permissions"
+import { refundOrgPayment } from "@/lib/org-refund"
+import { z } from "zod/v4"
 
+const refundSchema = z.object({
+  amount: z.number().positive().max(10_000_000).optional(),
+  reason: z.string().trim().max(500).optional(),
+})
+
+// Refunds one payment: through Razorpay for online payments, recorded only for cash or
+// bank transfers. See refundOrgPayment for the rules.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orgId: string; paymentId: string }> }
@@ -21,84 +29,17 @@ export async function POST(
     return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
   }
 
-  const { amount, reason } = await request.json() as { amount?: number; reason?: string }
+  const parsed = refundSchema.safeParse(await request.json().catch(() => ({})))
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, message: "Validation failed" }, { status: 400 })
+  }
 
-  const payment = await prisma.payment.findFirst({
-    where: { id: paymentId, registration: { event: { organizationId: orgId } } },
-    select: {
-      id: true, amount: true, status: true, userId: true, registrationId: true, couponId: true,
-      registration: { select: { eventId: true, event: { select: { title: true } } } },
-    },
+  const result = await refundOrgPayment({
+    orgId, paymentId, actorId: session.user.id, amount: parsed.data.amount, reason: parsed.data.reason,
+    audit: getClientInfo(request),
   })
-
-  if (!payment) {
-    return NextResponse.json({ success: false, message: "Payment not found" }, { status: 404 })
-  }
-
-  if (payment.status === "REFUNDED") {
-    return NextResponse.json({ success: false, message: "Already refunded" }, { status: 400 })
-  }
-
-  if (payment.status !== "COMPLETED") {
-    return NextResponse.json({ success: false, message: "Can only refund completed payments" }, { status: 400 })
-  }
-
-  const refundAmount = amount || Number(payment.amount)
-  if (refundAmount > Number(payment.amount)) {
-    return NextResponse.json({ success: false, message: "Refund amount exceeds payment amount" }, { status: 400 })
-  }
-
-  // Process refund (mark as refunded — actual gateway refund would happen via Razorpay/Stripe SDK)
-  const eventId = payment.registration?.eventId
-  await prisma.$transaction([
-    prisma.payment.update({
-      where: { id: paymentId },
-      data: { status: "REFUNDED", refundAmount: refundAmount, refundReason: reason || null, refundedAt: new Date() },
-    }),
-    ...(payment.registrationId ? [
-      prisma.registration.update({
-        where: { id: payment.registrationId },
-        data: { status: "CANCELLED" },
-      }),
-      prisma.ticket.updateMany({
-        where: { registrationId: payment.registrationId },
-        data: { status: "CANCELLED" },
-      }),
-    ] : []),
-    ...(eventId ? [
-      prisma.event.update({
-        where: { id: eventId },
-        data: { currentRegistrations: { decrement: 1 } },
-      }),
-    ] : []),
-    ...(payment.couponId ? [
-      prisma.coupon.update({
-        where: { id: payment.couponId },
-        data: { currentUses: { decrement: 1 } },
-      }),
-    ] : []),
-  ])
-
-  // Notify user
-  await prisma.notification.create({
-    data: {
-      userId: payment.userId,
-      type: "PAYMENT" as any,
-      category: "PAYMENT" as any,
-      title: "Refund Processed",
-      message: `Your payment of ₹${refundAmount} for "${payment.registration?.event.title}" has been refunded.${reason ? ` Reason: ${reason}` : ""}`,
-    },
-  })
-
-  const { ipAddress, userAgent } = getClientInfo(request)
-  await createAuditLog({
-    userId: session.user.id,
-    action: "UPDATE",
-    entityType: "PAYMENT",
-    entityId: paymentId,
-    description: `Refunded ₹${refundAmount} for ${payment.registration?.event.title}`,
-    ipAddress, userAgent, organizationId: orgId,
-  })
-
-  return NextResponse.json({ success: true, message: `₹${refundAmount} refunded successfully` })
+  return NextResponse.json(
+    result.ok ? { success: true, message: result.message, data: { refundAmount: result.refundAmount, full: result.full } } : { success: false, message: result.message },
+    { status: result.status }
+  )
 }

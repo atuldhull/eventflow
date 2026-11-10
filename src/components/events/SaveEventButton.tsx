@@ -91,15 +91,16 @@ export function SaveEventButton({ eventId, variant = "icon", className }: Props)
         aria-label={label}
       >
         {pending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="size-4 animate-spin" />
         ) : (
-          <Heart className={cn("h-4 w-4", saved && "fill-red-500 text-red-500")} />
+          <Heart className={cn("size-4", saved && "fill-current")} />
         )}
-        {saved ? "Saved" : "Save Event"}
+        {saved ? "Saved" : "Save"}
       </Button>
     )
   }
 
+  // Sits on a cover photo: a solid quiet square (no blur), ink heart that fills when saved.
   return (
     <button
       type="button"
@@ -109,15 +110,14 @@ export function SaveEventButton({ eventId, variant = "icon", className }: Props)
       aria-label={label}
       title={label}
       className={cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border transition-colors hover:bg-background disabled:opacity-50",
-        saved && "text-red-500",
+        "press inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent disabled:opacity-60 pointer-coarse:size-11",
         className
       )}
     >
       {pending ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <Loader2 className="size-4 animate-spin" />
       ) : (
-        <Heart className={cn("h-3.5 w-3.5", saved && "fill-red-500")} />
+        <Heart className={cn("size-4", saved && "fill-current")} />
       )}
     </button>
   )

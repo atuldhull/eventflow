@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { authorize } from "@/lib/authorization"
-import { canManageRole, PERMISSIONS, getRoleLabel } from "@/lib/permissions"
+import { authorize, isEnterpriseOwner } from "@/lib/authorization"
+import { canManageEnterpriseRole, canManageRole, PERMISSIONS, getRoleLabel } from "@/lib/permissions"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
 import type { Role } from "@/lib/constants"
 import { z } from "zod/v4"
@@ -38,21 +38,28 @@ export async function PATCH(
     const { role: newRole, entityType, entityId } = parsed.data
     const context = entityType === "ENTERPRISE" ? { enterpriseId: entityId } : { organizationId: entityId }
 
+    // Authorize by the caller's role IN this enterprise/organization (their membership, or
+    // SUPER_ADMIN), never by their global role, which can come from a different tenant.
     const authResult = await authorize(session.user.id, PERMISSIONS.MEMBER_CHANGE_ROLE, context)
-    if (!authResult.authorized) {
-      return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
+    if (!authResult.authorized || !authResult.role) {
+      return NextResponse.json(
+        { success: false, message: authResult.message || "You don't have permission to perform this action." },
+        { status: 403 }
+      )
     }
+    const actorRole = authResult.role
 
-    // Get current member
+    // Get current member, scoped to the entity the caller was authorized for: a membership
+    // id from another enterprise/organization must resolve to "not found".
     let member: { userId: string; role: string } | null = null
     if (entityType === "ENTERPRISE") {
-      member = await prisma.enterpriseMember.findUnique({
-        where: { id: memberId },
+      member = await prisma.enterpriseMember.findFirst({
+        where: { id: memberId, enterpriseId: entityId },
         select: { userId: true, role: true },
       })
     } else {
-      member = await prisma.organizationMember.findUnique({
-        where: { id: memberId },
+      member = await prisma.organizationMember.findFirst({
+        where: { id: memberId, organizationId: entityId },
         select: { userId: true, role: true },
       })
     }
@@ -65,12 +72,24 @@ export async function PATCH(
       return NextResponse.json({ success: false, message: "You cannot change your own role." }, { status: 400 })
     }
 
-    const userRole = session.user.role as Role
-    if (!canManageRole(userRole, member.role as Role)) {
+    if (entityType === "ENTERPRISE" && (await isEnterpriseOwner(entityId, member.userId))) {
+      return NextResponse.json(
+        { success: false, message: "The enterprise owner's role cannot be changed. Transfer ownership first." },
+        { status: 403 }
+      )
+    }
+
+    // In an enterprise its owner may also manage and appoint co-admins (ENTERPRISE_ADMIN)
+    const actorIsOwner = entityType === "ENTERPRISE" && (await isEnterpriseOwner(entityId, session.user.id))
+    const outranks = (target: Role) =>
+      entityType === "ENTERPRISE" ? canManageEnterpriseRole(actorRole, target, actorIsOwner) : canManageRole(actorRole, target)
+
+    if (!outranks(member.role as Role)) {
       return NextResponse.json({ success: false, message: "You cannot modify a member with equal or higher role." }, { status: 403 })
     }
 
-    if (!canManageRole(userRole, newRole as Role)) {
+    // Strictly below the caller's own role: nobody can grant a role equal to or above theirs.
+    if (!outranks(newRole as Role)) {
       return NextResponse.json({ success: false, message: "You cannot assign this role." }, { status: 403 })
     }
 

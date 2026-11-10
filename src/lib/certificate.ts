@@ -1,5 +1,7 @@
 import crypto from "crypto"
 import prisma from "@/lib/prisma"
+import { certificateVerificationState, restoredCertificateData, revokedCertificateMetadata } from "@/lib/certificate-verification"
+import { notify, notifySafely } from "@/lib/notifications"
 
 const CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
@@ -9,6 +11,16 @@ function generateCode(prefix: string, length: number): string {
     code += CHARSET[crypto.randomInt(CHARSET.length)]
   }
   return code
+}
+
+/** The title a certificate of this type gets when no custom title is given. */
+export function defaultCertificateTitle(type: string): string {
+  return type === "PARTICIPATION" ? "Certificate of Participation" :
+    type === "WINNER" ? "Winner Certificate" :
+    type === "RUNNER_UP" ? "Runner-Up Certificate" :
+    type === "VOLUNTEER" ? "Certificate of Appreciation" :
+    type === "SPEAKER" ? "Speaker Certificate" :
+    type === "ORGANIZER" ? "Organizer Certificate" : "Certificate"
 }
 
 export async function generateCertificate(params: {
@@ -38,13 +50,7 @@ export async function generateCertificate(params: {
   const verificationCode = generateCode("VER-", 8)
 
   const recipientName = params.recipientName || registration.user.name
-  const title = params.customTitle ||
-    (params.type === "PARTICIPATION" ? "Certificate of Participation" :
-     params.type === "WINNER" ? "Winner Certificate" :
-     params.type === "RUNNER_UP" ? "Runner-Up Certificate" :
-     params.type === "VOLUNTEER" ? "Certificate of Appreciation" :
-     params.type === "SPEAKER" ? "Speaker Certificate" :
-     params.type === "ORGANIZER" ? "Organizer Certificate" : "Certificate")
+  const title = params.customTitle || defaultCertificateTitle(params.type)
 
   const certificate = await prisma.certificate.create({
     data: {
@@ -60,6 +66,8 @@ export async function generateCertificate(params: {
       status: "GENERATED",
     },
   })
+  // a new certificate only (an existing one returned above was announced when issued)
+  await notifySafely(() => notify.certificateReady(certificate.userId, certificate.eventId, registration.event.title))
 
   return { certificate, skipped: false }
 }
@@ -132,6 +140,7 @@ export async function verifyCertificate(verificationCode: string) {
       title: true,
       issuedDate: true,
       status: true,
+      metadata: true,
       event: { select: { title: true, startDate: true } },
       user: { select: { name: true } },
     },
@@ -141,8 +150,10 @@ export async function verifyCertificate(verificationCode: string) {
     return { valid: false, reason: "not_found" as const }
   }
 
-  if (certificate.status === "PENDING") {
-    return { valid: false, reason: "revoked" as const, certificateNumber: certificate.certificateNumber }
+  // one rule for every reader: revoked = metadata.revokedAt; PENDING = not issued yet
+  const state = certificateVerificationState(certificate.status, certificate.metadata)
+  if (state !== "valid") {
+    return { valid: false, reason: state, certificateNumber: certificate.certificateNumber }
   }
 
   return {
@@ -159,11 +170,29 @@ export async function verifyCertificate(verificationCode: string) {
   }
 }
 
-export async function revokeCertificate(certificateId: string) {
-  return prisma.certificate.update({
+/** Records a revocation in metadata (the issued status is kept). Callers scope the id first. */
+export async function revokeCertificate(certificateId: string, revocation: { revokedBy: string; reason?: string | null }) {
+  const certificate = await prisma.certificate.findUniqueOrThrow({
     where: { id: certificateId },
-    data: { status: "PENDING" }, // Using PENDING as revoked status since no REVOKED in enum
+    select: { metadata: true, status: true, userId: true, eventId: true, event: { select: { title: true } } },
   })
+  const wasValid = certificateVerificationState(certificate.status, certificate.metadata) === "valid"
+  const updated = await prisma.certificate.update({
+    where: { id: certificateId },
+    data: { metadata: revokedCertificateMetadata(certificate.metadata, revocation) },
+  })
+  // the recipient is told once, when a certificate they could use is withdrawn
+  if (wasValid) await notifySafely(() => notify.certificateRevoked(certificate.userId, certificate.eventId, certificate.event.title))
+  return updated
+}
+
+/** Undoes revokeCertificate. Callers scope the id first. */
+export async function restoreCertificate(certificateId: string) {
+  const certificate = await prisma.certificate.findUniqueOrThrow({
+    where: { id: certificateId },
+    select: { status: true, metadata: true, downloadedAt: true },
+  })
+  return prisma.certificate.update({ where: { id: certificateId }, data: restoredCertificateData(certificate) })
 }
 
 export async function getUserCertificates(userId: string) {

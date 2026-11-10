@@ -1,5 +1,7 @@
 import nodemailer from "nodemailer"
 import { Resend } from "resend"
+import { reportError } from "@/lib/error-reporting"
+import { htmlToText } from "@/lib/html-to-text"
 
 interface SendEmailParams {
   to: string
@@ -19,10 +21,12 @@ function getTransporter() {
     return null // Use Resend in production
   }
 
+  const port = parseInt(process.env.SMTP_PORT || "1025")
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || "localhost",
-    port: parseInt(process.env.SMTP_PORT || "1025"),
-    secure: false,
+    port,
+    // 465 is TLS from the first byte; other ports (587) upgrade with STARTTLS when offered
+    secure: port === 465,
     auth: process.env.SMTP_USER
       ? {
           user: process.env.SMTP_USER,
@@ -49,11 +53,12 @@ export async function sendEmail({ to, subject, html, text }: SendEmailParams): P
         to,
         subject,
         html,
-        text: text || "",
+        text: text || htmlToText(html),
       })
 
       if (error) {
         console.error("Resend error:", error)
+        void reportError(new Error("Email not sent (Resend): " + error.message), { where: "email", level: "warning" })
         return { success: false, error: error.message }
       }
 
@@ -66,10 +71,11 @@ export async function sendEmail({ to, subject, html, text }: SendEmailParams): P
       return { success: false, error: "No email transport configured" }
     }
 
-    const info = await transporter.sendMail({ from, to, subject, html, text: text || html.replace(/<[^>]*>/g, "") })
+    const info = await transporter.sendMail({ from, to, subject, html, text: text || htmlToText(html) })
     return { success: true, messageId: info.messageId }
   } catch (error) {
     console.error("Email send error:", error)
+    void reportError(new Error("Email not sent: " + (error instanceof Error ? error.message : String(error))), { where: "email", level: "warning" })
     return { success: false, error: "Failed to send email" }
   }
 }

@@ -3,20 +3,25 @@
 import { useState, useEffect, use } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { Calendar, Tag, Loader2, Eye } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { ChevronRight, Eye, XCircle } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { EventDiscussion } from "@/components/events/EventDiscussion"
+import { VenueMap } from "@/components/events/VenueMap"
 import { EventHero } from "@/components/events/detail/EventHero"
 import { EventStickyBar } from "@/components/events/detail/EventStickyBar"
 import { EventSchedule } from "@/components/events/detail/EventSchedule"
 import { EventSponsors } from "@/components/events/detail/EventSponsors"
 import { EventFAQs } from "@/components/events/detail/EventFAQs"
 import { EventSidebar } from "@/components/events/detail/EventSidebar"
-import { PageTransition, Reveal } from "@/components/motion/primitives"
+import { EventOrganizer } from "@/components/events/detail/EventOrganizer"
+import { EventSection } from "@/components/events/detail/EventSection"
+import { EventAnnouncements } from "@/components/events/detail/EventAnnouncements"
 import type { EventData } from "@/components/events/detail/types"
-import { cn } from "@/lib/utils"
+import { statusLabel } from "@/lib/status-tone"
+
+const CTA_ID = "event-register-cta"
+const SHELL = "mx-auto w-full max-w-[1240px] px-5 sm:px-8"
 
 export default function PublicEventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
@@ -45,13 +50,14 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
     fetchEvent()
   }, [slug, isPreviewMode])
 
-  if (isLoading) return <div className="flex justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+  if (isLoading) return <EventPageSkeleton />
   if (notFound || !event) return (
-    <div className="text-center py-24 space-y-3">
-      <Calendar className="mx-auto h-12 w-12 text-muted-foreground/30" />
-      <h1 className="text-2xl font-bold">Event Not Found</h1>
-      <p className="text-muted-foreground">This event doesn&apos;t exist or is no longer available.</p>
-      <Link href="/events" className={cn(buttonVariants({ variant: "outline" }), "mt-2")}>Browse Events</Link>
+    <div className={`${SHELL} py-20`}>
+      <div className="mx-auto max-w-md rounded-lg border border-dashed px-6 py-14 text-center">
+        <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.015em]">Event not found</h1>
+        <p className="mt-2 text-sm text-muted-foreground">This event doesn&apos;t exist or is no longer available.</p>
+        <Link href="/events" className={`${buttonVariants({ variant: "outline" })} mt-6`}>Browse events</Link>
+      </div>
     </div>
   )
 
@@ -64,106 +70,147 @@ export default function PublicEventPage({ params }: { params: Promise<{ slug: st
 
   return (
     <div>
-      {/* Preview Banner */}
+      {/* Preview banner (organisers looking at a draft) */}
       {previewStatus && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900">
-          <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-3 text-sm text-amber-800 dark:text-amber-300">
-            <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 shrink-0" />
-              <span className="font-medium">Preview mode</span>
-              <span className="text-amber-700/80 dark:text-amber-400/80">
-                You&apos;re viewing this event as an attendee would. Status: {previewStatus.replace(/_/g, " ")}.
+        <div className="border-b bg-raised">
+          <div className={`${SHELL} flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between`}>
+            <p className="flex items-start gap-2 text-muted-foreground">
+              <Eye className="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden />
+              <span>
+                <span className="font-medium text-foreground">Preview mode.</span>{" "}
+                You&apos;re viewing this event as an attendee would. Status: {statusLabel(previewStatus)}.
               </span>
-            </div>
-            <Link
-              href={`/admin/org/events`}
-              className="text-xs font-medium underline hover:no-underline whitespace-nowrap"
-            >
+            </p>
+            <Link href={`/admin/org/events`} className="shrink-0 pl-6 text-[13px] font-medium underline underline-offset-4 hover:text-brand sm:pl-0">
               Back to admin
             </Link>
           </div>
         </div>
       )}
 
-      {/* Cancelled Banner */}
+      {/* Cancelled banner */}
       {isCancelled && (
-        <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-900">
-          <div className="container mx-auto px-4 py-3 text-center text-sm text-red-700 dark:text-red-400 font-medium">
+        <div className="border-b border-destructive/15 bg-pill-negative text-pill-negative-foreground">
+          <p className={`${SHELL} flex items-center gap-2 py-3 text-sm font-medium`}>
+            <XCircle className="size-4 shrink-0" aria-hidden />
             This event has been cancelled. Registration is no longer available.
-          </div>
+          </p>
         </div>
       )}
 
-      <EventHero event={event} />
-      <EventStickyBar event={event} eventUrl={eventUrl} canRegister={canRegister} lowestPrice={lowestPrice} />
+      <div className={`${SHELL} pt-5 pb-16 lg:pt-8 lg:pb-24`}>
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-[13px] text-muted-foreground">
+          <Link href="/events" className="rounded-sm transition-colors hover:text-foreground">Events</Link>
+          <ChevronRight className="size-3.5 shrink-0 text-faint" aria-hidden />
+          {event.organization.slug ? (
+            <Link href={`/org/${event.organization.slug}`} className="truncate rounded-sm text-foreground transition-colors hover:text-brand">{event.organization.name}</Link>
+          ) : (
+            <span className="truncate text-foreground">{event.organization.name}</span>
+          )}
+        </nav>
 
-      {/* Content */}
-      <PageTransition className="container mx-auto px-4 py-8">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Description */}
-            <Reveal>
-              <h2 className="text-lg font-semibold mb-3">About This Event</h2>
-              <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{event.description}</div>
-            </Reveal>
+        {/* Phone order: cover + title, register card, content, organizer, discussion.
+            Desktop: content on the left, the register card sticky on the right. */}
+        <div className="mt-4 grid gap-y-8 lg:mt-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-x-12 xl:gap-x-16">
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+            <EventHero event={event} />
+          </div>
 
-            {/* Tags */}
-            {event.tags.length > 0 && (
-              <Reveal delay={0.05} className="flex flex-wrap gap-2">
-                {event.tags.map((tag) => (
-                  <Badge key={tag} variant="outline" className="gap-1"><Tag className="h-3 w-3" />{tag}</Badge>
-                ))}
-              </Reveal>
+          <div className="lg:col-start-2 lg:row-span-4 lg:row-start-1">
+            <EventSidebar
+              event={event}
+              eventUrl={eventUrl}
+              canRegister={canRegister}
+              isCancelled={isCancelled}
+              isSoldOut={isSoldOut}
+              registrationNotOpenYet={registrationNotOpenYet}
+              spotsLeft={spotsLeft}
+              lowestPrice={lowestPrice}
+              ctaId={CTA_ID}
+            />
+          </div>
+
+          <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-2">
+            <EventSection id="about" title="About this event">
+              <div className="max-w-[68ch] text-[15px] leading-7 whitespace-pre-wrap text-foreground/90">{event.description}</div>
+              {event.tags.length > 0 && (
+                <ul className="mt-5 flex flex-wrap gap-1.5" aria-label="Tags">
+                  {event.tags.map((tag) => (
+                    <li key={tag} className="rounded-sm border px-2 py-0.5 text-[13px] text-muted-foreground">{tag}</li>
+                  ))}
+                </ul>
+              )}
+            </EventSection>
+
+            <EventAnnouncements slug={slug} timeZone={event.timezone} />
+            <EventSchedule sessions={event.sessions} timeZone={event.timezone} />
+            <EventSponsors sponsors={event.sponsors} />
+            <EventFAQs faqs={event.faqs} />
+
+            {/* A hybrid event has a venue even though it also runs online. */}
+            {(!event.isOnline || event.type === "HYBRID") && event.venue && (
+              <EventSection id="venue" title="Venue">
+                <VenueMap
+                  venue={event.venue}
+                  address={event.venueAddress}
+                  city={event.venueCity}
+                  state={event.venueState}
+                  country={event.venueCountry}
+                  latitude={event.venueLatitude}
+                  longitude={event.venueLongitude}
+                />
+              </EventSection>
             )}
 
-            {event.sessions.length > 0 && (<Reveal><Separator className="mb-8" /><EventSchedule sessions={event.sessions} /></Reveal>)}
-            {event.sponsors.length > 0 && (<Reveal><Separator className="mb-8" /><EventSponsors sponsors={event.sponsors} /></Reveal>)}
-            {event.faqs.length > 0 && (<Reveal><Separator className="mb-8" /><EventFAQs faqs={event.faqs} /></Reveal>)}
-
-            <Separator />
-            <EventDiscussion slug={slug} />
-
-            {/* Rules */}
             {event.rules && (
-              <>
-                <Separator />
-                <section>
-                  <h2 className="text-lg font-semibold mb-3">Rules &amp; Guidelines</h2>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.rules}</p>
-                </section>
-              </>
+              <EventSection id="rules" title="Rules and guidelines">
+                <p className="max-w-[68ch] text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{event.rules}</p>
+              </EventSection>
             )}
-
-            {/* Terms */}
             {event.termsAndConditions && (
-              <section>
-                <h2 className="text-lg font-semibold mb-3">Terms &amp; Conditions</h2>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.termsAndConditions}</p>
-              </section>
+              <EventSection id="terms" title="Terms and conditions">
+                <p className="max-w-[68ch] text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{event.termsAndConditions}</p>
+              </EventSection>
             )}
-
             {event.refundPolicy && (
-              <section>
-                <h2 className="text-lg font-semibold mb-3">Refund Policy</h2>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.refundPolicy}</p>
-              </section>
+              <EventSection id="refunds" title="Refund policy">
+                <p className="max-w-[68ch] text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{event.refundPolicy}</p>
+              </EventSection>
             )}
           </div>
 
-          {/* Sidebar */}
-          <EventSidebar
-            event={event}
-            eventUrl={eventUrl}
-            canRegister={canRegister}
-            isCancelled={isCancelled}
-            isSoldOut={isSoldOut}
-            registrationNotOpenYet={registrationNotOpenYet}
-            spotsLeft={spotsLeft}
-            lowestPrice={lowestPrice}
-          />
+          <div className="min-w-0 lg:col-start-1 lg:row-start-3 lg:max-w-[520px]">
+            <EventOrganizer event={event} />
+          </div>
+
+          <div className="min-w-0 lg:col-start-1 lg:row-start-4">
+            <EventDiscussion slug={slug} />
+          </div>
         </div>
-      </PageTransition>
+      </div>
+
+      <EventStickyBar event={event} canRegister={canRegister} lowestPrice={lowestPrice} watchId={CTA_ID} />
+    </div>
+  )
+}
+
+function EventPageSkeleton() {
+  return (
+    <div className={`${SHELL} pt-5 pb-16 lg:pt-8`} aria-busy="true" aria-label="Loading event">
+      <Skeleton className="h-4 w-32" />
+      <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-x-12 xl:gap-x-16">
+        <div>
+          <Skeleton className="aspect-[2/1] w-full rounded-xl sm:aspect-[5/2]" />
+          <Skeleton className="mt-6 h-4 w-48" />
+          <Skeleton className="mt-3 h-9 w-3/4" />
+          <Skeleton className="mt-3 h-4 w-2/3" />
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <Skeleton className="h-11" />
+            <Skeleton className="h-11" />
+          </div>
+        </div>
+        <Skeleton className="h-[420px] rounded-lg" />
+      </div>
     </div>
   )
 }

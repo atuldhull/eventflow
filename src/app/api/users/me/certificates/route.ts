@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { getUserCertificates } from "@/lib/certificate"
+import { certificateVerificationState } from "@/lib/certificate-verification"
 
 export async function GET() {
   const session = await auth()
@@ -12,8 +13,10 @@ export async function GET() {
 
   return NextResponse.json({
     success: true,
-    data: certificates.map((c) => ({
+    data: certificates.map(({ metadata, ...c }) => ({
       ...c,
+      // valid | not_issued | revoked, by the same rule as the public verification page
+      state: certificateVerificationState(c.status, metadata),
       issuedDate: c.issuedDate.toISOString(),
       downloadedAt: c.downloadedAt?.toISOString() || null,
       event: {

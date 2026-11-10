@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, ClipboardCheck, CreditCard, Clock, Megaphone, Award, Trash2, Loader2 } from "lucide-react"
+import { Bell, ClipboardCheck, CreditCard, Clock, Megaphone, Award, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 
@@ -83,18 +84,18 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title="Notifications"
         actions={
           <Button variant="outline" size="sm" onClick={markAllRead}>
-            Mark All as Read
+            Mark all as read
           </Button>
         }
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList variant="line">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="unread">Unread</TabsTrigger>
           <TabsTrigger value="registration">Registration</TabsTrigger>
@@ -104,48 +105,46 @@ export default function NotificationsPage() {
 
         <TabsContent value={tab} className="mt-4">
           {isLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-          ) : notifications.length === 0 ? (
-            <div className="text-center py-16">
-              <Bell className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-              <p className="font-medium">No notifications</p>
-              <p className="text-sm text-muted-foreground mt-1">You&apos;re all caught up!</p>
+            <div className="space-y-2" aria-busy="true" aria-label="Loading notifications">
+              {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[72px] rounded-lg" />)}
             </div>
+          ) : notifications.length === 0 ? (
+            <EmptyState icon={Bell} title="No notifications" description="You're all caught up!" />
           ) : (
-            <div className="space-y-2">
+            <ul className="divide-y divide-rule border-y border-rule">
               {notifications.map((n) => {
                 const Icon = categoryIcons[n.category] || Bell
                 return (
-                  <div
-                    key={n.id}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border p-4 transition-colors",
-                      !n.isRead && "bg-primary/5 border-primary/20"
-                    )}
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className={cn("text-sm", !n.isRead && "font-medium")}>{n.title}</p>
-                        <span className="text-[10px] text-muted-foreground shrink-0">{formatTime(n.createdAt)}</span>
+                  <li key={n.id} className="flex items-start gap-3 py-3.5 pr-1">
+                    <span className="relative mt-0.5 shrink-0" aria-hidden>
+                      <Icon className="size-[18px] text-muted-foreground" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className={cn("text-sm", !n.isRead && "font-semibold")}>
+                          {!n.isRead && (
+                            <span className="mr-2 inline-block size-2 rounded-full bg-brand align-middle" aria-label="Unread" role="img" />
+                          )}
+                          {n.title}
+                        </p>
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatTime(n.createdAt)}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-0.5">{n.message}</p>
-                      {n.event && (
-                        <Badge variant="secondary" className="text-[10px] mt-1">{n.event.title}</Badge>
-                      )}
+                      <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
+                      {n.event && <p className="mt-1 text-[13px] text-faint">{n.event.title}</p>}
                     </div>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => deleteNotification(n.id)}
-                      className="text-muted-foreground/50 hover:text-destructive shrink-0"
+                      aria-label={`Delete notification: ${n.title}`}
+                      className="-mt-1 shrink-0 text-muted-foreground hover:text-destructive"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                      <Trash2 />
+                    </Button>
+                  </li>
                 )
               })}
-            </div>
+            </ul>
           )}
         </TabsContent>
       </Tabs>

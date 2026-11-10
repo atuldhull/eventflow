@@ -146,40 +146,53 @@ export default function WebsiteEditorPage() {
     }
   }, [handleSave])
 
+  // The editor fills the shell's sheet edge to edge: viewport minus the top bar
+  // (and, on phones/tablets, the bottom tab bar).
+  const frameClass =
+    "-mx-4 -my-5 sm:-mx-6 lg:-my-6 flex flex-col overflow-hidden bg-background " +
+    "h-[calc(100dvh-3rem-env(safe-area-inset-top)-var(--bottombar-height)-env(safe-area-inset-bottom)-1rem)] " +
+    "lg:h-[calc(100dvh-3rem-var(--sheet-inset)-2px)] lg:rounded-[calc(var(--sheet-radius)-1px)]"
+
   if (!isLoaded) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className={`${frameClass} items-center justify-center`} aria-busy="true">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" aria-label="Loading editor" />
       </div>
     )
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className={frameClass}>
       <EditorTopBar onSave={() => handleSave(false)} onPublish={handlePublish} />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
         {/* Left Panel */}
-        <div className="w-80 border-r bg-background flex flex-col overflow-hidden shrink-0">
+        <div className="flex h-[55%] w-full shrink-0 flex-col overflow-hidden border-b bg-background md:h-auto md:w-80 md:border-r md:border-b-0">
           {/* Panel tabs */}
-          <div className="flex items-center border-b px-1 shrink-0">
+          <div className="flex shrink-0 items-center border-b px-1" role="tablist" aria-label="Editor panels">
             {([
-              { view: "sections" as PanelView, icon: <FileText className="h-3.5 w-3.5" />, label: "Sections" },
-              { view: "styles" as PanelView, icon: <Palette className="h-3.5 w-3.5" />, label: "Styles" },
-              { view: "navigation" as PanelView, icon: <Navigation className="h-3.5 w-3.5" />, label: "Nav" },
-              { view: "settings" as PanelView, icon: <Settings className="h-3.5 w-3.5" />, label: "Settings" },
-              { view: "seo" as PanelView, icon: <Search className="h-3.5 w-3.5" />, label: "SEO" },
-              { view: "pages" as PanelView, icon: <FileStack className="h-3.5 w-3.5" />, label: "Pages" },
-            ]).map((tab) => (
-              <button key={tab.view} onClick={() => useEditorStore.getState().setLeftPanelView(tab.view)}
-                title={tab.label}
-                className={`flex-1 flex items-center justify-center py-2.5 transition-colors border-b-2 ${
-                  leftPanelView === tab.view || (tab.view === "sections" && leftPanelView === "section-editor")
-                    ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}>
-                {tab.icon}
-              </button>
-            ))}
+              { view: "sections" as PanelView, icon: <FileText className="size-4" />, label: "Sections" },
+              { view: "styles" as PanelView, icon: <Palette className="size-4" />, label: "Styles" },
+              { view: "navigation" as PanelView, icon: <Navigation className="size-4" />, label: "Navigation" },
+              { view: "settings" as PanelView, icon: <Settings className="size-4" />, label: "Settings" },
+              { view: "seo" as PanelView, icon: <Search className="size-4" />, label: "SEO" },
+              { view: "pages" as PanelView, icon: <FileStack className="size-4" />, label: "Pages" },
+            ]).map((tab) => {
+              const active = leftPanelView === tab.view || (tab.view === "sections" && leftPanelView === "section-editor")
+              return (
+                <button key={tab.view} onClick={() => useEditorStore.getState().setLeftPanelView(tab.view)}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-label={tab.label}
+                  title={tab.label}
+                  className={`relative flex min-h-11 flex-1 items-center justify-center transition-colors after:absolute after:inset-x-1.5 after:bottom-[-1px] after:h-0.5 after:rounded-full ${
+                    active ? "text-foreground after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {tab.icon}
+                </button>
+              )
+            })}
           </div>
 
           {/* Panel content */}
@@ -196,7 +209,7 @@ export default function WebsiteEditorPage() {
         </div>
 
         {/* Right Panel — Preview */}
-        <div className="flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden">
           <EditorPreview />
         </div>
       </div>

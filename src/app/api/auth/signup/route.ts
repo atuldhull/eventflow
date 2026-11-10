@@ -4,20 +4,57 @@ import prisma from "@/lib/prisma"
 import { createOTP } from "@/lib/auth-helpers"
 import { sendOTPEmail } from "@/lib/email"
 import { signupSchema } from "@/lib/validations/auth"
+import { getActivePlatformSettings } from "@/lib/platform-settings-store"
+import { passwordLengthIssue } from "@/lib/platform-settings"
+
+/**
+ * Whether sign-ups are open (Settings → Features → User registration) and the password
+ * rule, so the signup page can say "closed" on step 1 instead of after the whole form.
+ */
+export async function GET() {
+  try {
+    const platform = await getActivePlatformSettings()
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          open: platform.features.userRegistration,
+          minPasswordLength: Math.max(8, platform.security.minPasswordLength),
+        },
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    )
+  } catch (error) {
+    console.error("Signup status error:", error)
+    // unknown: let the form show; POST still enforces the setting
+    return NextResponse.json({ success: true, data: { open: true, minPasswordLength: 8 } })
+  }
+}
 
 export async function POST(request: Request) {
   try {
+    // Platform settings → Features → User registration
+    const platform = await getActivePlatformSettings()
+    if (!platform.features.userRegistration) {
+      return NextResponse.json({ success: false, message: "New sign-ups are turned off right now." }, { status: 403 })
+    }
+
     const body = await request.json()
     const parsed = signupSchema.safeParse(body)
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, message: "Validation failed", errors: parsed.error.flatten().fieldErrors },
+        // the first problem in words ("Invalid Indian phone number"), and every field's for the form
+        { success: false, message: parsed.error.issues[0]?.message ?? "Validation failed", errors: parsed.error.flatten().fieldErrors },
         { status: 400 }
       )
     }
 
     const { email, password, name, phone, collegeName, companyName } = parsed.data
+    const tooShort = passwordLengthIssue(password, platform)
+    if (tooShort) {
+      return NextResponse.json({ success: false, message: tooShort, errors: { password: [tooShort] } }, { status: 400 })
+    }
     const normalizedEmail = email.toLowerCase().trim()
 
     const existingUser = await prisma.user.findUnique({

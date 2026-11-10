@@ -26,5 +26,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ orgS
   return NextResponse.json({
     success: true,
     page,
-  }, { headers: { "Cache-Control": "public, max-age=120, stale-while-revalidate=300" } })
+  }, { headers: { "Cache-Control": "public, max-age=0, s-maxage=15" } })
 }

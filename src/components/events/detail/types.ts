@@ -1,3 +1,6 @@
+import type { Tone } from "@/components/ui/pill"
+import { formatInZone } from "@/lib/event-time"
+
 export interface EventData {
   id: string; title: string; slug: string; description: string; shortDescription: string
   status: string; type: string; visibility: string; category: string; tags: string[]
@@ -5,6 +8,7 @@ export interface EventData {
   registrationStartDate: string | null; registrationEndDate: string | null
   venue: string | null; venueAddress: string | null; venueCity: string | null
   venueState: string | null; venueCountry: string | null
+  venueLatitude?: number | null; venueLongitude?: number | null
   isOnline: boolean; onlinePlatform: string | null
   coverImage: string | null; gallery: string[]
   maxCapacity: number | null; currentRegistrations: number
@@ -21,14 +25,25 @@ export interface EventData {
   faqs: { id: string; question: string; answer: string }[]
 }
 
-export const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
-  PUBLISHED: { label: "Upcoming", color: "bg-blue-100 text-blue-700", dot: "bg-blue-500" },
-  REGISTRATION_OPEN: { label: "Registration Open", color: "bg-green-100 text-green-700", dot: "bg-green-500" },
-  REGISTRATION_CLOSED: { label: "Registration Closed", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
-  ONGOING: { label: "Happening Now", color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500 animate-pulse" },
-  COMPLETED: { label: "Completed", color: "bg-zinc-100 text-zinc-700", dot: "bg-zinc-500" },
+/**
+ * Public-facing event status: the attendee's word for each state and its pill
+ * tone. Presentation only; status values are unchanged.
+ */
+export const EVENT_STATUS: Record<string, { label: string; tone: Tone; live?: boolean }> = {
+  PUBLISHED: { label: "Upcoming", tone: "info" },
+  REGISTRATION_OPEN: { label: "Registration open", tone: "positive" },
+  REGISTRATION_CLOSED: { label: "Registration closed", tone: "info" },
+  ONGOING: { label: "Happening now", tone: "positive", live: true },
+  COMPLETED: { label: "Completed", tone: "neutral" },
+  CANCELLED: { label: "Cancelled", tone: "negative" },
 }
 
-export const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
-export const fmtTime = (d: string) => new Date(d).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
-export const fmtShort = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+export const eventStatus = (status: string) => EVENT_STATUS[status] ?? EVENT_STATUS.PUBLISHED
+
+export const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`
+
+// Event times are shown on the event's own clock (EventData.timezone); pass it as `tz`.
+export const fmtDate = (d: string, tz?: string | null) => formatInZone(d, tz, { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+export const fmtDay = (d: string, tz?: string | null) => formatInZone(d, tz, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+export const fmtTime = (d: string, tz?: string | null) => formatInZone(d, tz, { hour: "2-digit", minute: "2-digit" })
+export const fmtShort = (d: string, tz?: string | null) => formatInZone(d, tz, { day: "numeric", month: "short" })

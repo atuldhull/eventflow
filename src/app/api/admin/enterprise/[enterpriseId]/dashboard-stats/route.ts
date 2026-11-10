@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { enterpriseEventScope } from "@/lib/enterprise-admin"
 
 export async function GET(
   request: NextRequest,
@@ -21,14 +22,19 @@ export async function GET(
     return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
   }
 
-  const [orgCount, eventCount, registrationCount, recentEvents, recentActivity] = await Promise.all([
+  // Events count whether they belong to the enterprise directly or to one of its organizations.
+  const events = enterpriseEventScope(enterpriseId)
+  const canSeeRevenue = (await authorize(session.user.id, PERMISSIONS.PAYMENT_VIEW, { enterpriseId })).authorized
+
+  const [orgCount, eventCount, registrationCount, revenue, recentEvents, recentActivity] = await Promise.all([
     prisma.organization.count({ where: { enterpriseId, isActive: true, deletedAt: null } }),
-    prisma.event.count({ where: { enterpriseId, deletedAt: null } }),
-    prisma.registration.count({
-      where: { event: { enterpriseId } },
-    }),
+    prisma.event.count({ where: events }),
+    prisma.registration.count({ where: { event: events } }),
+    canSeeRevenue
+      ? prisma.payment.aggregate({ where: { status: "COMPLETED", registration: { event: events } }, _sum: { amount: true } })
+      : Promise.resolve(null),
     prisma.event.findMany({
-      where: { enterpriseId, deletedAt: null, startDate: { gte: new Date() } },
+      where: { ...events, startDate: { gte: new Date() } },
       orderBy: { startDate: "asc" },
       take: 5,
       select: {
@@ -61,7 +67,7 @@ export async function GET(
       orgCount,
       eventCount,
       registrationCount,
-      totalRevenue: 0,
+      totalRevenue: revenue ? Number(revenue._sum.amount || 0) : null,
       recentEvents: recentEvents.map((e) => ({
         id: e.id,
         title: e.title,

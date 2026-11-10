@@ -29,7 +29,7 @@ import { ContextSwitcher } from "@/components/shared/ContextSwitcher"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useUIStore } from "@/stores/useUIStore"
-import { signOut } from "next-auth/react"
+import { signOut } from "@/lib/sign-out"
 import type { Role } from "@/lib/constants"
 
 interface NavItem {

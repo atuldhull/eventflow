@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode"
 import { Camera, CameraOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,12 +15,18 @@ interface QRScannerProps {
 export function QRScanner({ onScan, onError, enabled }: QRScannerProps) {
   const [isStarted, setIsStarted] = useState(false)
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
+  // Bumped by "Try again": the effect below then starts the scanner after the render, when
+  // the container element is in the DOM (calling start from the click handler ran before
+  // React had mounted it, so Html5Qrcode found no element and retry never worked).
+  const [attempt, setAttempt] = useState(0)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const lastScanRef = useRef<string>("")
   const lastScanTimeRef = useRef<number>(0)
   // containerId must be stable across renders but unique per mounted component
-  // (multiple scanners on the same page would collide otherwise).
-  const containerIdRef = useRef<string>(`qr-scanner-${Math.random().toString(36).slice(2, 10)}`)
+  // (multiple scanners on the same page would collide otherwise). useId gives the
+  // same id on the server and the client; a random id hydrated with the server's
+  // value, so Html5Qrcode looked up the client's id and found no element.
+  const containerId = `qr-scanner-${useId()}`
 
   useEffect(() => {
     if (!enabled) {
@@ -32,7 +38,7 @@ export function QRScanner({ onScan, onError, enabled }: QRScannerProps) {
       void stopScanner()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled])
+  }, [enabled, attempt])
 
   // Html5Qrcode.stop() throws "Cannot stop, scanner is not running or paused"
   // when called on an instance that hasn't started yet. Guard with getState().
@@ -62,7 +68,7 @@ export function QRScanner({ onScan, onError, enabled }: QRScannerProps) {
     // now. Because useEffect fires after render, the container div with this
     // id is already in the tree.
     try {
-      const scanner = new Html5Qrcode(containerIdRef.current)
+      const scanner = new Html5Qrcode(containerId)
       scannerRef.current = scanner
 
       await scanner.start(
@@ -105,42 +111,59 @@ export function QRScanner({ onScan, onError, enabled }: QRScannerProps) {
     setIsStarted(false)
   }
 
-  if (hasPermission === false) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <CameraOff className="h-12 w-12 text-muted-foreground/30 mb-4" />
-        <p className="font-medium">Camera Access Required</p>
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-          Please allow camera access in your browser settings, then click Try Again.
-        </p>
-        <Button variant="outline" className="mt-4" onClick={() => { setHasPermission(null); void startScanner() }}>
-          Try Again
-        </Button>
-      </div>
-    )
-  }
+  // The viewport is dark in both themes: navy-black ink in light mode, the frame black in dark mode.
+  const viewport = "bg-foreground text-background dark:bg-frame dark:text-foreground"
+
+  const denied = hasPermission === false
 
   return (
-    <div className="relative">
-      <div
-        id={containerIdRef.current}
-        className={cn(
-          "w-full rounded-lg overflow-hidden bg-black",
-          !isStarted && "min-h-64 flex items-center justify-center"
-        )}
-      >
-        {!isStarted && (
-          <div className="text-center text-white/60">
-            <Camera className="h-8 w-8 mx-auto mb-2" />
-            <p className="text-sm">Starting camera…</p>
+    <div>
+      <div className={cn("relative w-full overflow-hidden rounded-lg", viewport)}>
+        {/* html5-qrcode owns this element's children; React draws its overlay beside it.
+            It stays mounted in every state so a retry always finds it. */}
+        <div id={containerId} className={cn("w-full", !isStarted && "aspect-[4/3] max-h-[360px] sm:aspect-video")} />
+        {denied ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+            <ViewfinderCorners />
+            <CameraOff className="size-6 opacity-70" aria-hidden />
+            <p className="mt-3 text-[15px] font-medium" role="alert">Camera access required</p>
+            <p className="mt-1 max-w-xs text-[13px] opacity-70">
+              Please allow camera access in your browser settings, then click Try again.
+            </p>
+            <Button
+              variant="outline"
+              className="relative mt-4 border-current/30 bg-transparent text-inherit hover:bg-current/10 dark:bg-transparent dark:hover:bg-current/10"
+              onClick={() => { setHasPermission(null); setAttempt((n) => n + 1) }}
+            >
+              Try again
+            </Button>
+          </div>
+        ) : !isStarted && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <ViewfinderCorners />
+            <Camera className="size-6 opacity-70" aria-hidden />
+            <p className="mt-2 text-[13px] opacity-70" aria-live="polite">{enabled ? "Starting camera…" : "Scanner paused"}</p>
           </div>
         )}
       </div>
       {isStarted && (
-        <p className="text-center text-xs text-muted-foreground mt-2">
+        <p className="mt-2 text-center text-[13px] text-muted-foreground">
           Point camera at the QR code on the participant&apos;s ticket
         </p>
       )}
+    </div>
+  )
+}
+
+/** Four corner marks that frame where the code should go. Decorative. */
+function ViewfinderCorners() {
+  const corner = "absolute size-9 border-current opacity-90"
+  return (
+    <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 aspect-square h-[62%] -translate-x-1/2 -translate-y-1/2">
+      <span className={cn(corner, "top-0 left-0 rounded-tl-sm border-t-[3px] border-l-[3px]")} />
+      <span className={cn(corner, "top-0 right-0 rounded-tr-sm border-t-[3px] border-r-[3px]")} />
+      <span className={cn(corner, "bottom-0 left-0 rounded-bl-sm border-b-[3px] border-l-[3px]")} />
+      <span className={cn(corner, "right-0 bottom-0 rounded-br-sm border-r-[3px] border-b-[3px]")} />
     </div>
   )
 }

@@ -1,33 +1,114 @@
-version: "3.8"
+# Production-style setup on one server. See DEPLOY.md.
+#   docker compose up -d                    app + database + scheduler + backups
+#   docker compose --profile https up -d    the same, plus HTTPS (Caddy) for $DOMAIN
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: runner
+      args:
+        # baked into the build, so set them in the shell or the .env next to this file
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+        NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-}
+        NEXT_PUBLIC_LEGAL_ENTITY: ${NEXT_PUBLIC_LEGAL_ENTITY:-}
+        NEXT_PUBLIC_LEGAL_JURISDICTION: ${NEXT_PUBLIC_LEGAL_JURISDICTION:-}
+        NEXT_PUBLIC_GRIEVANCE_OFFICER: ${NEXT_PUBLIC_GRIEVANCE_OFFICER:-}
+        NEXT_PUBLIC_PRIVACY_EMAIL: ${NEXT_PUBLIC_PRIVACY_EMAIL:-}
+        NEXT_PUBLIC_SUPPORT_EMAIL: ${NEXT_PUBLIC_SUPPORT_EMAIL:-}
     ports:
-      - "3000:3000"
+      # Only this machine can reach port 3000; the public goes through Caddy (HTTPS).
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env.local
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Applies prisma/migrations, then exits. Runs before every app start.
+  migrate:
+    build:
+      context: .
+      target: migrate
     env_file:
       - .env.local
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
 
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: eventflow
-      POSTGRES_PASSWORD: eventflow_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eventflow_dev}
       POSTGRES_DB: eventflow
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventflow -d eventflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+  # Every 5 minutes: release unpaid seat holds. Every hour: reminder emails.
+  scheduler:
+    image: alpine:3.20
+    command: ["sh", "/ops/scheduler.sh"]
+    environment:
+      APP_URL: http://app:3000
+      CRON_SECRET: ${CRON_SECRET:-}
     volumes:
-      - redis_data:/data
+      - ./ops:/ops:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Daily database dump + uploads archive into ./backups, kept 14 days.
+  backup:
+    image: postgres:16-alpine
+    command: ["sh", "/ops/backup.sh"]
+    environment:
+      PGHOST: postgres
+      PGUSER: eventflow
+      PGPASSWORD: ${POSTGRES_PASSWORD:-eventflow_dev}
+      PGDATABASE: eventflow
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./ops:/ops:ro
+      - ./backups:/backups
+      - uploads_data:/uploads:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # HTTPS (Let's Encrypt) for $DOMAIN. Opt in: docker compose --profile https up -d
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
 
 volumes:
   postgres_data:
-  redis_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:

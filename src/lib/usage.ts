@@ -1,32 +1,24 @@
 import prisma from "@/lib/prisma"
 import { PLANS, type PlanId, type PlanLimit, isUnlimited } from "@/config/plans"
+import { PLAN_CONFIG, countEventsThisMonth, eventLimitResetsAt, formatResetDate, getEntityPlan } from "@/lib/subscription"
 
 interface UsageItem {
   used: number
   limit: number
   percentage: number
   remaining: number
+  /** set on a monthly count (eventsThisMonth): the date it starts again, e.g. "1 December 2026" */
+  resetsOn?: string
 }
 
 export async function getUsage(entityType: "enterprise" | "org", entityId: string): Promise<Record<string, UsageItem>> {
-  // Get subscription plan
-  const subscription = entityType === "enterprise"
-    ? await prisma.subscription.findFirst({ where: { enterprise: { id: entityId } } })
-    : await prisma.subscription.findFirst({ where: { organizationId: entityId } })
-
-  const planId = (subscription?.plan as PlanId) || "FREE"
+  // The plan the subscription actually entitles (a lapsed one is FREE), as the limit checks use.
+  const planId: PlanId = await getEntityPlan(entityType, entityId)
   const plan = PLANS[planId]
 
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-
-  // Calculate each usage metric
-  const eventFilter = entityType === "enterprise"
-    ? { OR: [{ enterpriseId: entityId }, { organization: { enterpriseId: entityId } }] as any }
-    : { organizationId: entityId }
-
   const [eventsThisMonth, memberCount, orgCount, templateCount, webhookCount] = await Promise.all([
-    prisma.event.count({ where: { ...eventFilter, deletedAt: null, createdAt: { gte: monthStart } } }),
+    // The same count the event limit enforces (src/lib/subscription.ts checkEventLimit).
+    countEventsThisMonth({ entityType, entityId }),
     entityType === "enterprise"
       ? prisma.enterpriseMember.count({ where: { enterpriseId: entityId, isActive: true } })
       : prisma.organizationMember.count({ where: { organizationId: entityId, isActive: true } }),
@@ -41,8 +33,7 @@ export async function getUsage(entityType: "enterprise" | "org", entityId: strin
       : prisma.webhookEndpoint.count({ where: { organizationId: entityId, isActive: true } }),
   ])
 
-  function makeUsageItem(used: number, limitKey: PlanLimit): UsageItem {
-    const limit = plan.limits[limitKey]
+  function usageItem(used: number, limit: number): UsageItem {
     const isUnl = isUnlimited(limit)
     return {
       used,
@@ -51,9 +42,11 @@ export async function getUsage(entityType: "enterprise" | "org", entityId: strin
       remaining: isUnl ? -1 : Math.max(0, limit - used),
     }
   }
+  const makeUsageItem = (used: number, limitKey: PlanLimit) => usageItem(used, plan.limits[limitKey])
 
   return {
-    eventsThisMonth: makeUsageItem(eventsThisMonth, "maxEventsPerMonth"),
+    // Events created this month against the limit the create / duplicate check enforces.
+    eventsThisMonth: { ...usageItem(eventsThisMonth, PLAN_CONFIG[planId].limits.maxEvents), resetsOn: formatResetDate(eventLimitResetsAt()) },
     organizations: makeUsageItem(orgCount, "maxOrganizations"),
     teamMembers: makeUsageItem(memberCount, "maxTeamMembers"),
     certificateTemplates: makeUsageItem(templateCount, "maxCertificateTemplates"),
@@ -99,12 +92,13 @@ export function getUsageAlerts(usage: Record<string, UsageItem>): { limit: strin
 
   for (const [key, item] of Object.entries(usage)) {
     if (isUnlimited(item.limit)) continue
+    const name = key === "eventsThisMonth" ? "monthly event" : key
     if (item.percentage >= 100) {
-      alerts.push({ limit: key, percentage: item.percentage, message: `${key} limit reached (${item.used}/${item.limit})`, severity: "critical" })
+      alerts.push({ limit: key, percentage: item.percentage, message: `Reached the ${name} limit (${item.used}/${item.limit})`, severity: "critical" })
     } else if (item.percentage >= 90) {
-      alerts.push({ limit: key, percentage: item.percentage, message: `Almost at ${key} limit (${item.used}/${item.limit})`, severity: "danger" })
+      alerts.push({ limit: key, percentage: item.percentage, message: `Almost at ${name} limit (${item.used}/${item.limit})`, severity: "danger" })
     } else if (item.percentage >= 80) {
-      alerts.push({ limit: key, percentage: item.percentage, message: `Approaching ${key} limit (${item.used}/${item.limit})`, severity: "warning" })
+      alerts.push({ limit: key, percentage: item.percentage, message: `Approaching ${name} limit (${item.used}/${item.limit})`, severity: "warning" })
     }
   }
 

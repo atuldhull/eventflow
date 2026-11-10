@@ -2,6 +2,13 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
+import { z } from "zod/v4"
+import type { EventStatus, EventVisibility } from "@prisma/client"
+
+// Only events anyone can see can be saved: published (or later), public or unlisted, not deleted.
+const SAVEABLE_STATUSES: EventStatus[] = ["PUBLISHED", "REGISTRATION_OPEN", "REGISTRATION_CLOSED", "ONGOING", "COMPLETED"]
+const SAVEABLE_VISIBILITY: EventVisibility[] = ["PUBLIC", "UNLISTED"]
+const saveSchema = z.object({ eventId: z.string().trim().min(1).max(64) })
 
 // GET — list saved events for the current user
 export async function GET(_request: NextRequest) {
@@ -11,7 +18,11 @@ export async function GET(_request: NextRequest) {
   }
 
   const saved = await prisma.savedEvent.findMany({
-    where: { userId: session.user.id },
+    // Events the organizer has since deleted, unpublished to draft or made private are left out
+    where: {
+      userId: session.user.id,
+      event: { deletedAt: null, status: { in: SAVEABLE_STATUSES }, visibility: { in: SAVEABLE_VISIBILITY } },
+    },
     orderBy: { savedAt: "desc" },
     include: {
       event: {
@@ -27,15 +38,12 @@ export async function GET(_request: NextRequest) {
     },
   })
 
-  const data = saved
-    // Hide events the organizer has since deleted / unpublished to draft
-    .filter((s) => ["PUBLISHED", "REGISTRATION_OPEN", "REGISTRATION_CLOSED", "ONGOING", "COMPLETED"].includes(s.event.status))
-    .map((s) => ({
-      savedAt: s.savedAt.toISOString(),
-      ...s.event,
-      startDate: s.event.startDate.toISOString(),
-      endDate: s.event.endDate.toISOString(),
-    }))
+  const data = saved.map((s) => ({
+    savedAt: s.savedAt.toISOString(),
+    ...s.event,
+    startDate: s.event.startDate.toISOString(),
+    endDate: s.event.endDate.toISOString(),
+  }))
 
   return NextResponse.json({ success: true, data })
 }
@@ -47,13 +55,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
   }
 
-  const { eventId } = await request.json() as { eventId?: string }
-  if (!eventId) {
+  const parsed = saveSchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
     return NextResponse.json({ success: false, message: "eventId required" }, { status: 400 })
   }
+  const { eventId } = parsed.data
 
-  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true, status: true } })
-  if (!event) {
+  // A draft, private or deleted event answers like a missing one: its id reveals nothing
+  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true, status: true, visibility: true, deletedAt: true } })
+  if (!event || event.deletedAt || !SAVEABLE_STATUSES.includes(event.status) || !SAVEABLE_VISIBILITY.includes(event.visibility)) {
     return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
   }
 

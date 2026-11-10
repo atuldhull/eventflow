@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 import prisma from "@/lib/prisma"
+import { liveWorkspaceWhere } from "@/lib/public-events"
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eventflow.com"
 
@@ -14,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/developers`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${baseUrl}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${baseUrl}/terms`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${baseUrl}/refunds`, changeFrequency: "yearly", priority: 0.3 },
   ]
 
   const categories = ["tech", "cultural", "sports", "workshop", "hackathon", "conference", "seminar", "webinar", "competition"]
@@ -28,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const events = await prisma.event.findMany({
-      where: { status: { in: ["PUBLISHED", "REGISTRATION_OPEN", "ONGOING"] }, visibility: "PUBLIC", deletedAt: null },
+      where: { status: { in: ["PUBLISHED", "REGISTRATION_OPEN", "ONGOING"] }, visibility: "PUBLIC", deletedAt: null, ...liveWorkspaceWhere() },
       select: { slug: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
       take: 5000,
@@ -42,7 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
 
     const orgs = await prisma.organization.findMany({
-      where: { isActive: true, deletedAt: null },
+      where: { isActive: true, deletedAt: null, OR: [{ enterpriseId: null }, { enterprise: { isActive: true, deletedAt: null } }] },
       select: { slug: true, updatedAt: true },
     })
 

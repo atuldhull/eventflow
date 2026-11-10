@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { withApiAuth } from "@/lib/api-auth"
+import { EVENT_NOT_FOUND, apiKeyEventWhere, findApiKeyEvent, withApiAuth } from "@/lib/api-auth"
 import prisma from "@/lib/prisma"
 import { createQRPayload } from "@/lib/ticket"
+import { Prisma } from "@prisma/client"
+import {
+  CAPACITY_ERRORS,
+  EXISTING_REGISTRATION_SELECT,
+  FRESH_REGISTRATION_FIELDS,
+  ReuseConflict,
+  capacityErrorCode,
+  claimRegistrationCapacity,
+  resetPaymentForReuse,
+  reuseBlocker,
+  takeOverRegistration,
+} from "@/lib/registration-capacity"
+import { releaseExpiredHolds } from "@/lib/seat-hold"
+import { liveWorkspaceWhere } from "@/lib/public-events"
+import crypto from "crypto"
+
+const randomSuffix = () => crypto.randomUUID().slice(0, 4).toUpperCase()
 
 export const GET = withApiAuth("registrations:read", async (req, ctx, routeCtx) => {
   const { eventId } = await routeCtx.params
@@ -10,6 +27,9 @@ export const GET = withApiAuth("registrations:read", async (req, ctx, routeCtx) 
   const page = parseInt(searchParams.get("page") || "1")
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100)
   const status = searchParams.get("status") || ""
+
+  // Only the key's own events (its organization's, or its enterprise's).
+  if (!(await findApiKeyEvent(ctx, eventId))) return NextResponse.json(EVENT_NOT_FOUND, { status: 404 })
 
   const where: Record<string, unknown> = { eventId }
   if (status) where.status = status
@@ -51,17 +71,26 @@ export const POST = withApiAuth("registrations:write", async (req, ctx, routeCtx
     return NextResponse.json({ error: { code: "bad_request", message: "participantEmail and participantName are required" } }, { status: 400 })
   }
 
-  // Verify event exists and is open
+  // Verify event exists, is the key's own (its organization's, or its enterprise's) and is
+  // open; an event of a deactivated or deleted organization or enterprise is "not found",
+  // as on the public site.
   const event = await prisma.event.findFirst({
-    where: { id: eventId, organizationId: ctx.organizationId || undefined, deletedAt: null },
+    where: { id: String(eventId), deletedAt: null, AND: [apiKeyEventWhere(ctx), liveWorkspaceWhere()] },
     select: { id: true, status: true, maxCapacity: true, currentRegistrations: true, isPaid: true, approvalRequired: true, title: true },
   })
-  if (!event) return NextResponse.json({ error: { code: "not_found", message: "Event not found" } }, { status: 404 })
+  if (!event) return NextResponse.json(EVENT_NOT_FOUND, { status: 404 })
   if (!["PUBLISHED", "REGISTRATION_OPEN"].includes(event.status)) {
     return NextResponse.json({ error: { code: "bad_request", message: "Registration is not open" } }, { status: 400 })
   }
-  if (event.maxCapacity && event.currentRegistrations >= event.maxCapacity) {
-    return NextResponse.json({ error: { code: "bad_request", message: "Event is full" } }, { status: 400 })
+
+  // Every registration needs a ticket type; default to the event's first active one.
+  const ticketType = await prisma.ticketType.findFirst({
+    where: { eventId, isActive: true, ...(ticketTypeId ? { id: String(ticketTypeId) } : {}) },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true },
+  })
+  if (!ticketType) {
+    return NextResponse.json({ error: { code: "bad_request", message: ticketTypeId ? "Invalid ticket type" : "Event has no active ticket types" } }, { status: 400 })
   }
 
   // Find or note the user
@@ -71,36 +100,88 @@ export const POST = withApiAuth("registrations:write", async (req, ctx, routeCtx
     user = await prisma.user.create({ data: { email: participantEmail, name: participantName, role: "USER" } })
   }
 
-  // Check duplicate
-  const existing = await prisma.registration.findUnique({ where: { eventId_userId: { eventId, userId: user.id } } })
-  if (existing) return NextResponse.json({ error: { code: "conflict", message: "Already registered" } }, { status: 409 })
+  try {
+    await releaseExpiredHolds({ eventId })
+  } catch (error) {
+    console.error("Releasing expired seat holds failed:", error)
+  }
 
-  const regNumber = `EVT-${Date.now().toString(36).toUpperCase()}`
-  const status = event.approvalRequired ? "PENDING" : (event.isPaid ? "PENDING" : "CONFIRMED")
-
-  const registration = await prisma.registration.create({
-    data: {
-      eventId, userId: user.id, status: status as any, registrationNumber: regNumber,
-      ticketTypeId: ticketTypeId || undefined,
-      formResponses: formResponses || undefined,
-      source: "API",
-    },
+  // Check duplicate. As in POST /api/registrations, a cancelled, rejected or released
+  // registration is reused for the new attempt instead of blocking it.
+  const existing = await prisma.registration.findUnique({
+    where: { eventId_userId: { eventId, userId: user.id } },
+    select: EXISTING_REGISTRATION_SELECT,
   })
-
-  // Update count if confirmed
-  if (status === "CONFIRMED") {
-    await prisma.event.update({ where: { id: eventId }, data: { currentRegistrations: { increment: 1 } } })
+  const blocker = existing ? reuseBlocker(existing) : null
+  if (blocker === "ALREADY_REGISTERED") return NextResponse.json({ error: { code: "conflict", message: "Already registered" } }, { status: 409 })
+  if (blocker === "PAYMENT_HELD") {
+    return NextResponse.json({ error: { code: "conflict", message: "An earlier registration has a payment that hasn't been refunded yet" } }, { status: 409 })
   }
 
-  // Generate ticket for free confirmed registrations (only if ticketTypeId is provided)
-  let ticket = null
-  if (status === "CONFIRMED" && !event.isPaid && ticketTypeId) {
-    const ticketNum = `TKT-${Date.now().toString(36).toUpperCase()}`
-    const qrData = createQRPayload(ticketNum, eventId, regNumber)
-    ticket = await prisma.ticket.create({
-      data: { registrationId: registration.id, userId: user.id, eventId, ticketTypeId, ticketNumber: ticketNum, qrCode: qrData, status: "ACTIVE" },
+  // Paid-event registrations made through the API have no checkout, so they stay PENDING
+  // and (like approval-required ones) only count against capacity once confirmed.
+  const awaitsConfirmation = event.approvalRequired || event.isPaid
+
+  // Random suffix: concurrent API calls in the same millisecond must not collide.
+  const regNumber = existing?.registrationNumber ?? `EVT-${Date.now().toString(36).toUpperCase()}${randomSuffix()}`
+  const userId = user.id
+  let created
+  try {
+    // Same conditional claims as POST /api/registrations: event seat (or waitlist) and
+    // ticket stock are taken with UPDATE ... WHERE <still room> inside the transaction.
+    created = await prisma.$transaction(async (tx) => {
+      if (existing) await takeOverRegistration(tx, existing)
+      const { waitlisted, waitlistPosition } = await claimRegistrationCapacity(tx, {
+        eventId,
+        ticketTypeId: ticketType.id,
+        quantity: 1,
+        countsNow: !awaitsConfirmation,
+      })
+      const status: "WAITLISTED" | "PENDING" | "CONFIRMED" = waitlisted ? "WAITLISTED" : awaitsConfirmation ? "PENDING" : "CONFIRMED"
+
+      const fields = {
+        status,
+        ticketTypeId: ticketType.id,
+        formResponses: formResponses || undefined,
+        waitlistPosition,
+        metadata: { ticketQuantity: 1, ...(existing ? { reregisteredAt: new Date().toISOString(), previousStatus: existing.status } : {}) },
+        source: "API",
+      }
+      const registration = existing
+        ? await tx.registration.update({ where: { id: existing.id }, data: { ...fields, ...FRESH_REGISTRATION_FIELDS } })
+        : await tx.registration.create({ data: { ...fields, eventId, userId, registrationNumber: regNumber } })
+      // API registrations are never charged; close an unpaid payment left by an earlier attempt.
+      if (existing?.payment) await resetPaymentForReuse(tx, existing.payment, null)
+
+      // Generate ticket for free confirmed registrations (re-activating one cancelled with
+      // an earlier attempt: a registration has at most one ticket).
+      let ticket = null
+      const oldTicket = existing ? await tx.ticket.findUnique({ where: { registrationId: registration.id } }) : null
+      if (status === "CONFIRMED" && !event.isPaid && oldTicket) {
+        ticket = await tx.ticket.update({ where: { id: oldTicket.id }, data: { status: "ACTIVE", ticketTypeId: ticketType.id, userId } })
+      } else if (status === "CONFIRMED" && !event.isPaid) {
+        const ticketNum = `TKT-${Date.now().toString(36).toUpperCase()}${randomSuffix()}`
+        const qrData = createQRPayload(ticketNum, eventId, regNumber)
+        ticket = await tx.ticket.create({
+          data: { registrationId: registration.id, userId, eventId, ticketTypeId: ticketType.id, ticketNumber: ticketNum, qrCode: qrData, status: "ACTIVE" },
+        })
+      }
+      return { registration, ticket, status }
     })
+  } catch (error) {
+    if (error instanceof ReuseConflict) {
+      return NextResponse.json({ error: { code: "conflict", message: "Already registered" } }, { status: 409 })
+    }
+    const code = capacityErrorCode(error)
+    if (code) {
+      return NextResponse.json({ error: { code: code === "EVENT_GONE" ? "not_found" : "bad_request", message: CAPACITY_ERRORS[code].message } }, { status: CAPACITY_ERRORS[code].status })
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && String(error.meta?.target ?? "").includes("user")) {
+      return NextResponse.json({ error: { code: "conflict", message: "Already registered" } }, { status: 409 })
+    }
+    throw error
   }
+  const { registration, ticket, status } = created
 
   return NextResponse.json({
     data: {

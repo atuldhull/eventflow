@@ -8,15 +8,24 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from "recharts"
-import { Card } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import {
+  ChartCard,
+  ChartEmpty,
+  ChartLegend,
+  ChartSkeleton,
+  ChartTooltip,
+  gridProps,
+  seriesColor,
+  xAxisProps,
+  yAxisProps,
+} from "./chart-parts"
 
 interface AreaChartProps {
   data: Record<string, unknown>[]
   xKey: string
-  yKeys: { key: string; color: string; label?: string }[]
+  /** colour defaults to chart-1, chart-2, chart-3 in order; pass var(--chart-N) to choose */
+  yKeys: { key: string; color?: string; label?: string }[]
   height?: number
   showGrid?: boolean
   showLegend?: boolean
@@ -24,6 +33,7 @@ interface AreaChartProps {
   title?: string
 }
 
+/** An area is a line with a flat 10% fill under it, never a gradient. */
 export function AreaChart({
   data,
   xKey,
@@ -34,46 +44,42 @@ export function AreaChart({
   isLoading = false,
   title,
 }: AreaChartProps) {
-  if (isLoading) {
-    return (
-      <Card className="p-6">
-        {title && <Skeleton className="h-5 w-40 mb-4" />}
-        <Skeleton className="w-full" style={{ height }} />
-      </Card>
-    )
-  }
+  if (isLoading) return <ChartSkeleton title={title} height={height} />
+
+  const series = yKeys.map((y, i) => ({ ...y, color: seriesColor(i, y.color), name: y.label || y.key }))
 
   return (
-    <Card className="p-6">
-      {title && <h3 className="text-sm font-medium mb-4">{title}</h3>}
-      <ResponsiveContainer width="100%" height={height}>
-        <RechartsAreaChart data={data}>
-          {showGrid && <CartesianGrid strokeDasharray="3 3" className="stroke-border" />}
-          <XAxis dataKey={xKey} className="text-xs" tick={{ fontSize: 12 }} />
-          <YAxis className="text-xs" tick={{ fontSize: 12 }} />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "hsl(var(--popover))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
-              fontSize: "12px",
-            }}
-          />
-          {showLegend && <Legend />}
-          {yKeys.map((y) => (
-            <Area
-              key={y.key}
-              type="monotone"
-              dataKey={y.key}
-              stroke={y.color}
-              fill={y.color}
-              fillOpacity={0.1}
-              name={y.label || y.key}
-              strokeWidth={2}
-            />
-          ))}
-        </RechartsAreaChart>
-      </ResponsiveContainer>
-    </Card>
+    <ChartCard
+      title={title}
+      legend={showLegend ? <ChartLegend items={series.map((s) => ({ label: s.name, color: s.color }))} /> : undefined}
+    >
+      {data.length === 0 ? (
+        <ChartEmpty height={height} />
+      ) : (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsAreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
+            {showGrid && <CartesianGrid {...gridProps} />}
+            <XAxis dataKey={xKey} {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            <Tooltip content={ChartTooltip} cursor={{ stroke: "var(--border)", strokeWidth: 1 }} isAnimationActive={false} />
+            {series.map((s) => (
+              <Area
+                key={s.key}
+                type="monotone"
+                dataKey={s.key}
+                stroke={s.color}
+                fill={s.color}
+                fillOpacity={0.1}
+                name={s.name}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 3.5, strokeWidth: 2, stroke: "var(--background)", fill: s.color }}
+                isAnimationActive={false}
+              />
+            ))}
+          </RechartsAreaChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
   )
 }

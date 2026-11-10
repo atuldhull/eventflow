@@ -97,7 +97,7 @@ export function OTPInput({ length = 6, onComplete, disabled = false, error = fal
   }, [focusInput])
 
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-between gap-2 sm:justify-start">
       {values.map((value, index) => (
         <input
           key={index}
@@ -113,14 +113,14 @@ export function OTPInput({ length = 6, onComplete, disabled = false, error = fal
           onKeyDown={(e) => handleKeyDown(index, e)}
           onPaste={handlePaste}
           aria-label={`Digit ${index + 1}`}
+          aria-invalid={error || undefined}
           className={cn(
-            "h-12 w-10 rounded-lg border text-center text-lg font-semibold transition-all",
-            "focus:border-primary focus:ring-2 focus:ring-ring focus:outline-none",
+            "h-12 w-full max-w-12 min-w-0 rounded-md border bg-background text-center font-mono text-xl font-medium tabular-nums transition-colors outline-none dark:bg-input/30",
+            "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/35",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            error
-              ? "border-destructive focus:border-destructive focus:ring-destructive/30"
-              : "border-input",
-            "sm:h-14 sm:w-12 sm:text-xl"
+            error ? "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/25" : "border-input",
+            value && !error && "border-foreground/40",
+            "sm:h-14 sm:w-12"
           )}
         />
       ))}

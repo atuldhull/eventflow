@@ -1,10 +1,11 @@
 "use client"
 
-import { useSession, signIn, signOut } from "next-auth/react"
+import { useSession, signIn, getSession } from "next-auth/react"
+import { signOut } from "@/lib/sign-out"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 import type { Role } from "@/lib/constants"
-import { getRoleRedirectPath } from "@/lib/auth-helpers"
+import { getPostLoginPath, getSafeCallbackUrl } from "@/lib/auth-redirect"
+import { getSignInFailure } from "@/lib/auth-errors"
 import type { AuthResponse } from "@/types/auth"
 
 const ADMIN_ROLES: Role[] = [
@@ -31,6 +32,14 @@ export function useAuth() {
   const isEnterpriseAdmin = user?.role === "ENTERPRISE_ADMIN"
   const isOrgAdmin = user?.role === "ORG_ADMIN"
 
+  // `user` above is the session from before this sign-in (none), so the role for the
+  // landing page has to come from the session the sign-in just created
+  const goToPostLoginPage = async (callbackUrl?: string) => {
+    const fresh = await getSession()
+    router.push(getPostLoginPath(callbackUrl, fresh?.user?.role))
+    router.refresh()
+  }
+
   const login = async (email: string, password: string, callbackUrl?: string) => {
     const result = await signIn("credentials", {
       email: email.toLowerCase().trim(),
@@ -38,23 +47,10 @@ export function useAuth() {
       redirect: false,
     })
 
-    if (result?.error) {
-      if (result.error === "ACCOUNT_INACTIVE") {
-        throw new Error("Your account has been suspended. Contact support.")
-      }
-      if (result.error === "ACCOUNT_BANNED") {
-        throw new Error("Your account has been suspended. Contact support.")
-      }
-      if (result.error === "EMAIL_NOT_VERIFIED") {
-        throw new Error("Please verify your email before logging in.")
-      }
-      throw new Error("Invalid email or password.")
-    }
+    const failure = getSignInFailure(result, "password")
+    if (failure) throw failure
 
-    if (result?.ok) {
-      router.push(callbackUrl || getRoleRedirectPath(user?.role || "USER"))
-      router.refresh()
-    }
+    await goToPostLoginPage(callbackUrl)
   }
 
   const loginWithOtp = async (email: string, otp: string, callbackUrl?: string) => {
@@ -64,28 +60,20 @@ export function useAuth() {
       redirect: false,
     })
 
-    if (result?.error) {
-      if (result.error === "ACCOUNT_INACTIVE" || result.error === "ACCOUNT_BANNED") {
-        throw new Error("Your account has been suspended. Contact support.")
-      }
-      if (result.error === "EMAIL_NOT_VERIFIED") {
-        throw new Error("Please verify your email before logging in.")
-      }
-      throw new Error("Invalid OTP. Please try again.")
-    }
+    const failure = getSignInFailure(result, "otp")
+    if (failure) throw failure
 
-    if (result?.ok) {
-      router.push(callbackUrl || "/dashboard")
-      router.refresh()
-    }
+    await goToPostLoginPage(callbackUrl)
   }
 
+  // An OAuth round trip can't know the role in advance. Without a callbackUrl it returns to
+  // /login, which the middleware forwards a signed-in user to their role's home page.
   const loginWithGoogle = async (callbackUrl?: string) => {
-    await signIn("google", { callbackUrl: callbackUrl || "/dashboard" })
+    await signIn("google", { callbackUrl: getSafeCallbackUrl(callbackUrl) ?? "/login" })
   }
 
   const loginWithMicrosoft = async (callbackUrl?: string) => {
-    await signIn("microsoft-entra-id", { callbackUrl: callbackUrl || "/dashboard" })
+    await signIn("microsoft-entra-id", { callbackUrl: getSafeCallbackUrl(callbackUrl) ?? "/login" })
   }
 
   const logout = async () => {
@@ -108,10 +96,11 @@ export function useAuth() {
       body: JSON.stringify(data),
     })
 
-    const result: AuthResponse = await res.json()
+    const result = (await res.json()) as AuthResponse & { errors?: Record<string, string[] | undefined> }
 
     if (!result.success) {
-      throw new Error(result.message)
+      // keep the API's per-field messages (e.g. errors.phone) so the form can show them by the field
+      throw Object.assign(new Error(result.message), { fieldErrors: result.errors ?? {} })
     }
 
     return result
@@ -133,14 +122,15 @@ export function useAuth() {
     return result
   }
 
-  const verifyEmail = async (email: string, otp: string) => {
+  /** `signIn: true` asks for a one-time sign-in code to start a session right after verifying. */
+  const verifyEmail = async (email: string, otp: string, options?: { signIn?: boolean }) => {
     const res = await fetch("/api/auth/verify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.toLowerCase().trim(), otp }),
+      body: JSON.stringify({ email: email.toLowerCase().trim(), otp, ...(options?.signIn ? { signIn: true } : {}) }),
     })
 
-    const result: AuthResponse = await res.json()
+    const result = (await res.json()) as AuthResponse & { data?: { loginCode?: string } }
 
     if (!result.success) {
       throw new Error(result.message)

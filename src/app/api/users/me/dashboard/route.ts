@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
+import { revenueTotals } from "@/lib/revenue"
 
 export async function GET() {
   const session = await auth()
@@ -14,9 +15,10 @@ export async function GET() {
     prisma.registration.count({ where: { userId } }),
     prisma.ticket.count({ where: { userId, status: "ACTIVE" } }),
     prisma.certificate.count({ where: { userId } }),
-    prisma.payment.aggregate({ where: { userId, status: "COMPLETED" }, _sum: { amount: true } }),
+    revenueTotals({ userId }),
     prisma.registration.findMany({
-      where: { userId, status: { in: ["CONFIRMED", "PENDING"] }, event: { startDate: { gte: new Date() }, deletedAt: null } },
+      // events that haven't ended, so one that is running stays listed ("Happening now")
+      where: { userId, status: { in: ["CONFIRMED", "PENDING", "CHECKED_IN"] }, event: { endDate: { gte: new Date() }, deletedAt: null } },
       orderBy: { event: { startDate: "asc" } },
       take: 5,
       select: {
@@ -33,7 +35,7 @@ export async function GET() {
         registrations,
         activeTickets: tickets,
         certificates,
-        totalSpent: payments._sum.amount ? Number(payments._sum.amount) : 0,
+        totalSpent: payments.net, // what they paid minus refunds
       },
       upcomingEvents: upcomingEvents.map((r) => ({
         registrationId: r.id,

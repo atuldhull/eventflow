@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { withApiAuth } from "@/lib/api-auth"
+import { apiKeyEventWhere, withApiAuth } from "@/lib/api-auth"
 import prisma from "@/lib/prisma"
+import { checkEventLimit, checkEventLimitForScope } from "@/lib/subscription"
 import { z } from "zod/v4"
 
 export const GET = withApiAuth("events:read", async (req, ctx) => {
@@ -14,9 +15,9 @@ export const GET = withApiAuth("events:read", async (req, ctx) => {
   const sort = searchParams.get("sort") || "created_at"
   const order = searchParams.get("order") || "desc"
 
-  const where: Record<string, unknown> = { deletedAt: null }
-  if (ctx.organizationId) where.organizationId = ctx.organizationId
-  if (ctx.enterpriseId) where.OR = [{ enterpriseId: ctx.enterpriseId }, { organization: { enterpriseId: ctx.enterpriseId } }]
+  // Only the key's own events (its organization's, or its enterprise's); none for a key
+  // linked to neither.
+  const where: Record<string, unknown> = { deletedAt: null, AND: [apiKeyEventWhere(ctx)] }
   if (status) where.status = status
   if (category) where.category = category
   if (search) where.title = { contains: search, mode: "insensitive" }
@@ -63,6 +64,17 @@ const createEventSchema = z.object({
 })
 
 export const POST = withApiAuth("events:write", async (req, ctx) => {
+  // Plan limit, as in the admin create route: events created this month at the plan's level
+  // (the enterprise's, for an enterprise organization or an enterprise key). The event
+  // belongs to the key's organization (or, for an enterprise key, its enterprise).
+  let limit
+  if (ctx.organizationId) limit = await checkEventLimit(ctx.organizationId)
+  else if (ctx.enterpriseId) limit = await checkEventLimitForScope({ entityType: "enterprise", entityId: ctx.enterpriseId })
+  else return NextResponse.json({ error: { code: "forbidden", message: "This API key isn't linked to an organization or enterprise" } }, { status: 403 })
+  if (!limit.allowed) {
+    return NextResponse.json({ error: { code: "forbidden", message: limit.message, details: { used: limit.used, limit: limit.limit, plan: limit.plan } } }, { status: 403 })
+  }
+
   const body = await req.json()
   const parsed = createEventSchema.safeParse(body)
   if (!parsed.success) {

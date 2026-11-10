@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import type { Prisma } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { paginationMeta, parseEnumParam, parseListParams } from "@/lib/list-params"
+
+const AUDIT_ACTIONS = [
+  "CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "EXPORT", "APPROVE", "REJECT",
+  "REFUND", "CHECK_IN", "PUBLISH", "CANCEL",
+] as const
 
 export async function GET(
   request: NextRequest,
@@ -21,14 +28,30 @@ export async function GET(
   }
 
   const searchParams = request.nextUrl.searchParams
-  const page = parseInt(searchParams.get("page") || "1")
-  const limit = parseInt(searchParams.get("limit") || "50")
+  const { page, limit, skip, search } = parseListParams(searchParams, { defaultLimit: 50 })
+  const action = parseEnumParam(searchParams, "action", AUDIT_ACTIONS)
+
+  // Always scoped to this organization; the search narrows within it.
+  const where: Prisma.AuditLogWhereInput = {
+    organizationId: orgId,
+    ...(action ? { action } : {}),
+    ...(search
+      ? {
+          OR: [
+            { description: { contains: search, mode: "insensitive" } },
+            { entityType: { contains: search, mode: "insensitive" } },
+            { user: { name: { contains: search, mode: "insensitive" } } },
+            { user: { email: { contains: search, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  }
 
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
-      where: { organizationId: orgId },
+      where,
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
+      skip,
       take: limit,
       select: {
         id: true, action: true, entityType: true, entityId: true,
@@ -36,12 +59,12 @@ export async function GET(
         user: { select: { name: true } },
       },
     }),
-    prisma.auditLog.count({ where: { organizationId: orgId } }),
+    prisma.auditLog.count({ where }),
   ])
 
   return NextResponse.json({
     success: true,
     data: logs.map((l) => ({ ...l, userName: l.user.name, createdAt: l.createdAt.toISOString() })),
-    pagination: { page, pageSize: limit, total, totalPages: Math.ceil(total / limit) },
+    pagination: paginationMeta(page, limit, total),
   })
 }

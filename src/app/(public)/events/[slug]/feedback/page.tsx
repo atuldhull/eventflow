@@ -6,8 +6,7 @@ import { useSession } from "next-auth/react"
 import { Star, Loader2, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 
-import { PageHeader } from "@/components/shared/PageHeader"
-import { Card } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -48,55 +47,63 @@ export default function FeedbackPage({ params }: { params: Promise<{ slug: strin
     finally { setIsSubmitting(false) }
   }
 
-  if (authStatus === "loading") return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+  if (authStatus === "loading") {
+    return (
+      <div className="mx-auto w-full max-w-[560px] px-5 py-12 sm:py-16" aria-busy="true" aria-label="Loading">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="mt-3 h-4 w-72" />
+        <Skeleton className="mt-8 h-[420px] rounded-lg" />
+      </div>
+    )
+  }
 
   if (submitted) {
     return (
-      <div className="container mx-auto px-4 py-16 max-w-md text-center space-y-4">
-        <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
-        <h1 className="text-2xl font-bold">Thank You!</h1>
-        <p className="text-muted-foreground">Your feedback helps organizers improve future events.</p>
-        <div className="flex justify-center gap-1">
+      <div className="mx-auto w-full max-w-[560px] px-5 py-16 text-center sm:py-24">
+        <CheckCircle className="mx-auto size-8 text-positive" strokeWidth={1.75} aria-hidden />
+        <h1 className="mt-4 text-[26px] leading-tight font-semibold tracking-[-0.02em] sm:text-[28px]">Thank you!</h1>
+        <p className="mt-2 text-[15px] text-muted-foreground">Your feedback helps organizers improve future events.</p>
+        <div className="mt-5 flex justify-center gap-1" aria-label={`Your rating: ${rating} out of 5`} role="img">
           {[1, 2, 3, 4, 5].map((s) => (
-            <Star key={s} className={cn("h-6 w-6", s <= rating ? "fill-amber-400 text-amber-400" : "text-muted")} />
+            <Star key={s} className={cn("size-6", s <= rating ? "fill-current text-foreground" : "text-border")} aria-hidden />
           ))}
         </div>
-        <Button variant="outline" onClick={() => router.push("/dashboard")}>Back to Dashboard</Button>
+        <Button variant="outline" className="mt-8" onClick={() => router.push("/dashboard")}>Back to dashboard</Button>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-12 max-w-lg">
-      <Card className="p-6 space-y-6">
-        <div className="text-center">
-          <h1 className="text-xl font-bold">How was the event?</h1>
-          <p className="text-sm text-muted-foreground mt-1">Your feedback helps organizers improve</p>
-        </div>
+    <div className="mx-auto w-full max-w-[560px] px-5 py-10 sm:py-16">
+      <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] sm:text-[32px]">How was the event?</h1>
+      <p className="mt-2 text-[15px] text-muted-foreground">Your feedback helps organizers improve</p>
 
-        {/* Star Rating */}
-        <div className="text-center space-y-2">
-          <Label>Overall Rating *</Label>
-          <div className="flex justify-center gap-1" role="radiogroup" aria-label="Rating">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setRating(s)}
-                onMouseEnter={() => setHoverRating(s)}
-                onMouseLeave={() => setHoverRating(0)}
-                aria-label={`${s} star${s > 1 ? "s" : ""}`}
-                aria-checked={rating === s}
-                role="radio"
-                className="p-1 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-              >
-                <Star className={cn("h-8 w-8 transition-colors", (hoverRating || rating) >= s ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30")} />
-              </button>
-            ))}
+      <div className="mt-8 space-y-6 rounded-lg border bg-card p-5 sm:p-6">
+        {/* Star rating */}
+        <div>
+          <p id="rating-label" className="text-sm font-medium">Overall rating <span className="text-muted-foreground">*</span></p>
+          <div className="mt-3 flex items-center gap-4">
+            <div className="-ml-1.5 flex gap-0.5" role="radiogroup" aria-labelledby="rating-label">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setRating(s)}
+                  onMouseEnter={() => setHoverRating(s)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  aria-label={`${s} star${s > 1 ? "s" : ""}`}
+                  aria-checked={rating === s}
+                  role="radio"
+                  className="press flex size-11 items-center justify-center rounded-md transition-colors hover:bg-accent"
+                >
+                  <Star className={cn("size-7 transition-colors", (hoverRating || rating) >= s ? "fill-current text-foreground" : "text-input")} strokeWidth={1.5} />
+                </button>
+              ))}
+            </div>
+            <p className="text-[13px] text-muted-foreground" aria-live="polite">
+              {["", "Poor", "Fair", "Good", "Very Good", "Excellent"][rating] || "Select a rating"}
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {["", "Poor", "Fair", "Good", "Very Good", "Excellent"][rating] || "Select a rating"}
-          </p>
         </div>
 
         <div className="space-y-2">
@@ -109,16 +116,16 @@ export default function FeedbackPage({ params }: { params: Promise<{ slug: strin
           <Textarea id="improvements" value={improvements} onChange={(e) => setImprovements(e.target.value)} placeholder="Any suggestions..." rows={3} maxLength={1000} />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex min-h-9 items-center gap-2.5">
           <Checkbox id="anonymous" checked={isAnonymous} onCheckedChange={(v) => setIsAnonymous(!!v)} />
-          <label htmlFor="anonymous" className="text-sm text-muted-foreground cursor-pointer">Submit anonymously</label>
+          <label htmlFor="anonymous" className="cursor-pointer text-sm text-muted-foreground">Submit anonymously</label>
         </div>
 
-        <Button className="w-full" onClick={handleSubmit} disabled={isSubmitting || rating === 0}>
-          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-          Submit Feedback
+        <Button className="h-11 w-full gap-2 text-[15px]" onClick={handleSubmit} disabled={isSubmitting || rating === 0}>
+          {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+          Submit feedback
         </Button>
-      </Card>
+      </div>
     </div>
   )
 }

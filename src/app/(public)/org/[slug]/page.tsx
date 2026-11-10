@@ -1,73 +1,89 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Building2, Calendar, Users, Globe, CheckCircle } from "lucide-react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { notFound } from "next/navigation"
+import { Building2, CalendarCheck, CalendarClock, CalendarX2, Globe, History, MapPin, Users } from "lucide-react"
+import { ProfileEvents, ProfileSection, PublicProfile, type ProfileDetail } from "@/components/marketing/PublicProfile"
+import { getPublicOrganization, profileMetaDescription } from "@/lib/public-profiles"
+
+// One query per request, shared by the metadata and the page
+const loadOrganization = cache((slug: string) => getPublicOrganization(slug))
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
+  const org = await loadOrganization(slug)
+  // Throwing here (not just in the page) lets crawlers get a real 404 status
+  if (!org) notFound()
+
+  const description = profileMetaDescription(org.name, org.description, `Upcoming and past events by ${org.name} on EventFlow.`)
   return {
-    title: `Organization | EventFlow`,
-    description: `View events and details for this organization on EventFlow`,
+    title: org.name,
+    description,
+    alternates: { canonical: `/org/${org.slug}` },
+    openGraph: {
+      title: org.name,
+      description,
+      type: "profile",
+      url: `/org/${org.slug}`,
+      ...(org.logo ? { images: [{ url: org.logo, alt: org.name }] } : {}),
+    },
+    twitter: { card: "summary", title: org.name, description },
   }
 }
 
 export default async function OrgPublicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+  const org = await loadOrganization(slug)
+  if (!org) notFound()
+
+  const details: ProfileDetail[] = [
+    { icon: CalendarClock, label: "Upcoming events", value: org.counts.upcomingEvents },
+    { icon: History, label: "Past events", value: org.counts.pastEvents },
+    { icon: Users, label: "Members", value: org.counts.members },
+  ]
+  if (org.location) details.push({ icon: MapPin, label: "Location", value: <span className="font-normal">{org.location}</span> })
+  if (org.website) {
+    details.push({
+      icon: Globe,
+      label: "Website",
+      value: (
+        <a href={org.website.href} target="_blank" rel="noopener noreferrer nofollow" className="block max-w-[160px] truncate font-normal underline-offset-4 hover:text-brand hover:underline">
+          {org.website.label}
+        </a>
+      ),
+    })
+  }
+  if (org.enterprise) {
+    details.push({
+      icon: Building2,
+      label: "Part of",
+      value: (
+        <Link href={`/enterprise/${org.enterprise.slug}`} className="block max-w-[160px] truncate font-normal underline-offset-4 hover:text-brand hover:underline">
+          {org.enterprise.name}
+        </Link>
+      ),
+    })
+  }
 
   return (
-    <div>
-      {/* Hero */}
-      <div className="relative h-48 sm:h-56 bg-linear-to-br from-blue-600 to-blue-800">
-        <div className="absolute bottom-0 left-0 right-0 translate-y-1/2">
-          <div className="container mx-auto px-4">
-            <div className="flex items-end gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-white shadow-lg border">
-                <Building2 className="h-10 w-10 text-blue-600" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 pt-14 pb-16 space-y-8">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Organization</h1>
-            <CheckCircle className="h-5 w-5 text-blue-500" />
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">Organization details for slug: {slug}</p>
-        </div>
-
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-8">
-            <section>
-              <h2 className="text-lg font-semibold mb-3">About</h2>
-              <p className="text-muted-foreground">Organization description will appear here when connected to the database.</p>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold mb-3">Upcoming Events</h2>
-              <Card className="p-8 text-center">
-                <Calendar className="mx-auto h-10 w-10 text-muted-foreground/30 mb-2" />
-                <p className="text-sm text-muted-foreground">No upcoming events.</p>
-              </Card>
-            </section>
-          </div>
-
-          <div className="space-y-4">
-            <Card className="p-6 space-y-3">
-              <h3 className="text-sm font-medium">Details</h3>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2"><Users className="h-4 w-4" /> 0 members</div>
-                <div className="flex items-center gap-2"><Calendar className="h-4 w-4" /> 0 events</div>
-              </div>
-            </Card>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PublicProfile
+      name={org.name}
+      logo={org.logo}
+      isVerified={org.isVerified}
+      meta={["Organization", org.category, org.location].filter(Boolean)}
+      website={org.website}
+      about={org.description}
+      details={details}
+      links={org.socialLinks}
+    >
+      <ProfileSection title="Upcoming events" count={org.counts.upcomingEvents}>
+        <ProfileEvents events={org.upcomingEvents} total={org.counts.upcomingEvents} empty="No upcoming events right now." icon={CalendarX2} />
+      </ProfileSection>
+      {org.pastEvents.length > 0 && (
+        <ProfileSection title="Past events" count={org.counts.pastEvents}>
+          <ProfileEvents events={org.pastEvents} total={org.counts.pastEvents} empty="No past events." icon={CalendarCheck} />
+        </ProfileSection>
+      )}
+    </PublicProfile>
   )
 }

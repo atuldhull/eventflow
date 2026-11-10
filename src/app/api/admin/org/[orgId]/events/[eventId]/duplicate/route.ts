@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { createAuditLog, getClientInfo } from "@/lib/audit"
 import { PERMISSIONS } from "@/lib/permissions"
+import { checkEventLimit } from "@/lib/subscription"
 
 export async function POST(
   request: NextRequest,
@@ -35,6 +36,12 @@ export async function POST(
     return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
   }
 
+  // The copy is a new event created this month: same plan limit as creating one.
+  const limit = await checkEventLimit(orgId)
+  if (!limit.allowed) {
+    return NextResponse.json({ success: false, message: limit.message, data: { used: limit.used, limit: limit.limit, plan: limit.plan } }, { status: 403 })
+  }
+
   // Generate unique slug
   let slug = `${source.slug}-copy`
   let counter = 1
@@ -57,6 +64,10 @@ export async function POST(
       endDate: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000),
       registrationStartDate: null,
       registrationEndDate: null,
+      // A copy of a cancelled event starts clean; a JSON column can't be written as a bare null.
+      cancelledAt: null,
+      cancellationReason: null,
+      settings: source.settings ?? undefined,
       createdById: session.user.id,
       ticketTypes: source.ticketTypes.length > 0 ? {
         create: source.ticketTypes.map((tt) => ({
@@ -89,7 +100,7 @@ export async function POST(
   await createAuditLog({
     userId: session.user.id, action: "CREATE", entityType: "EVENT",
     entityId: duplicate.id, description: `Duplicated event: ${source.title} → ${duplicate.title}`,
-    ipAddress, userAgent, organizationId: orgId,
+    ipAddress, userAgent, organizationId: orgId, enterpriseId: source.enterpriseId ?? undefined,
   })
 
   return NextResponse.json({ success: true, data: { id: duplicate.id, slug: duplicate.slug } }, { status: 201 })

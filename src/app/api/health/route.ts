@@ -25,7 +25,7 @@ export async function GET() {
 
   // Payment check
   checks.payment = {
-    status: process.env.RAZORPAY_KEY_ID || process.env.STRIPE_SECRET_KEY ? "configured" : "not_configured",
+    status: process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET ? "configured" : "not_configured",
   }
 
   return NextResponse.json({

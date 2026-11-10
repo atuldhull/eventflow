@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { liveWorkspaceWhere } from "@/lib/public-events"
 
 export async function GET(
   request: NextRequest,
@@ -12,8 +13,9 @@ export async function GET(
   const { slug } = await params
   const session = await auth()
 
-  const event = await prisma.event.findUnique({
-    where: { slug },
+  // An event of a deactivated or deleted organization/enterprise is gone from public view (404)
+  const event = await prisma.event.findFirst({
+    where: { slug, ...liveWorkspaceWhere() },
     select: {
       id: true,
       title: true,
@@ -35,6 +37,8 @@ export async function GET(
       venueCity: true,
       venueState: true,
       venueCountry: true,
+      venueLatitude: true,
+      venueLongitude: true,
       isOnline: true,
       onlinePlatform: true,
       coverImage: true,
@@ -57,6 +61,7 @@ export async function GET(
       isFeatured: true,
       seoTitle: true,
       seoDescription: true,
+      deletedAt: true,
       organization: {
         select: { id: true, name: true, logo: true, description: true, slug: true },
       },
@@ -80,7 +85,8 @@ export async function GET(
     },
   })
 
-  if (!event) {
+  // A deleted event is gone for everyone, preview links included
+  if (!event || event.deletedAt) {
     return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 })
   }
 

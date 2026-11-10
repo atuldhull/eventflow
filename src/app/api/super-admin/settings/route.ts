@@ -1,36 +1,62 @@
 import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import type { Prisma } from "@prisma/client"
 import { withSuperAdmin } from "@/lib/guards"
-import prisma from "@/lib/prisma"
+import { createAuditLog, getClientInfo } from "@/lib/audit"
+import { firstIssue } from "@/lib/enterprise-admin"
+import { changedSections, platformSettingsSchema, unavailableSettingIssue } from "@/lib/platform-settings"
+import { getPlatformSettings, savePlatformSettings } from "@/lib/platform-settings-store"
 
-// Platform settings stored in a simple key-value approach using the first enterprise or a dedicated settings model
-// For now, we'll use environment-based config acknowledgment
+/** How mail actually leaves the server (from env); shown read-only next to the sender fields. */
+function emailTransport() {
+  if (process.env.RESEND_API_KEY) return { provider: "Resend", host: "api.resend.com", envFrom: process.env.EMAIL_FROM || null }
+  return {
+    provider: "SMTP",
+    host: process.env.SMTP_HOST ? `${process.env.SMTP_HOST}:${process.env.SMTP_PORT || "1025"}` : null,
+    envFrom: process.env.EMAIL_FROM || null,
+  }
+}
 
 export const GET = withSuperAdmin(async () => {
-  // Return current platform configuration
+  const { settings, updatedAt } = await getPlatformSettings()
   return NextResponse.json({
     success: true,
-    data: {
-      platformName: process.env.NEXT_PUBLIC_APP_NAME || "EventFlow",
-      contactEmail: process.env.EMAIL_FROM || "noreply@eventflow.com",
-      maintenanceMode: false,
-    },
+    data: { settings, updatedAt: updatedAt?.toISOString() ?? null, emailTransport: emailTransport() },
   })
 })
 
 export const POST = withSuperAdmin(async (req, { user }) => {
-  const body = await req.json()
+  const parsed = platformSettingsSchema.safeParse(await req.json().catch(() => null))
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, message: firstIssue(parsed.error) }, { status: 400 })
+  }
 
-  // Log the settings change for audit
-  await prisma.auditLog.create({
-    data: {
-      userId: user.id,
-      action: "UPDATE",
-      entityType: "PLATFORM",
-      entityId: "settings",
-      description: `Updated platform settings: ${Object.keys(body).join(", ")}`,
-    },
+  // switches the platform can't honour yet (SMS, 2FA, enterprise self-registration) are refused, not saved
+  const unavailable = unavailableSettingIssue(parsed.data)
+  if (unavailable) {
+    return NextResponse.json({ success: false, message: unavailable }, { status: 400 })
+  }
+
+  const { settings: before } = await getPlatformSettings()
+  const changed = changedSections(before, parsed.data)
+  await savePlatformSettings(parsed.data, user.id)
+
+  const { ipAddress, userAgent } = getClientInfo(req)
+  await createAuditLog({
+    userId: user.id,
+    action: "UPDATE",
+    entityType: "PLATFORM",
+    entityId: "settings",
+    description: changed.length ? `Updated platform settings: ${changed.join(", ")}` : "Saved platform settings (no changes)",
+    oldValues: Object.fromEntries(changed.map((k) => [k, before[k]])) as Prisma.InputJsonValue,
+    newValues: Object.fromEntries(changed.map((k) => [k, parsed.data[k]])) as Prisma.InputJsonValue,
+    ipAddress,
+    userAgent,
   })
 
-  return NextResponse.json({ success: true, message: "Settings saved. Some changes require server restart." })
+  const { settings, updatedAt } = await getPlatformSettings()
+  return NextResponse.json({
+    success: true,
+    message: "Settings saved",
+    data: { settings, updatedAt: updatedAt?.toISOString() ?? null, emailTransport: emailTransport() },
+  })
 })

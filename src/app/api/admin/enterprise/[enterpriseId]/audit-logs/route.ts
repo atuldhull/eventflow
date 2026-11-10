@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { authorize } from "@/lib/authorization"
 import { PERMISSIONS } from "@/lib/permissions"
+import { cleanSearch, enterpriseAuditWhere, parsePaging } from "@/lib/enterprise-admin"
 
 export async function GET(
   request: NextRequest,
@@ -21,19 +22,15 @@ export async function GET(
     return NextResponse.json({ success: false, message: authResult.message }, { status: 403 })
   }
 
-  const searchParams = request.nextUrl.searchParams
-  const page = parseInt(searchParams.get("page") || "1")
-  const limit = parseInt(searchParams.get("limit") || "50")
-  const action = searchParams.get("action") || ""
-
-  const where: Record<string, unknown> = { enterpriseId }
-  if (action) where.action = action
+  const sp = request.nextUrl.searchParams
+  const { page, limit, skip } = parsePaging(sp, 50)
+  const where = enterpriseAuditWhere(enterpriseId, { search: cleanSearch(sp.get("search")), action: sp.get("action") || "" })
 
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
-      where: where as any,
+      where,
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
+      skip,
       take: limit,
       select: {
         id: true,
@@ -46,7 +43,7 @@ export async function GET(
         user: { select: { name: true } },
       },
     }),
-    prisma.auditLog.count({ where: where as any }),
+    prisma.auditLog.count({ where }),
   ])
 
   return NextResponse.json({

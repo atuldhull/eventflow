@@ -1,8 +1,8 @@
 "use client"
 
-import { motion } from "framer-motion"
 import { FileText, Check } from "lucide-react"
-import { Card } from "@/components/ui/card"
+import { Pill } from "@/components/ui/pill"
+import { cn } from "@/lib/utils"
 import { formatSize, type MediaItem } from "./types"
 
 interface Props {
@@ -16,27 +16,48 @@ export function MediaCard({ item, isSelected, onOpen, onToggleSelect }: Props) {
   const isImage = item.fileType.startsWith("image")
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="group relative">
-      <Card className={`overflow-hidden cursor-pointer transition-all ${isSelected ? "ring-2 ring-primary" : "hover:shadow-md"}`} onClick={onOpen}>
-        <div className="aspect-square bg-muted relative flex items-center justify-center">
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded-lg bg-card ring-1 transition-shadow",
+        isSelected ? "ring-2 ring-brand" : "ring-border hover:ring-input",
+      )}
+    >
+      <button type="button" onClick={onOpen} className="block w-full text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50" aria-label={`Open ${item.fileName}`}>
+        <div className="relative flex aspect-square items-center justify-center bg-raised">
           {isImage && item.fileUrl ? (
-            <img src={item.fileUrl} alt={item.altText || item.fileName} className="w-full h-full object-cover" loading="lazy" />
+            // eslint-disable-next-line @next/next/no-img-element -- tenant media at arbitrary URLs
+            <img src={item.fileUrl} alt={item.altText || item.fileName} className="size-full object-cover" loading="lazy" />
           ) : (
-            <div className="text-center"><FileText className="h-8 w-8 mx-auto text-muted-foreground/20" /><p className="text-[9px] text-muted-foreground mt-1">{item.fileType.split("/")[1]}</p></div>
+            <div className="text-center">
+              <FileText className="mx-auto size-7 text-faint" strokeWidth={1.5} aria-hidden />
+              <p className="mt-1 font-mono text-[11px] text-muted-foreground">{item.fileType.split("/")[1]}</p>
+            </div>
           )}
-          {/* Checkbox */}
-          <button className={`absolute top-1.5 left-1.5 h-5 w-5 rounded border-2 flex items-center justify-center transition-opacity ${isSelected ? "bg-primary border-primary opacity-100" : "border-white/60 opacity-0 group-hover:opacity-100"}`}
-            onClick={(e) => { e.stopPropagation(); onToggleSelect() }}>
-            {isSelected && <Check className="h-3 w-3 text-white" />}
-          </button>
-          {/* Warning */}
-          {!item.altText && isImage && <span className="absolute bottom-1 right-1 text-[9px] bg-amber-100 text-amber-700 px-1 rounded">No alt</span>}
+          {!item.altText && isImage && <Pill tone="warning" className="absolute right-1.5 bottom-1.5">No alt</Pill>}
         </div>
-        <div className="p-2">
-          <p className="text-[11px] font-medium truncate">{item.fileName}</p>
-          <p className="text-[10px] text-muted-foreground">{item.width && item.height ? `${item.width}\u00D7${item.height} \u2022 ` : ""}{formatSize(item.fileSize)}</p>
+        <div className="border-t border-rule px-2.5 py-2">
+          <p className="truncate text-[13px] font-medium">{item.fileName}</p>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {item.width && item.height ? `${item.width}×${item.height} · ` : ""}{formatSize(item.fileSize)}
+          </p>
         </div>
-      </Card>
-    </motion.div>
+      </button>
+      {/* Select */}
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={isSelected}
+        aria-label={`Select ${item.fileName}`}
+        className={cn(
+          "absolute top-2 left-2 flex size-6 items-center justify-center rounded-[4px] border transition-opacity pointer-coarse:opacity-100",
+          isSelected
+            ? "border-brand bg-brand text-brand-foreground opacity-100"
+            : "border-border bg-background/90 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+        )}
+        onClick={(e) => { e.stopPropagation(); onToggleSelect() }}
+      >
+        {isSelected && <Check className="size-3.5" />}
+      </button>
+    </div>
   )
 }

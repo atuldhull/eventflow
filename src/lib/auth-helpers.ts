@@ -38,11 +38,13 @@ export async function createOTP(params: {
   return code
 }
 
+export type OTPFailureReason = "not_found" | "expired" | "too_many_attempts" | "invalid"
+
 export async function verifyOTP(params: {
   email: string
   code: string
   purpose: string
-}): Promise<{ valid: boolean; error?: string }> {
+}): Promise<{ valid: boolean; error?: string; reason?: OTPFailureReason }> {
   const { email, code, purpose } = params
 
   const otp = await prisma.oTP.findFirst({
@@ -55,15 +57,15 @@ export async function verifyOTP(params: {
   })
 
   if (!otp) {
-    return { valid: false, error: "No OTP found. Please request a new one." }
+    return { valid: false, error: "No OTP found. Please request a new one.", reason: "not_found" }
   }
 
   if (otp.expiresAt < new Date()) {
-    return { valid: false, error: "OTP has expired. Please request a new one." }
+    return { valid: false, error: "OTP has expired. Please request a new one.", reason: "expired" }
   }
 
   if (otp.attempts >= 5) {
-    return { valid: false, error: "Too many attempts. Please request a new OTP." }
+    return { valid: false, error: "Too many attempts. Please request a new OTP.", reason: "too_many_attempts" }
   }
 
   const storedBuf = Buffer.from(otp.code)
@@ -76,7 +78,7 @@ export async function verifyOTP(params: {
       where: { id: otp.id },
       data: { attempts: { increment: 1 } },
     })
-    return { valid: false, error: "Invalid OTP. Please try again." }
+    return { valid: false, error: "Invalid OTP. Please try again.", reason: "invalid" }
   }
 
   await prisma.oTP.update({
@@ -100,19 +102,4 @@ export async function checkOTPRateLimit(email: string): Promise<boolean> {
   return count < 3
 }
 
-export function getRoleRedirectPath(role: string): string {
-  switch (role) {
-    case "SUPER_ADMIN":
-      return "/super-admin"
-    case "ENTERPRISE_ADMIN":
-    case "ENTERPRISE_MANAGER":
-    case "ORG_ADMIN":
-    case "EVENT_MANAGER":
-    case "COORDINATOR":
-    case "FINANCE_MANAGER":
-    case "VIEWER":
-      return "/admin"
-    default:
-      return "/dashboard"
-  }
-}
+export { getRoleRedirectPath } from "@/lib/auth-redirect"

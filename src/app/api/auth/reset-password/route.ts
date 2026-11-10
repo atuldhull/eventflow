@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import prisma from "@/lib/prisma"
 import { verifyOTP } from "@/lib/auth-helpers"
+import { withPasswordChangedAt } from "@/lib/password-change"
+import { getActivePlatformSettings } from "@/lib/platform-settings-store"
+import { passwordLengthIssue } from "@/lib/platform-settings"
 import { resetPasswordSchema } from "@/lib/validations/auth"
 
 export async function POST(request: Request) {
@@ -17,6 +20,10 @@ export async function POST(request: Request) {
     }
 
     const { email, otp, newPassword } = parsed.data
+    const tooShort = passwordLengthIssue(newPassword, await getActivePlatformSettings())
+    if (tooShort) {
+      return NextResponse.json({ success: false, message: tooShort, errors: { newPassword: [tooShort] } }, { status: 400 })
+    }
     const normalizedEmail = email.toLowerCase().trim()
 
     const result = await verifyOTP({
@@ -35,12 +42,15 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(newPassword, 12)
 
+    // Sessions are JWTs, so they can't be deleted here: recording the change makes every
+    // session that signed in before it end at its next refresh (see src/lib/password-change.ts)
+    const current = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { metadata: true } })
     await prisma.user.update({
       where: { email: normalizedEmail },
-      data: { passwordHash },
+      data: { passwordHash, metadata: withPasswordChangedAt(current?.metadata, new Date()) },
     })
 
-    // Invalidate all sessions for security
+    // Database sessions (unused with the JWT strategy, but cleared in case that changes)
     await prisma.session.deleteMany({
       where: {
         user: { email: normalizedEmail },
